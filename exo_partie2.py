@@ -24,3 +24,6 @@ class Livre:
     def __str__(self):
         statut = "Disponible" if self.disponible else "Emprunté"
         return f"{self.titre} par {self.auteur} - {statut}"
+
+livre1 = Livre("Peau noir et masque blanc", "Fanon", "E129N")
+print(livre1)
