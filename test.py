@@ -1,78 +1,68 @@
-class Livre:
+class Livre:                     # Définition de la classe Livre
 
-    nombre_total = 0
+    nombre_total = 0             # Attribut de classe (commun à tous les livres)
 
-    def __init__(self, titre, auteur, isbn):
+    def __init__(self, titre, auteur, isbn):   # Constructeur
+        if not titre or not auteur or not isbn:    # Vérification des paramètres
+            raise ValueError("Champs obligatoires manquants")  # Erreur si vide
 
+        self.titre = titre        # Attribut public
+        self._auteur = auteur     # Attribut protégé (convention)
+        self.__isbn = isbn        # Attribut privé (name mangling)
+        self.disponible = True    # Indique si le livre est disponible
 
-        # PUBLIC
-        self.titre = titre
+        Livre.nombre_total += 1   # Incrémente le nombre total de livres
 
-        # PROTÉGÉ (convention)
-        self._auteur = auteur
+    def emprunter(self):          # Méthode publique
+        if not self.disponible:   # Vérifie si le livre est déjà emprunté
+            raise Exception("Livre déjà emprunté")  # Lève une erreur
+        self.disponible = False   # Change l'état du livre
+        return True               # Retourne succès
 
-        # PRIVÉ (name mangling)
-        self.__isbn = isbn
+    def retourner(self):          # Méthode publique
+        if self.disponible:       # Vérifie si le livre est déjà retourné
+            raise Exception("Livre déjà disponible")  # Lève une erreur
+        self.disponible = True    # Rend le livre disponible
 
-        # PUBLIC
-        self.disponible = True
+    def afficher_infos(self):     # Méthode publique
+        print(self)               # Appelle __str__()
 
-        Livre.nombre_total += 1
+    def _get_auteur(self):        # Méthode protégée
+        return self._auteur       # Retourne l'auteur
 
+    def __get_isbn(self):         # Méthode privée
+        return self.__isbn        # Retourne l'ISBN
 
-    def emprunter(self):
-        if self.disponible:
-            self.disponible = False
-            print("Livre emprunté.")
-            return True
-        print("Livre déjà emprunté.")
-        return False
+    def afficher_isbn(self):      # Méthode publique
+        print("ISBN :", self.__get_isbn())  # Accès sécurisé à l'ISBN
 
-    def retourner(self):
-        self.disponible = True
-        print("Livre retourné.")
-
-    def afficher_infos(self):
-        print(self)
-
-  
-    def _get_auteur(self):
-        return self._auteur
-
- 
-    def __get_isbn(self):
-        return self.__isbn
+    def __str__(self):            # Méthode spéciale d'affichage
+        statut = "Disponible" if self.disponible else "Emprunté"  # État du livre
+        return f"{self.titre} par {self._auteur} - {statut}"      # Texte final
 
 
-    def afficher_isbn(self):
-        print("ISBN :", self.__get_isbn())
+# =====================
+# TEST DU PROGRAMME
+# =====================
+if __name__ == "__main__":        # Point d'entrée du programme
 
-   
-    def __str__(self):
-        statut = "Disponible" if self.disponible else "Emprunté"
-        return f"{self.titre} par {self._auteur} - {statut}"
+    try:
+        livre1 = Livre("1984", "George Orwell", "ISBN-123")  # Création objet
+        livre1.afficher_infos()   # Affiche les infos
 
+        livre1.emprunter()        # Emprunt du livre
+        livre1.afficher_infos()   # Affiche après emprunt
 
+        livre1.emprunter()        # Erreur volontaire
 
-if __name__ == "__main__":
+    except Exception as e:        # Capture de l'erreur
+        print("Erreur :", e)      # Affichage du message d'erreur
 
-    print("=== CRÉATION DU LIVRE ===")
-    livre1 = Livre("1984", "George Orwell", "ISBN-123")
+    try:
+        livre1.retourner()        # Retour du livre
+        livre1.retourner()        # Erreur volontaire
 
-    print("\n=== ACCÈS AUX ATTRIBUTS ===")
-    print("Titre (public) :", livre1.titre)
-    print("Auteur (protégé) :", livre1._auteur)
+    except Exception as e:        # Capture de l'erreur
+        print("Erreur :", e)      # Affichage du message
 
-    print("\n=== ACCÈS AU PRIVÉ VIA MÉTHODE ===")
-    livre1.afficher_isbn()
-
-    print("\n=== TEST DES MÉTHODES ===")
-    livre1.afficher_infos()
-    livre1.emprunter()
-    livre1.afficher_infos()
-    livre1.emprunter()
-    livre1.retourner()
-    livre1.afficher_infos()
-
-    print("\n=== ATTRIBUT DE CLASSE ===")
-    print("Nombre total de livres :", Livre.nombre_total)
+    print("Nombre total de livres :", Livre.nombre_total)  # Affiche le total
