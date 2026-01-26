@@ -32,3 +32,9 @@ class Magazine(Document):
     def afficher_info(self):
         info_base = super().afficher_info()
         return f"{info_base} - N°{self.numero} ({self.mois})"
+# ===
+doc1 = Document("Peau noir et masque blanc", "Fanon")
+print(doc1.afficher_info()) #N'affiche rien
+
+livre1 = Livre("Peau noir et masque blancx", "Fanonx", "AA11EE", "100")
+print(livre1.afficher_info())
