@@ -23,4 +23,6 @@ class Livre:
 livre1 = Livre("1984", "George Orwell", "1234567890")
 
 livre1.titre = "1984 (nouvelle édition)"
+livre1.isbn = "0011991199119"
 print(livre1.titre)
+print(livre1.isbn)
