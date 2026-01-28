@@ -38,3 +38,4 @@ print(doc1.afficher_info()) #N'affiche rien
 
 livre1 = Livre("Peau noir et masque blancx", "Fanonx", "AA11EE", "100")
 print(livre1.afficher_info())
+
