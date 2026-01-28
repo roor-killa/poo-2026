@@ -26,3 +26,7 @@ class Livre:
 auteur1 = Auteur("Orwell", "George", "Britannique")
 editeur1 = Editeur("Gallimard", "Paris")
 livre1 = Livre("1984", auteur1, editeur1, "978-2070368228")
+
+# QUESTIONS **
+# - Poser la question : "Un livre électronique doit-il hériter de Livre ou contenir un Livre ?"
+# - Débat argumenté

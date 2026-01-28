@@ -1,0 +1,17 @@
+# Les 4 notions clés du Polymorphisme en Python
+
+## 1. Définition du polymorphisme
+
+Le polymorphisme est un principe fondamental de la programmation orientée objet qui permet à des objets de types différents de répondre à une même interface ou un même appel de méthode, chacun selon sa propre implémentation. Littéralement "plusieurs formes", ce concept permet d'écrire du code générique qui peut manipuler différents types d'objets sans connaître leur type exact à l'avance. En Python, le polymorphisme se manifeste lorsqu'une fonction ou une méthode peut accepter des objets de classes différentes et appeler sur eux des méthodes de même nom, obtenant des comportements spécifiques à chaque type. Par exemple, l'opérateur `+` est polymorphe : il additionne des nombres, concatène des chaînes ou fusionne des listes selon le contexte.
+
+## 2. Duck typing en Python
+
+Le duck typing est la philosophie centrale du polymorphisme en Python, résumée par l'adage *"If it walks like a duck and quacks like a duck, then it must be a duck"*. Contrairement aux langages à typage statique, Python ne vérifie pas le type exact d'un objet mais plutôt s'il possède les méthodes et attributs nécessaires au moment de l'exécution. Cela signifie qu'aucune déclaration formelle d'interface ou d'héritage n'est requise : si un objet implémente les méthodes attendues (par exemple `__len__()` et `__getitem__()`), il peut être utilisé comme une séquence. Cette approche offre une grande flexibilité et encourage un couplage faible entre les composants, permettant d'utiliser n'importe quel objet tant qu'il "se comporte" correctement, indépendamment de sa classe réelle.
+
+## 3. Polymorphisme par héritage
+
+Le polymorphisme par héritage repose sur la capacité des classes enfants à redéfinir (override) les méthodes de leurs classes parentes tout en maintenant une interface commune. Lorsqu'une classe dérive d'une classe de base, elle hérite de ses méthodes mais peut les spécialiser pour adapter le comportement à son contexte spécifique. Python résout les appels de méthodes en remontant la hiérarchie des classes (MRO - Method Resolution Order), ce qui permet à une référence de type parent de pointer vers un objet enfant et d'exécuter automatiquement la version redéfinie de la méthode. Ce mécanisme est particulièrement puissant avec les classes abstraites du module `abc` qui définissent un contrat que les sous-classes doivent respecter, garantissant ainsi qu'elles implémentent les méthodes essentielles tout en permettant des comportements variés.
+
+## 4. Polymorphisme par interface (protocole)
+
+Le polymorphisme par protocole en Python représente une approche moderne et pythonique pour définir des interfaces sans héritage explicite, introduite formellement avec les `Protocol` du module `typing` (PEP 544). Un protocole définit un ensemble de méthodes et d'attributs qu'une classe doit implémenter pour être considérée comme compatible, sans nécessiter d'héritage direct. Cette approche de "structural subtyping" permet une vérification statique optionnelle via des outils comme `mypy` tout en préservant la flexibilité du duck typing à l'exécution. Par exemple, définir un protocole `Drawable` avec une méthode `draw()` permet à n'importe quelle classe implémentant cette méthode d'être utilisée comme `Drawable`, que ce soit une `Circle`, un `Rectangle` ou même une classe provenant d'une bibliothèque tierce, favorisant ainsi la réutilisabilité et la maintenabilité du code.
