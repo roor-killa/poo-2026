@@ -2,7 +2,7 @@ class Livre:
     def __init__(self, titre, auteur, isbn):
         self._titre = titre
         self._auteur = auteur
-        self.isbn = isbn  # Privé
+        self.__isbn = isbn  # Privé
         self._disponible = True
     
     #@property
