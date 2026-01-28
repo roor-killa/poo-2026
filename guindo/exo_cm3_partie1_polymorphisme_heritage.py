@@ -27,3 +27,4 @@ def calculer_total_frais(documents, jours):
 documents = [Livre(), Magazine(), DVD()]
 frais = calculer_total_frais(documents, 10)
 print(f"Frais totaux pour 10 jours : {frais}€")
+
