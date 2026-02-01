@@ -25,3 +25,11 @@ class Bibliotheque:
     # Creation de la methode qui permet d'affichier le nom de la bibliothèque avec le nb de documents 
     def __str__(self):
         return f"Bibliothèque {self.nom} avec {len(self)} documents"
+
+bib = Bibliotheque("B1")
+bib.ajouter("Peau noire, masques blancs")
+bib.ajouter("L'Étranger")
+bib.ajouter("1984")
+print(bib)
+print(bib[0])
+print(len(bib))
