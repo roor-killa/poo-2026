@@ -1,3 +1,5 @@
+
+# Creer une classe Auteur avec les attributs nom, prenom, nationalite + une methode qui renvoie le nom et le prenom
 class Auteur:
     def __init__(self, nom, prenom, nationalite):
         self.nom = nom
@@ -7,11 +9,13 @@ class Auteur:
     def nom_complet(self):
         return f"{self.prenom} {self.nom}"
 
+# Creer une classe Editeur avec les attributs nom et ville
 class Editeur:
     def __init__(self, nom, ville):
         self.nom = nom
         self.ville = ville
 
+# Creer un classe avec les attributs titre, auteur, editeur et isbn + une methode qui affiche le titre, le nom complet de l'auteur et l'editeur
 class Livre:
     def __init__(self, titre, auteur, editeur, isbn):
         self.titre = titre
@@ -26,3 +30,4 @@ class Livre:
 auteur1 = Auteur("Orwell", "George", "Britannique")
 editeur1 = Editeur("Gallimard", "Paris")
 livre1 = Livre("1984", auteur1, editeur1, "978-2070368228")
+print(livre1.afficher_info()) # Affiche : 1984 par George Orwell, édité par Gallimard
