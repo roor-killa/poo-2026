@@ -1073,15 +1073,4 @@ POLYMORPHISME
         └── Opérateurs personnalisés
 ```
 
-### Prochains Cours
-
-**✅ CM1 - Classes et Objets** (Fait)  
-**✅ CM2 - Héritage et Composition** (Fait)  
-**✅ CM3 - Polymorphisme et Abstraction** (Fait)  
-**➡️ CM4 - Design Patterns** (Déjà créé)  
-**➡️ CM5 - SOLID** (Déjà créé)  
-**➡️ CM6 - Architecture** (Déjà créé)  
-
----
-
 *Fin du CM3 - Polymorphisme et Abstraction*

@@ -1,594 +1,1847 @@
-# CM4 - Design Patterns (Partie 1)
+# CM5 - Principes SOLID Approfondis
 ## Programmation Orientée Objet
 
 ---
 
-## Objectifs du cours
+## Introduction
 
-À la fin de cette partie, vous serez capable de :
-- Comprendre ce qu'est un design pattern et pourquoi l'utiliser
-- Identifier les situations où appliquer des patterns
-- Implémenter les patterns de création fondamentaux
-- Reconnaître les anti-patterns à éviter
+Dans le CM4, nous avons étudié les **design patterns** - des solutions réutilisables à des problèmes récurrents. Aujourd'hui, nous allons approfondir les **principes SOLID**, qui sont les fondations d'une bonne conception orientée objet.
 
----
+### Qu'est-ce que SOLID ?
 
-## 1. Introduction aux Design Patterns
+SOLID est un acronyme pour 5 principes fondamentaux de la POO, introduits par Robert C. Martin (Uncle Bob) :
 
-### 1.1 Qu'est-ce qu'un Design Pattern ?
+- **S** - Single Responsibility Principle (Principe de responsabilité unique)
+- **O** - Open/Closed Principle (Principe ouvert/fermé)
+- **L** - Liskov Substitution Principle (Principe de substitution de Liskov)
+- **I** - Interface Segregation Principle (Principe de ségrégation des interfaces)
+- **D** - Dependency Inversion Principle (Principe d'inversion des dépendances)
 
-Un **design pattern** (ou patron de conception) est une solution réutilisable à un problème récurrent dans la conception logicielle. Ce n'est pas du code prêt à l'emploi, mais plutôt un **modèle** ou une **recette** pour résoudre un type de problème.
+### Pourquoi SOLID ?
 
-**Analogie concrète** : Tout comme une recette de cuisine donne des instructions pour préparer un plat (sans être le plat lui-même), un design pattern donne une structure pour résoudre un problème (sans être le code final).
+Ces principes permettent de créer du code :
+- ✅ **Maintenable** : Facile à modifier et étendre
+- ✅ **Testable** : Facile à tester unitairement
+- ✅ **Flexible** : S'adapte aux changements
+- ✅ **Compréhensible** : Structure claire et logique
+- ✅ **Réutilisable** : Composants indépendants
 
-### 1.2 Pourquoi utiliser des Design Patterns ?
-
-**1. Communication efficace**
-```python
-# Au lieu de dire : "J'ai fait une classe qui gère une seule instance..."
-# On dit simplement : "J'ai utilisé un Singleton"
-```
-
-**2. Solutions éprouvées**
-- Évite de réinventer la roue
-- Réduit les bugs potentiels
-- Accélère le développement
-
-**3. Code maintenable**
-- Structure claire et prévisible
-- Facilite les modifications futures
-- Améliore la collaboration en équipe
-
-**4. Évolutivité**
-- Facilite l'ajout de nouvelles fonctionnalités
-- Réduit l'impact des changements
-
-### 1.3 Les trois catégories de patterns
-
-Les design patterns sont classés en trois grandes familles :
-
-#### 🏗️ **Patterns de Création** (Creational Patterns)
-Concernent la **création d'objets** de manière flexible et réutilisable.
-- Singleton
-- Factory Method
-- Abstract Factory
-- Builder
-- Prototype
-
-#### 🔧 **Patterns de Structure** (Structural Patterns)
-Concernent l'**organisation des classes et objets** pour former des structures plus complexes.
-- Adapter
-- Decorator
-- Facade
-- Composite
-- Proxy
-
-#### ⚡ **Patterns de Comportement** (Behavioral Patterns)
-Concernent la **communication entre objets** et la répartition des responsabilités.
-- Observer
-- Strategy
-- Command
-- State
-- Template Method
+**Important :** SOLID ne sont pas des règles absolues, mais des **guidelines** pour prendre de meilleures décisions de conception.
 
 ---
 
-## 2. Les Patterns de Création
+## 1. Single Responsibility Principle (SRP)
 
-Dans cette première partie, nous allons étudier les patterns de création les plus fondamentaux.
+### Définition
 
-### 2.1 Le Pattern Singleton
+> **Une classe ne devrait avoir qu'une seule raison de changer.**
 
-#### Problème à résoudre
+Autrement dit : **une classe = une responsabilité**.
 
-Imaginez que vous développez une application pour gérer les ressources d'un campus universitaire. Vous avez besoin d'une classe `Configuration` qui charge les paramètres de l'application (base de données, API keys, etc.).
+### Problème à résoudre
 
-**Problème** : Si plusieurs parties du code créent des instances de `Configuration`, vous aurez :
-- Plusieurs lectures du fichier de configuration (ralentissement)
-- Incohérences possibles si les valeurs changent
-- Gaspillage de mémoire
+Quand une classe fait trop de choses différentes :
+- Difficile à comprendre
+- Difficile à tester
+- Changements risqués (effet domino)
+- Violation du principe de cohésion
 
-**Solution** : Garantir qu'une seule instance de la classe existe dans toute l'application.
-
-#### Structure du Singleton
+### ❌ Violation du SRP
 
 ```python
-class Singleton:
+class Student:
     """
-    Pattern Singleton classique
+    ❌ Cette classe a TROP de responsabilités
     """
-    _instance = None
     
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+    def __init__(self, name, email, student_id):
+        self.name = name
+        self.email = email
+        self.student_id = student_id
+        self.grades = []
+    
+    # Responsabilité 1: Gestion des données étudiant
+    def add_grade(self, course, grade):
+        self.grades.append({'course': course, 'grade': grade})
+    
+    def get_average(self):
+        if not self.grades:
+            return 0
+        return sum(g['grade'] for g in self.grades) / len(self.grades)
+    
+    # Responsabilité 2: Validation des données
+    def validate_email(self):
+        import re
+        pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+        return re.match(pattern, self.email) is not None
+    
+    def validate_student_id(self):
+        return len(self.student_id) == 8 and self.student_id.isdigit()
+    
+    # Responsabilité 3: Persistance en base de données
+    def save_to_database(self):
+        import sqlite3
+        conn = sqlite3.connect('students.db')
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO students VALUES (?, ?, ?)",
+            (self.student_id, self.name, self.email)
+        )
+        conn.commit()
+        conn.close()
+    
+    # Responsabilité 4: Génération de rapports
+    def generate_report(self):
+        report = f"=== Rapport pour {self.name} ===\n"
+        report += f"ID: {self.student_id}\n"
+        report += f"Email: {self.email}\n"
+        report += f"Moyenne: {self.get_average():.2f}\n"
+        return report
+    
+    # Responsabilité 5: Envoi d'emails
+    def send_welcome_email(self):
+        import smtplib
+        msg = f"Bienvenue {self.name}!"
+        # Code d'envoi d'email...
+        print(f"Email envoyé à {self.email}")
+    
+    # Responsabilité 6: Export
+    def export_to_json(self):
+        import json
+        return json.dumps({
+            'name': self.name,
+            'email': self.email,
+            'student_id': self.student_id,
+            'grades': self.grades
+        })
 ```
 
-#### Exemple concret : Gestionnaire de Configuration
+**Problèmes de cette classe :**
+1. Si le format de rapport change → modifier Student
+2. Si la base de données change → modifier Student
+3. Si la validation d'email change → modifier Student
+4. Impossible de tester la logique métier sans BD
+5. Classe énorme et difficile à maintenir
+
+### ✅ Respect du SRP
 
 ```python
-class ConfigurationManager:
-    """
-    Gestionnaire de configuration pour l'application campus
-    """
-    _instance = None
-    _initialized = False
-    
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-    
-    def __init__(self):
-        # Éviter la réinitialisation à chaque appel
-        if not ConfigurationManager._initialized:
-            self.config = {}
-            self.load_config()
-            ConfigurationManager._initialized = True
-    
-    def load_config(self):
-        """Charge la configuration depuis un fichier"""
-        self.config = {
-            'db_host': 'localhost',
-            'db_port': 5432,
-            'api_key': 'secret_key_123',
-            'max_connections': 100
-        }
-        print("Configuration chargée")
-    
-    def get(self, key):
-        """Récupère une valeur de configuration"""
-        return self.config.get(key)
-    
-    def set(self, key, value):
-        """Modifie une valeur de configuration"""
-        self.config[key] = value
+from abc import ABC, abstractmethod
+from typing import List, Dict
+import re
+import json
 
 
-# Utilisation
+# === Classe Student : UNE SEULE responsabilité (données métier) ===
+
+class Student:
+    """
+    ✅ Responsabilité unique: Gérer les données métier d'un étudiant
+    """
+    
+    def __init__(self, name: str, email: str, student_id: str):
+        self.name = name
+        self.email = email
+        self.student_id = student_id
+        self.grades: List[Dict] = []
+    
+    def add_grade(self, course: str, grade: float):
+        """Ajoute une note"""
+        self.grades.append({'course': course, 'grade': grade})
+    
+    def get_average(self) -> float:
+        """Calcule la moyenne"""
+        if not self.grades:
+            return 0.0
+        return sum(g['grade'] for g in self.grades) / len(self.grades)
+    
+    def get_grades_for_course(self, course: str) -> List[float]:
+        """Récupère toutes les notes pour un cours"""
+        return [g['grade'] for g in self.grades if g['course'] == course]
+
+
+# === Validation : Responsabilité séparée ===
+
+class StudentValidator:
+    """
+    ✅ Responsabilité unique: Valider les données étudiant
+    """
+    
+    @staticmethod
+    def validate_email(email: str) -> bool:
+        """Valide le format d'email"""
+        pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+        return re.match(pattern, email) is not None
+    
+    @staticmethod
+    def validate_student_id(student_id: str) -> bool:
+        """Valide le format de l'ID étudiant"""
+        return len(student_id) == 8 and student_id.isdigit()
+    
+    @staticmethod
+    def validate_grade(grade: float) -> bool:
+        """Valide qu'une note est dans l'intervalle valide"""
+        return 0 <= grade <= 20
+    
+    def validate_student(self, student: Student) -> tuple[bool, List[str]]:
+        """
+        Valide un étudiant complet
+        Returns: (is_valid, error_messages)
+        """
+        errors = []
+        
+        if not self.validate_email(student.email):
+            errors.append("Email invalide")
+        
+        if not self.validate_student_id(student.student_id):
+            errors.append("ID étudiant invalide (doit être 8 chiffres)")
+        
+        if not student.name or len(student.name) < 2:
+            errors.append("Nom invalide")
+        
+        return len(errors) == 0, errors
+
+
+# === Persistance : Responsabilité séparée ===
+
+class StudentRepository:
+    """
+    ✅ Responsabilité unique: Gérer la persistance des étudiants
+    """
+    
+    def __init__(self, db_path: str = 'students.db'):
+        self.db_path = db_path
+        self._init_database()
+    
+    def _init_database(self):
+        """Initialise la base de données"""
+        import sqlite3
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS students (
+                student_id TEXT PRIMARY KEY,
+                name TEXT,
+                email TEXT
+            )
+        ''')
+        conn.commit()
+        conn.close()
+    
+    def save(self, student: Student):
+        """Sauvegarde un étudiant"""
+        import sqlite3
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT OR REPLACE INTO students VALUES (?, ?, ?)",
+            (student.student_id, student.name, student.email)
+        )
+        conn.commit()
+        conn.close()
+    
+    def find_by_id(self, student_id: str) -> Student:
+        """Récupère un étudiant par son ID"""
+        import sqlite3
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM students WHERE student_id = ?",
+            (student_id,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return Student(name=row[1], email=row[2], student_id=row[0])
+        return None
+    
+    def delete(self, student_id: str):
+        """Supprime un étudiant"""
+        import sqlite3
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM students WHERE student_id = ?", (student_id,))
+        conn.commit()
+        conn.close()
+
+
+# === Génération de rapports : Responsabilité séparée ===
+
+class StudentReportGenerator:
+    """
+    ✅ Responsabilité unique: Générer des rapports sur les étudiants
+    """
+    
+    def generate_text_report(self, student: Student) -> str:
+        """Génère un rapport texte"""
+        report = f"{'=' * 50}\n"
+        report += f"RAPPORT ÉTUDIANT\n"
+        report += f"{'=' * 50}\n"
+        report += f"Nom: {student.name}\n"
+        report += f"ID: {student.student_id}\n"
+        report += f"Email: {student.email}\n"
+        report += f"Moyenne générale: {student.get_average():.2f}/20\n"
+        report += f"\nDétail des notes:\n"
+        
+        for grade_info in student.grades:
+            report += f"  - {grade_info['course']}: {grade_info['grade']}/20\n"
+        
+        report += f"{'=' * 50}\n"
+        return report
+    
+    def generate_json_report(self, student: Student) -> str:
+        """Génère un rapport JSON"""
+        return json.dumps({
+            'name': student.name,
+            'email': student.email,
+            'student_id': student.student_id,
+            'average': student.get_average(),
+            'grades': student.grades
+        }, indent=2)
+    
+    def generate_html_report(self, student: Student) -> str:
+        """Génère un rapport HTML"""
+        html = f"""
+        <div class="student-report">
+            <h2>{student.name}</h2>
+            <p>ID: {student.student_id}</p>
+            <p>Email: {student.email}</p>
+            <p>Moyenne: {student.get_average():.2f}/20</p>
+            <ul>
+        """
+        for grade_info in student.grades:
+            html += f"<li>{grade_info['course']}: {grade_info['grade']}/20</li>\n"
+        html += "</ul></div>"
+        return html
+
+
+# === Notification : Responsabilité séparée ===
+
+class StudentNotificationService:
+    """
+    ✅ Responsabilité unique: Envoyer des notifications aux étudiants
+    """
+    
+    def send_welcome_email(self, student: Student):
+        """Envoie un email de bienvenue"""
+        # Simulation d'envoi d'email
+        print(f"📧 Email de bienvenue envoyé à {student.email}")
+        print(f"   Destinataire: {student.name}")
+    
+    def send_grade_notification(self, student: Student, course: str, grade: float):
+        """Notifie l'étudiant d'une nouvelle note"""
+        print(f"📧 Notification de note envoyée à {student.email}")
+        print(f"   {course}: {grade}/20")
+    
+    def send_report(self, student: Student, report_content: str):
+        """Envoie un rapport par email"""
+        print(f"📧 Rapport envoyé à {student.email}")
+
+
+# === Utilisation ===
+
 if __name__ == "__main__":
-    # Première instance
-    config1 = ConfigurationManager()
-    print(f"DB Host: {config1.get('db_host')}")
+    print("=" * 70)
+    print("DÉMONSTRATION DU PRINCIPE SRP")
+    print("=" * 70)
     
-    # Deuxième "instance" - en réalité, c'est la même !
-    config2 = ConfigurationManager()
+    # Créer un étudiant
+    student = Student(
+        name="Marie Lafleur",
+        email="marie.lafleur@etudiant.ua.fr",
+        student_id="20231234"
+    )
     
-    # Vérification
-    print(f"config1 est config2 ? {config1 is config2}")  # True
+    # Ajouter des notes
+    student.add_grade("POO", 15)
+    student.add_grade("Web Dev", 16)
+    student.add_grade("Mobile", 14)
     
-    # Modification via config2
-    config2.set('db_host', 'production-server')
+    # Validation (responsabilité séparée)
+    print("\n--- Validation ---")
+    validator = StudentValidator()
+    is_valid, errors = validator.validate_student(student)
     
-    # La modification est visible via config1
-    print(f"DB Host via config1: {config1.get('db_host')}")  # production-server
+    if is_valid:
+        print("✓ Étudiant valide")
+    else:
+        print("✗ Erreurs de validation:")
+        for error in errors:
+            print(f"  - {error}")
+    
+    # Persistance (responsabilité séparée)
+    print("\n--- Persistance ---")
+    repository = StudentRepository(':memory:')  # Base en mémoire pour démo
+    repository.save(student)
+    print("✓ Étudiant sauvegardé en base de données")
+    
+    # Génération de rapport (responsabilité séparée)
+    print("\n--- Génération de rapport ---")
+    report_generator = StudentReportGenerator()
+    print(report_generator.generate_text_report(student))
+    
+    # Notification (responsabilité séparée)
+    print("\n--- Notifications ---")
+    notifier = StudentNotificationService()
+    notifier.send_welcome_email(student)
+    notifier.send_grade_notification(student, "POO", 15)
+    
+    print("\n" + "=" * 70)
+    print("AVANTAGES DU SRP:")
+    print("- Chaque classe a une responsabilité claire")
+    print("- Facile à tester unitairement")
+    print("- Modifications isolées (changer le format de rapport n'affecte pas Student)")
+    print("- Réutilisable (StudentValidator peut valider d'autres entités)")
+    print("=" * 70)
 ```
 
-**Sortie** :
+**Sortie :**
 ```
-Configuration chargée
-DB Host: localhost
-config1 est config2 ? True
-DB Host via config1: production-server
-```
+======================================================================
+DÉMONSTRATION DU PRINCIPE SRP
+======================================================================
 
-#### Variante : Singleton avec décorateur (Pythonic)
+--- Validation ---
+✓ Étudiant valide
 
-```python
-def singleton(cls):
-    """
-    Décorateur pour transformer une classe en Singleton
-    """
-    instances = {}
-    
-    def get_instance(*args, **kwargs):
-        if cls not in instances:
-            instances[cls] = cls(*args, **kwargs)
-        return instances[cls]
-    
-    return get_instance
+--- Persistance ---
+✓ Étudiant sauvegardé en base de données
 
+--- Génération de rapport ---
+==================================================
+RAPPORT ÉTUDIANT
+==================================================
+Nom: Marie Lafleur
+ID: 20231234
+Email: marie.lafleur@etudiant.ua.fr
+Moyenne générale: 15.00/20
 
-@singleton
-class DatabaseConnection:
-    """
-    Connexion unique à la base de données
-    """
-    def __init__(self):
-        self.connection = None
-        self.connect()
-    
-    def connect(self):
-        print("Connexion à la base de données établie")
-        self.connection = "Connection Object"
-    
-    def query(self, sql):
-        return f"Exécution de : {sql}"
+Détail des notes:
+  - POO: 15/20
+  - Web Dev: 16/20
+  - Mobile: 14/20
+==================================================
 
+--- Notifications ---
+📧 Email de bienvenue envoyé à marie.lafleur@etudiant.ua.fr
+   Destinataire: Marie Lafleur
+📧 Notification de note envoyée à marie.lafleur@etudiant.ua.fr
+   POO: 15/20
 
-# Utilisation
-db1 = DatabaseConnection()
-db2 = DatabaseConnection()
-
-print(f"db1 is db2 ? {db1 is db2}")  # True
-print(db1.query("SELECT * FROM students"))
+======================================================================
+AVANTAGES DU SRP:
+- Chaque classe a une responsabilité claire
+- Facile à tester unitairement
+- Modifications isolées (changer le format de rapport n'affecte pas Student)
+- Réutilisable (StudentValidator peut valider d'autres entités)
+======================================================================
 ```
 
-#### ⚠️ Quand utiliser le Singleton ?
+### Comment identifier une violation du SRP ?
 
-**✅ Utilisez-le pour :**
-- Gestionnaires de configuration
-- Connexions à la base de données (pool de connexions)
-- Gestionnaires de logs
-- Gestionnaires de cache
-- Services partagés globalement
+**Questions à se poser :**
+1. Cette classe a-t-elle plus d'une raison de changer ?
+2. Peut-on décrire la classe en une phrase sans utiliser "et" ?
+3. La classe a-t-elle des dépendances vers des systèmes externes (BD, email, API) ?
 
-**❌ Évitez-le pour :**
-- Tout ce qui nécessite plusieurs instances
-- Classes avec état modifiable par plusieurs composants (risque de bugs)
-- Tests unitaires (difficile à mocker)
+**Signes d'alerte :**
+- Classe avec beaucoup de méthodes (>10-15)
+- Imports nombreux et variés
+- Nom de classe vague (Manager, Handler, Util)
+- Difficile à tester sans mocks multiples
 
 ---
 
-### 2.2 Le Pattern Factory Method
+## 2. Open/Closed Principle (OCP)
 
-#### Problème à résoudre
+### Définition
 
-Vous développez un système de gestion d'événements pour le campus. Vous avez différents types d'événements (conférences, ateliers, compétitions sportives), chacun avec des comportements spécifiques.
+> **Les entités logicielles doivent être ouvertes à l'extension mais fermées à la modification.**
 
-**Problème** : Comment créer le bon type d'événement sans avoir à connaître les détails de chaque classe ?
+Autrement dit : On doit pouvoir **ajouter des fonctionnalités** sans **modifier le code existant**.
 
-**Mauvaise approche** :
+### Problème à résoudre
+
+Quand on ajoute une fonctionnalité, il faut modifier du code existant :
+- Risque de casser ce qui fonctionnait
+- Tests à refaire
+- Déploiements risqués
+
+### ❌ Violation de l'OCP
+
 ```python
-# Code difficile à maintenir
-if event_type == "conference":
-    event = Conference(title, date, speaker)
-elif event_type == "workshop":
-    event = Workshop(title, date, max_participants)
-elif event_type == "sport":
-    event = SportEvent(title, date, sport_type)
-# ... et si on ajoute un nouveau type ?
+class PaymentProcessor:
+    """
+    ❌ Pour ajouter une nouvelle méthode de paiement,
+    il faut MODIFIER cette classe
+    """
+    
+    def process_payment(self, amount: float, method: str, details: dict):
+        """Traite un paiement"""
+        
+        if method == "credit_card":
+            # Traitement carte de crédit
+            card_number = details['card_number']
+            cvv = details['cvv']
+            print(f"Paiement CB de {amount}€")
+            print(f"Carte: ****{card_number[-4:]}")
+            return {"status": "success", "transaction_id": "CC-12345"}
+        
+        elif method == "paypal":
+            # Traitement PayPal
+            email = details['email']
+            print(f"Paiement PayPal de {amount}€")
+            print(f"Compte: {email}")
+            return {"status": "success", "transaction_id": "PP-67890"}
+        
+        elif method == "bank_transfer":
+            # Traitement virement
+            iban = details['iban']
+            print(f"Virement de {amount}€")
+            print(f"IBAN: {iban}")
+            return {"status": "pending", "transaction_id": "BT-11111"}
+        
+        # ❌ Pour ajouter Stripe, il faut MODIFIER cette méthode
+        # elif method == "stripe":
+        #     ...
+        
+        # ❌ Pour ajouter Apple Pay, il faut MODIFIER cette méthode
+        # elif method == "apple_pay":
+        #     ...
+        
+        else:
+            raise ValueError(f"Méthode de paiement inconnue: {method}")
 ```
 
-**Solution** : Déléguer la création d'objets à des méthodes factory.
+**Problèmes :**
+- Chaque nouveau mode de paiement = modification de la classe
+- Risque de casser les méthodes existantes
+- Violation du SRP (trop de responsabilités)
+- Code difficile à tester
 
-#### Structure du Factory Method
+### ✅ Respect de l'OCP
+
+```python
+from abc import ABC, abstractmethod
+from typing import Dict
+
+
+# === Interface (abstraction) ===
+
+class PaymentMethod(ABC):
+    """
+    Interface pour les méthodes de paiement
+    ✅ Ouvert à l'extension (nouvelle classe)
+    ✅ Fermé à la modification (pas besoin de changer cette interface)
+    """
+    
+    @abstractmethod
+    def process(self, amount: float, details: Dict) -> Dict:
+        """
+        Traite un paiement
+        Returns: dict avec status et transaction_id
+        """
+        pass
+    
+    @abstractmethod
+    def get_name(self) -> str:
+        """Retourne le nom de la méthode"""
+        pass
+
+
+# === Implémentations concrètes ===
+
+class CreditCardPayment(PaymentMethod):
+    """Paiement par carte de crédit"""
+    
+    def process(self, amount: float, details: Dict) -> Dict:
+        card_number = details['card_number']
+        cvv = details['cvv']
+        
+        print(f"💳 Paiement CB de {amount}€")
+        print(f"   Carte: ****{card_number[-4:]}")
+        
+        # Logique spécifique carte de crédit
+        return {
+            "status": "success",
+            "transaction_id": f"CC-{card_number[-4:]}",
+            "method": self.get_name()
+        }
+    
+    def get_name(self) -> str:
+        return "Carte de Crédit"
+
+
+class PayPalPayment(PaymentMethod):
+    """Paiement via PayPal"""
+    
+    def process(self, amount: float, details: Dict) -> Dict:
+        email = details['email']
+        
+        print(f"💰 Paiement PayPal de {amount}€")
+        print(f"   Compte: {email}")
+        
+        # Logique spécifique PayPal
+        return {
+            "status": "success",
+            "transaction_id": f"PP-{hash(email) % 100000}",
+            "method": self.get_name()
+        }
+    
+    def get_name(self) -> str:
+        return "PayPal"
+
+
+class BankTransferPayment(PaymentMethod):
+    """Paiement par virement bancaire"""
+    
+    def process(self, amount: float, details: Dict) -> Dict:
+        iban = details['iban']
+        
+        print(f"🏦 Virement de {amount}€")
+        print(f"   IBAN: {iban}")
+        
+        # Les virements prennent du temps
+        return {
+            "status": "pending",
+            "transaction_id": f"BT-{iban[-4:]}",
+            "method": self.get_name(),
+            "estimated_days": 3
+        }
+    
+    def get_name(self) -> str:
+        return "Virement Bancaire"
+
+
+# ✅ NOUVELLE méthode sans MODIFIER le code existant
+class StripePayment(PaymentMethod):
+    """Paiement via Stripe"""
+    
+    def process(self, amount: float, details: Dict) -> Dict:
+        token = details['stripe_token']
+        
+        print(f"⚡ Paiement Stripe de {amount}€")
+        print(f"   Token: {token[:10]}...")
+        
+        return {
+            "status": "success",
+            "transaction_id": f"STRIPE-{token[-6:]}",
+            "method": self.get_name()
+        }
+    
+    def get_name(self) -> str:
+        return "Stripe"
+
+
+# ✅ NOUVELLE méthode sans MODIFIER le code existant
+class ApplePayPayment(PaymentMethod):
+    """Paiement via Apple Pay"""
+    
+    def process(self, amount: float, details: Dict) -> Dict:
+        device_id = details['device_id']
+        
+        print(f"🍎 Paiement Apple Pay de {amount}€")
+        print(f"   Appareil: {device_id}")
+        
+        return {
+            "status": "success",
+            "transaction_id": f"APPLE-{device_id[-6:]}",
+            "method": self.get_name()
+        }
+    
+    def get_name(self) -> str:
+        return "Apple Pay"
+
+
+# === Processeur de paiement (utilise le polymorphisme) ===
+
+class PaymentProcessor:
+    """
+    ✅ Cette classe n'a JAMAIS besoin d'être modifiée
+    pour ajouter de nouvelles méthodes de paiement
+    """
+    
+    def __init__(self):
+        self.payment_methods: Dict[str, PaymentMethod] = {}
+    
+    def register_payment_method(self, key: str, method: PaymentMethod):
+        """Enregistre une méthode de paiement"""
+        self.payment_methods[key] = method
+        print(f"✓ Méthode '{method.get_name()}' enregistrée")
+    
+    def process_payment(self, amount: float, method_key: str, details: Dict) -> Dict:
+        """Traite un paiement"""
+        
+        if method_key not in self.payment_methods:
+            raise ValueError(f"Méthode inconnue: {method_key}")
+        
+        payment_method = self.payment_methods[method_key]
+        return payment_method.process(amount, details)
+    
+    def list_available_methods(self):
+        """Liste les méthodes disponibles"""
+        print("\n📋 Méthodes de paiement disponibles:")
+        for key, method in self.payment_methods.items():
+            print(f"  - {key}: {method.get_name()}")
+
+
+# === Utilisation ===
+
+if __name__ == "__main__":
+    print("=" * 70)
+    print("DÉMONSTRATION DU PRINCIPE OCP")
+    print("=" * 70)
+    
+    # Créer le processeur
+    processor = PaymentProcessor()
+    
+    # Enregistrer les méthodes de paiement
+    print("\n--- Enregistrement des méthodes ---")
+    processor.register_payment_method("credit_card", CreditCardPayment())
+    processor.register_payment_method("paypal", PayPalPayment())
+    processor.register_payment_method("bank_transfer", BankTransferPayment())
+    
+    # ✅ Ajouter Stripe SANS modifier PaymentProcessor
+    processor.register_payment_method("stripe", StripePayment())
+    
+    # ✅ Ajouter Apple Pay SANS modifier PaymentProcessor
+    processor.register_payment_method("apple_pay", ApplePayPayment())
+    
+    # Lister les méthodes
+    processor.list_available_methods()
+    
+    # Traiter des paiements
+    print("\n--- Traitement de paiements ---\n")
+    
+    result1 = processor.process_payment(
+        50.00,
+        "credit_card",
+        {"card_number": "1234567890123456", "cvv": "123"}
+    )
+    print(f"Résultat: {result1}\n")
+    
+    result2 = processor.process_payment(
+        75.50,
+        "stripe",
+        {"stripe_token": "tok_1234567890abcdef"}
+    )
+    print(f"Résultat: {result2}\n")
+    
+    result3 = processor.process_payment(
+        100.00,
+        "apple_pay",
+        {"device_id": "iPhone-XYZ-123"}
+    )
+    print(f"Résultat: {result3}\n")
+    
+    print("=" * 70)
+    print("AVANTAGES DE L'OCP:")
+    print("- Nouvelles méthodes ajoutées SANS modifier le code existant")
+    print("- Aucun risque de casser les méthodes qui fonctionnent")
+    print("- Tests existants toujours valides")
+    print("- Extension facile et sûre")
+    print("=" * 70)
+```
+
+**Sortie :**
+```
+======================================================================
+DÉMONSTRATION DU PRINCIPE OCP
+======================================================================
+
+--- Enregistrement des méthodes ---
+✓ Méthode 'Carte de Crédit' enregistrée
+✓ Méthode 'PayPal' enregistrée
+✓ Méthode 'Virement Bancaire' enregistrée
+✓ Méthode 'Stripe' enregistrée
+✓ Méthode 'Apple Pay' enregistrée
+
+📋 Méthodes de paiement disponibles:
+  - credit_card: Carte de Crédit
+  - paypal: PayPal
+  - bank_transfer: Virement Bancaire
+  - stripe: Stripe
+  - apple_pay: Apple Pay
+
+--- Traitement de paiements ---
+
+💳 Paiement CB de 50.0€
+   Carte: ****3456
+Résultat: {'status': 'success', 'transaction_id': 'CC-3456', 'method': 'Carte de Crédit'}
+
+⚡ Paiement Stripe de 75.5€
+   Token: tok_123456...
+Résultat: {'status': 'success', 'transaction_id': 'STRIPE-bcdef', 'method': 'Stripe'}
+
+🍎 Paiement Apple Pay de 100.0€
+   Appareil: iPhone-XYZ-123
+Résultat: {'status': 'success', 'transaction_id': 'APPLE-XYZ-12', 'method': 'Apple Pay'}
+
+======================================================================
+AVANTAGES DE L'OCP:
+- Nouvelles méthodes ajoutées SANS modifier le code existant
+- Aucun risque de casser les méthodes qui fonctionnent
+- Tests existants toujours valides
+- Extension facile et sûre
+======================================================================
+```
+
+### Techniques pour respecter l'OCP
+
+1. **Héritage et polymorphisme** (comme ci-dessus)
+2. **Design patterns** : Strategy, Decorator, Factory
+3. **Injection de dépendances**
+4. **Configuration externe** (fichiers, base de données)
+
+### Lien avec les Design Patterns
+
+- **Strategy Pattern** = Application directe de l'OCP
+- **Decorator Pattern** = Extension sans modification
+- **Factory Pattern** = Ajout de types sans modifier la factory
+
+---
+
+## 3. Liskov Substitution Principle (LSP)
+
+### Définition
+
+> **Les objets d'une classe dérivée doivent pouvoir remplacer les objets de la classe de base sans altérer le bon fonctionnement du programme.**
+
+Autrement dit : **Si S est un sous-type de T, alors les objets de type T peuvent être remplacés par des objets de type S sans changer les propriétés désirables du programme.**
+
+### Problème à résoudre
+
+Une classe dérivée qui ne respecte pas le contrat de la classe de base :
+- Comportement inattendu
+- Bugs difficiles à détecter
+- Code client doit connaître les types spécifiques
+
+### ❌ Violation du LSP
+
+```python
+class Bird:
+    """Classe de base pour les oiseaux"""
+    
+    def __init__(self, name: str):
+        self.name = name
+    
+    def fly(self):
+        """Tous les oiseaux volent... ou pas ?"""
+        print(f"{self.name} vole dans le ciel")
+
+
+class Sparrow(Bird):
+    """Moineau - peut voler ✓"""
+    
+    def fly(self):
+        print(f"{self.name} vole rapidement")
+
+
+class Penguin(Bird):
+    """
+    ❌ Pingouin - NE PEUT PAS voler !
+    Violation du LSP car Penguin ne peut pas remplacer Bird
+    """
+    
+    def fly(self):
+        # ❌ Lève une exception ou comportement inattendu
+        raise Exception(f"{self.name} ne peut pas voler!")
+
+
+# Code client qui attend que tous les oiseaux volent
+def make_birds_fly(birds: list[Bird]):
+    """Fait voler tous les oiseaux"""
+    for bird in birds:
+        bird.fly()  # ❌ Crash avec Penguin!
+
+
+# Utilisation
+birds = [
+    Sparrow("Moineau"),
+    Sparrow("Hirondelle"),
+    Penguin("Tux")  # ❌ Va causer un crash
+]
+
+# make_birds_fly(birds)  # ❌ Exception!
+```
+
+### ✅ Respect du LSP
 
 ```python
 from abc import ABC, abstractmethod
 
 
-class Event(ABC):
-    """Classe abstraite pour tous les événements"""
-    
-    def __init__(self, title, date):
-        self.title = title
-        self.date = date
-    
-    @abstractmethod
-    def get_description(self):
-        """Retourne une description de l'événement"""
-        pass
-    
-    @abstractmethod
-    def get_duration(self):
-        """Retourne la durée de l'événement"""
-        pass
+# === Solution 1: Revoir la hiérarchie ===
 
-
-class Conference(Event):
-    """Événement de type conférence"""
-    
-    def __init__(self, title, date, speaker, topic):
-        super().__init__(title, date)
-        self.speaker = speaker
-        self.topic = topic
-    
-    def get_description(self):
-        return f"Conférence: {self.title} par {self.speaker} sur {self.topic}"
-    
-    def get_duration(self):
-        return "2 heures"
-
-
-class Workshop(Event):
-    """Événement de type atelier pratique"""
-    
-    def __init__(self, title, date, max_participants, materials):
-        super().__init__(title, date)
-        self.max_participants = max_participants
-        self.materials = materials
-    
-    def get_description(self):
-        return f"Atelier: {self.title} (max {self.max_participants} participants)"
-    
-    def get_duration(self):
-        return "3 heures"
-
-
-class SportEvent(Event):
-    """Événement sportif"""
-    
-    def __init__(self, title, date, sport_type, teams):
-        super().__init__(title, date)
-        self.sport_type = sport_type
-        self.teams = teams
-    
-    def get_description(self):
-        return f"Compétition de {self.sport_type}: {self.title}"
-    
-    def get_duration(self):
-        return "Variable selon le sport"
-
-
-class EventFactory:
+class Bird(ABC):
     """
-    Factory pour créer des événements
+    ✅ Classe de base sans assomptions sur le vol
     """
     
-    @staticmethod
-    def create_event(event_type, **kwargs):
-        """
-        Crée un événement selon son type
-        
-        Args:
-            event_type: Type d'événement ('conference', 'workshop', 'sport')
-            **kwargs: Paramètres spécifiques à chaque type
-        
-        Returns:
-            Instance de Event
-        """
-        event_types = {
-            'conference': Conference,
-            'workshop': Workshop,
-            'sport': SportEvent
-        }
-        
-        event_class = event_types.get(event_type)
-        
-        if event_class is None:
-            raise ValueError(f"Type d'événement inconnu: {event_type}")
-        
-        return event_class(**kwargs)
+    def __init__(self, name: str):
+        self.name = name
+    
+    @abstractmethod
+    def move(self):
+        """Tous les oiseaux se déplacent (abstrait)"""
+        pass
+    
+    def eat(self):
+        """Tous les oiseaux mangent"""
+        print(f"{self.name} mange")
 
 
-# Utilisation
+class FlyingBird(Bird):
+    """
+    ✅ Oiseaux qui peuvent voler
+    """
+    
+    def move(self):
+        self.fly()
+    
+    def fly(self):
+        """Comportement de vol"""
+        print(f"{self.name} vole")
+
+
+class FlightlessBird(Bird):
+    """
+    ✅ Oiseaux qui ne volent pas
+    """
+    
+    def move(self):
+        self.walk()
+    
+    def walk(self):
+        """Comportement de marche"""
+        print(f"{self.name} marche")
+
+
+# Implémentations concrètes
+class Sparrow(FlyingBird):
+    """Moineau"""
+    
+    def fly(self):
+        print(f"🐦 {self.name} vole rapidement")
+
+
+class Eagle(FlyingBird):
+    """Aigle"""
+    
+    def fly(self):
+        print(f"🦅 {self.name} plane majestueusement")
+
+
+class Penguin(FlightlessBird):
+    """Pingouin"""
+    
+    def walk(self):
+        print(f"🐧 {self.name} se dandine")
+    
+    def swim(self):
+        """Comportement spécifique: nager"""
+        print(f"🐧 {self.name} nage sous l'eau")
+
+
+class Ostrich(FlightlessBird):
+    """Autruche"""
+    
+    def walk(self):
+        print(f"🦤 {self.name} court très vite")
+
+
+# === Code client qui respecte le LSP ===
+
+def make_birds_move(birds: list[Bird]):
+    """
+    ✅ Fonctionne avec TOUS les oiseaux
+    car on utilise la méthode abstraite move()
+    """
+    for bird in birds:
+        bird.move()  # Polymorphisme correct
+
+
+def make_flying_birds_fly(birds: list[FlyingBird]):
+    """
+    ✅ Spécifique aux oiseaux volants
+    """
+    for bird in birds:
+        bird.fly()
+
+
+# === Utilisation ===
+
 if __name__ == "__main__":
-    factory = EventFactory()
+    print("=" * 70)
+    print("DÉMONSTRATION DU PRINCIPE LSP")
+    print("=" * 70)
     
-    # Créer une conférence
-    conf = factory.create_event(
-        'conference',
-        title="Intelligence Artificielle et Éducation",
-        date="2025-03-15",
-        speaker="Dr. Dupont",
-        topic="IA dans l'enseignement"
-    )
+    # Tous les oiseaux
+    all_birds = [
+        Sparrow("Moineau"),
+        Eagle("Aigle"),
+        Penguin("Tux"),
+        Ostrich("Oscar")
+    ]
     
-    # Créer un atelier
-    workshop = factory.create_event(
-        'workshop',
-        title="Développement Web avec Laravel",
-        date="2025-03-20",
-        max_participants=25,
-        materials=["Ordinateur", "Connexion Internet"]
-    )
+    print("\n--- Tous les oiseaux se déplacent ---")
+    make_birds_move(all_birds)  # ✅ Fonctionne!
     
-    # Créer un événement sportif
-    sport = factory.create_event(
-        'sport',
-        title="Tournoi Inter-Universités",
-        date="2025-04-10",
-        sport_type="Football",
-        teams=["UA", "UG", "UAG"]
-    )
+    # Seulement les oiseaux volants
+    flying_birds = [
+        Sparrow("Piou"),
+        Eagle("Grand Aigle")
+    ]
     
-    # Afficher les événements
-    events = [conf, workshop, sport]
-    for event in events:
-        print(f"{event.get_description()}")
-        print(f"Durée: {event.get_duration()}")
-        print("-" * 50)
+    print("\n--- Oiseaux volants uniquement ---")
+    make_flying_birds_fly(flying_birds)  # ✅ Fonctionne!
+    
+    # Démonstration des capacités spécifiques
+    print("\n--- Capacités spécifiques ---")
+    penguin = Penguin("Pingu")
+    penguin.walk()
+    penguin.swim()  # Capacité spécifique aux pingouins
+    
+    print("\n" + "=" * 70)
+    print("AVANTAGES DU LSP:")
+    print("- Hiérarchie logique et cohérente")
+    print("- Pas de surprises dans le code client")
+    print("- Polymorphisme qui fonctionne correctement")
+    print("- Chaque type peut être utilisé de manière sûre")
+    print("=" * 70)
 ```
 
-**Sortie** :
-```
-Conférence: Intelligence Artificielle et Éducation par Dr. Dupont sur IA dans l'enseignement
-Durée: 2 heures
---------------------------------------------------
-Atelier: Développement Web avec Laravel (max 25 participants)
-Durée: 3 heures
---------------------------------------------------
-Compétition de Football: Tournoi Inter-Universités
-Durée: Variable selon le sport
---------------------------------------------------
-```
-
-#### Variante avancée : Factory avec enregistrement dynamique
+### Exemple pratique : Formes géométriques
 
 ```python
-class EventRegistry:
+from abc import ABC, abstractmethod
+
+
+class Shape(ABC):
+    """Forme géométrique de base"""
+    
+    @abstractmethod
+    def area(self) -> float:
+        """Calcule l'aire"""
+        pass
+    
+    @abstractmethod
+    def perimeter(self) -> float:
+        """Calcule le périmètre"""
+        pass
+
+
+class Rectangle(Shape):
+    """Rectangle"""
+    
+    def __init__(self, width: float, height: float):
+        self.width = width
+        self.height = height
+    
+    def area(self) -> float:
+        return self.width * self.height
+    
+    def perimeter(self) -> float:
+        return 2 * (self.width + self.height)
+    
+    def set_width(self, width: float):
+        self.width = width
+    
+    def set_height(self, height: float):
+        self.height = height
+
+
+# ❌ Violation du LSP classique
+class Square(Rectangle):
     """
-    Registry pattern combiné avec Factory
-    Permet d'enregistrer dynamiquement de nouveaux types d'événements
+    ❌ Un carré EST-IL vraiment un rectangle en POO ?
+    Mathématiquement oui, mais en POO...
     """
-    _event_types = {}
     
-    @classmethod
-    def register(cls, event_type_name):
-        """Décorateur pour enregistrer un type d'événement"""
-        def decorator(event_class):
-            cls._event_types[event_type_name] = event_class
-            return event_class
-        return decorator
+    def set_width(self, width: float):
+        # ❌ Change aussi la hauteur
+        self.width = width
+        self.height = width  # Maintient le carré
     
-    @classmethod
-    def create(cls, event_type, **kwargs):
-        """Crée un événement enregistré"""
-        event_class = cls._event_types.get(event_type)
-        if event_class is None:
-            raise ValueError(f"Type non enregistré: {event_type}")
-        return event_class(**kwargs)
+    def set_height(self, height: float):
+        # ❌ Change aussi la largeur
+        self.width = height  # Maintient le carré
+        self.height = height
+
+
+# Test qui échoue
+def test_rectangle(rect: Rectangle):
+    """
+    ❌ Ce test fonctionne pour Rectangle mais PAS pour Square
+    """
+    rect.set_width(5)
+    rect.set_height(4)
     
-    @classmethod
-    def list_types(cls):
-        """Liste tous les types d'événements disponibles"""
-        return list(cls._event_types.keys())
+    expected_area = 5 * 4  # 20
+    actual_area = rect.area()
+    
+    assert expected_area == actual_area, f"Attendu {expected_area}, obtenu {actual_area}"
 
 
-# Utilisation avec le décorateur
-@EventRegistry.register('conference')
-class Conference(Event):
-    # ... (même implémentation)
-    pass
-
-@EventRegistry.register('workshop')
-class Workshop(Event):
-    # ... (même implémentation)
-    pass
-
-# Créer un événement
-event = EventRegistry.create('conference', title="...", date="...", ...)
-
-# Lister les types disponibles
-print(EventRegistry.list_types())  # ['conference', 'workshop']
+# ✅ Solution: Composition plutôt qu'héritage
+class Square(Shape):
+    """✅ Square comme classe indépendante"""
+    
+    def __init__(self, side: float):
+        self.side = side
+    
+    def area(self) -> float:
+        return self.side ** 2
+    
+    def perimeter(self) -> float:
+        return 4 * self.side
+    
+    def set_side(self, side: float):
+        self.side = side
 ```
 
-#### ⚠️ Quand utiliser Factory Method ?
+### Règles pour respecter le LSP
 
-**✅ Utilisez-le pour :**
-- Créer des objets dont le type exact n'est connu qu'à l'exécution
-- Centraliser la logique de création complexe
-- Faciliter l'ajout de nouveaux types sans modifier le code existant
-- Encapsuler les dépendances de création
-
-**❌ Évitez-le pour :**
-- Création simple d'objets (surcharge inutile)
-- Quand vous avez seulement 1-2 types d'objets
+1. **Préconditions** : Une sous-classe ne peut pas renforcer les préconditions
+2. **Postconditions** : Une sous-classe ne peut pas affaiblir les postconditions
+3. **Invariants** : Les invariants de la classe de base doivent être préservés
+4. **Exceptions** : Une sous-classe ne devrait pas lever de nouvelles exceptions
 
 ---
 
-## 3. Exercices pratiques
+## 4. Interface Segregation Principle (ISP)
 
-### Exercice 1 : Singleton - Gestionnaire de Session
+### Définition
 
-Créez un gestionnaire de session utilisateur pour une application campus qui :
-- Stocke l'utilisateur connecté
-- Garde trace de l'heure de connexion
-- Permet de vérifier si la session est active (max 2 heures)
-- Garantit qu'une seule session existe
+> **Les clients ne doivent pas être forcés de dépendre d'interfaces qu'ils n'utilisent pas.**
+
+Autrement dit : **Plusieurs interfaces spécifiques valent mieux qu'une seule interface générale.**
+
+### Problème à résoudre
+
+Une grosse interface avec beaucoup de méthodes force les classes à implémenter des méthodes dont elles n'ont pas besoin.
+
+### ❌ Violation de l'ISP
 
 ```python
-# À compléter
-class SessionManager:
-    # Votre code ici
-    pass
+from abc import ABC, abstractmethod
+
+
+class Worker(ABC):
+    """
+    ❌ Interface "fourre-tout" avec trop de méthodes
+    """
+    
+    @abstractmethod
+    def work(self):
+        """Travailler"""
+        pass
+    
+    @abstractmethod
+    def eat(self):
+        """Manger"""
+        pass
+    
+    @abstractmethod
+    def sleep(self):
+        """Dormir"""
+        pass
+    
+    @abstractmethod
+    def attend_meeting(self):
+        """Assister à une réunion"""
+        pass
+    
+    @abstractmethod
+    def write_code(self):
+        """Écrire du code"""
+        pass
+
+
+class HumanWorker(Worker):
+    """✓ Humain - toutes les méthodes ont du sens"""
+    
+    def work(self):
+        print("Travaille sur un projet")
+    
+    def eat(self):
+        print("Mange au réfectoire")
+    
+    def sleep(self):
+        print("Dort 8 heures")
+    
+    def attend_meeting(self):
+        print("Participe à la réunion")
+    
+    def write_code(self):
+        print("Code en Python")
+
+
+class RobotWorker(Worker):
+    """
+    ❌ Robot - certaines méthodes n'ont PAS de sens
+    """
+    
+    def work(self):
+        print("Exécute des tâches automatisées")
+    
+    def eat(self):
+        # ❌ Un robot ne mange pas!
+        raise NotImplementedError("Les robots ne mangent pas")
+    
+    def sleep(self):
+        # ❌ Un robot ne dort pas!
+        raise NotImplementedError("Les robots ne dorment pas")
+    
+    def attend_meeting(self):
+        # ❌ Un robot n'assiste pas aux réunions!
+        raise NotImplementedError("Les robots ne vont pas en réunion")
+    
+    def write_code(self):
+        print("Génère du code automatiquement")
 ```
 
-### Exercice 2 : Factory Method - Système de Notifications
+**Problème :** RobotWorker est forcé d'implémenter des méthodes qu'il ne peut pas réaliser.
 
-Créez un système de notifications qui peut envoyer des messages via différents canaux :
-- Email
-- SMS
-- Push notification (mobile)
-
-Chaque type de notification a des paramètres spécifiques et une méthode `send()`.
+### ✅ Respect de l'ISP
 
 ```python
-# À compléter
-class NotificationFactory:
-    # Votre code ici
-    pass
+from abc import ABC, abstractmethod
+
+
+# === Interfaces ségrégées (spécifiques) ===
+
+class Workable(ABC):
+    """Interface pour le travail"""
+    
+    @abstractmethod
+    def work(self):
+        pass
+
+
+class Eatable(ABC):
+    """Interface pour manger"""
+    
+    @abstractmethod
+    def eat(self):
+        pass
+
+
+class Sleepable(ABC):
+    """Interface pour dormir"""
+    
+    @abstractmethod
+    def sleep(self):
+        pass
+
+
+class MeetingAttendable(ABC):
+    """Interface pour les réunions"""
+    
+    @abstractmethod
+    def attend_meeting(self):
+        pass
+
+
+class Codeable(ABC):
+    """Interface pour coder"""
+    
+    @abstractmethod
+    def write_code(self):
+        pass
+
+
+# === Implémentations ===
+
+class HumanWorker(Workable, Eatable, Sleepable, MeetingAttendable, Codeable):
+    """
+    ✅ Humain implémente toutes les interfaces qui le concernent
+    """
+    
+    def __init__(self, name: str):
+        self.name = name
+    
+    def work(self):
+        print(f"{self.name} travaille sur un projet")
+    
+    def eat(self):
+        print(f"{self.name} mange au réfectoire")
+    
+    def sleep(self):
+        print(f"{self.name} dort 8 heures")
+    
+    def attend_meeting(self):
+        print(f"{self.name} participe à la réunion")
+    
+    def write_code(self):
+        print(f"{self.name} code en Python")
+
+
+class RobotWorker(Workable, Codeable):
+    """
+    ✅ Robot implémente SEULEMENT les interfaces qui le concernent
+    """
+    
+    def __init__(self, model: str):
+        self.model = model
+    
+    def work(self):
+        print(f"Robot {self.model} exécute des tâches automatisées")
+    
+    def write_code(self):
+        print(f"Robot {self.model} génère du code automatiquement")
+
+
+class Manager(Workable, Eatable, Sleepable, MeetingAttendable):
+    """
+    ✅ Manager ne code pas, mais participe aux réunions
+    """
+    
+    def __init__(self, name: str):
+        self.name = name
+    
+    def work(self):
+        print(f"{self.name} gère l'équipe")
+    
+    def eat(self):
+        print(f"{self.name} déjeune avec l'équipe")
+    
+    def sleep(self):
+        print(f"{self.name} dort (trop peu)")
+    
+    def attend_meeting(self):
+        print(f"{self.name} organise la réunion")
+
+
+# === Code client ===
+
+def make_workers_work(workers: list[Workable]):
+    """Fait travailler tous les workers"""
+    for worker in workers:
+        worker.work()
+
+
+def feed_workers(eaters: list[Eatable]):
+    """Nourrit les workers qui mangent"""
+    for eater in eaters:
+        eater.eat()
+
+
+def organize_meeting(attendees: list[MeetingAttendable]):
+    """Organise une réunion"""
+    for attendee in attendees:
+        attendee.attend_meeting()
+
+
+def code_sprint(coders: list[Codeable]):
+    """Sprint de code"""
+    for coder in coders:
+        coder.write_code()
+
+
+# === Utilisation ===
+
+if __name__ == "__main__":
+    print("=" * 70)
+    print("DÉMONSTRATION DU PRINCIPE ISP")
+    print("=" * 70)
+    
+    # Créer les workers
+    alice = HumanWorker("Alice")
+    bob = HumanWorker("Bob")
+    robot1 = RobotWorker("R2D2")
+    manager = Manager("Charlie")
+    
+    # Faire travailler tout le monde
+    print("\n--- Tout le monde travaille ---")
+    all_workers = [alice, bob, robot1, manager]
+    make_workers_work(all_workers)
+    
+    # Nourrir seulement ceux qui mangent
+    print("\n--- Pause déjeuner (seulement les humains) ---")
+    eaters = [alice, bob, manager]  # ✅ Robot exclu automatiquement
+    feed_workers(eaters)
+    
+    # Réunion (seulement ceux qui y participent)
+    print("\n--- Réunion d'équipe ---")
+    meeting_attendees = [alice, bob, manager]  # ✅ Robot exclu
+    organize_meeting(meeting_attendees)
+    
+    # Sprint de code
+    print("\n--- Sprint de développement ---")
+    coders = [alice, bob, robot1]  # ✅ Manager exclu
+    code_sprint(coders)
+    
+    print("\n" + "=" * 70)
+    print("AVANTAGES DE L'ISP:")
+    print("- Chaque worker implémente seulement ce qui le concerne")
+    print("- Pas de méthodes non implémentées ou levant des exceptions")
+    print("- Code client flexible et type-safe")
+    print("- Facile d'ajouter de nouveaux types de workers")
+    print("=" * 70)
 ```
 
-### Exercice 3 : Combinaison - Logger avec Factory
+**Sortie :**
+```
+======================================================================
+DÉMONSTRATION DU PRINCIPE ISP
+======================================================================
 
-Créez un système de logging qui :
-- Utilise Singleton pour avoir une instance unique du logger
-- Utilise Factory pour créer différents types de handlers (console, fichier, remote)
-- Permet de logger à différents niveaux (DEBUG, INFO, WARNING, ERROR)
+--- Tout le monde travaille ---
+Alice travaille sur un projet
+Bob travaille sur un projet
+Robot R2D2 exécute des tâches automatisées
+Charlie gère l'équipe
 
----
+--- Pause déjeuner (seulement les humains) ---
+Alice mange au réfectoire
+Bob mange au réfectoire
+Charlie déjeune avec l'équipe
 
-## 4. Anti-Patterns à éviter
+--- Réunion d'équipe ---
+Alice participe à la réunion
+Bob participe à la réunion
+Charlie organise la réunion
 
-### 4.1 Le God Object (Objet Dieu)
+--- Sprint de développement ---
+Alice code en Python
+Bob code en Python
+Robot R2D2 génère du code automatiquement
 
-**Problème** : Une classe qui fait tout.
+======================================================================
+AVANTAGES DE L'ISP:
+- Chaque worker implémente seulement ce qui le concerne
+- Pas de méthodes non implémentées ou levant des exceptions
+- Code client flexible et type-safe
+- Facile d'ajouter de nouveaux types de workers
+======================================================================
+```
+
+### Exemple pratique : Document et imprimantes
 
 ```python
-# ❌ Mauvais
-class Application:
-    def connect_database(self): pass
-    def send_email(self): pass
-    def process_payment(self): pass
-    def generate_report(self): pass
-    def manage_users(self): pass
-    # ... 50 autres méthodes
+# ❌ Violation ISP
+class Printer(ABC):
+    @abstractmethod
+    def print(self, document): pass
+    
+    @abstractmethod
+    def scan(self, document): pass
+    
+    @abstractmethod
+    def fax(self, document): pass
+
+
+# SimplePrinter forcé d'implémenter scan et fax
+class SimplePrinter(Printer):
+    def print(self, document):
+        print(f"Impression: {document}")
+    
+    def scan(self, document):
+        raise NotImplementedError("Pas de scanner")
+    
+    def fax(self, document):
+        raise NotImplementedError("Pas de fax")
+
+
+# ✅ Respect ISP
+class Printable(ABC):
+    @abstractmethod
+    def print(self, document): pass
+
+
+class Scannable(ABC):
+    @abstractmethod
+    def scan(self, document): pass
+
+
+class Faxable(ABC):
+    @abstractmethod
+    def fax(self, document): pass
+
+
+class SimplePrinter(Printable):
+    def print(self, document):
+        print(f"Impression: {document}")
+
+
+class MultiFunctionPrinter(Printable, Scannable, Faxable):
+    def print(self, document):
+        print(f"Impression: {document}")
+    
+    def scan(self, document):
+        print(f"Scan: {document}")
+    
+    def fax(self, document):
+        print(f"Fax: {document}")
 ```
 
-**Solution** : Séparer les responsabilités (principe SRP - Single Responsibility Principle).
+---
 
-### 4.2 Singleton Abuse
+## 5. Dependency Inversion Principle (DIP)
 
-**Problème** : Utiliser Singleton partout par facilité.
+### Définition
+
+> **Les modules de haut niveau ne doivent pas dépendre des modules de bas niveau. Les deux doivent dépendre d'abstractions.**
+>
+> **Les abstractions ne doivent pas dépendre des détails. Les détails doivent dépendre des abstractions.**
+
+Autrement dit :
+1. Dépendez des **interfaces**, pas des **implémentations**
+2. Les **abstractions** sont stables, les **détails** changent
+
+### Problème à résoudre
+
+Couplage fort entre les couches de l'application :
+- Difficile à tester
+- Difficile à changer d'implémentation
+- Rigide et fragile
+
+### ❌ Violation du DIP
 
 ```python
-# ❌ Mauvais - Singleton inutile
-@singleton
-class Student:  # Pourquoi une seule instance d'étudiant ?!
-    pass
+import sqlite3
+
+
+# Bas niveau: Implémentation concrète
+class SQLiteDatabase:
+    """❌ Implémentation concrète de base de données"""
+    
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self.connection = None
+    
+    def connect(self):
+        self.connection = sqlite3.connect(self.db_path)
+    
+    def execute_query(self, query: str):
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+        return cursor.fetchall()
+    
+    def close(self):
+        if self.connection:
+            self.connection.close()
+
+
+# Haut niveau: Dépend directement de SQLiteDatabase
+class StudentRepository:
+    """
+    ❌ Dépend d'une implémentation concrète (SQLiteDatabase)
+    Impossible de changer de BD sans modifier cette classe
+    """
+    
+    def __init__(self):
+        # ❌ Couplage fort avec SQLiteDatabase
+        self.db = SQLiteDatabase('students.db')
+        self.db.connect()
+    
+    def save_student(self, student_id: str, name: str, email: str):
+        query = f"INSERT INTO students VALUES ('{student_id}', '{name}', '{email}')"
+        self.db.execute_query(query)
+    
+    def find_student(self, student_id: str):
+        query = f"SELECT * FROM students WHERE student_id = '{student_id}'"
+        return self.db.execute_query(query)
 ```
 
-**Solution** : N'utiliser Singleton que quand c'est vraiment nécessaire.
+**Problèmes :**
+- StudentRepository ne peut pas utiliser PostgreSQL ou MySQL
+- Impossible de tester sans vraie base de données
+- Changement de BD = modification de StudentRepository
+
+### ✅ Respect du DIP
+
+```python
+from abc import ABC, abstractmethod
+from typing import List, Tuple, Any
+
+
+# === ABSTRACTION (Interface) ===
+
+class Database(ABC):
+    """
+    ✅ Abstraction stable
+    Ni haut niveau ni bas niveau ne dépendent des détails
+    """
+    
+    @abstractmethod
+    def connect(self):
+        """Établit la connexion"""
+        pass
+    
+    @abstractmethod
+    def execute_query(self, query: str, params: Tuple = None) -> List[Tuple]:
+        """Exécute une requête"""
+        pass
+    
+    @abstractmethod
+    def execute_update(self, query: str, params: Tuple = None):
+        """Exécute une mise à jour"""
+        pass
+    
+    @abstractmethod
+    def close(self):
+        """Ferme la connexion"""
+        pass
+
+
+# === DÉTAILS (Implémentations concrètes) ===
+
+class SQLiteDatabase(Database):
+    """✅ Implémentation SQLite dépend de l'abstraction"""
+    
+    def __init__(self, db_path: str):
+        self.db_path = db_path
+        self.connection = None
+    
+    def connect(self):
+        import sqlite3
+        self.connection = sqlite3.connect(self.db_path)
+        print(f"✓ Connecté à SQLite: {self.db_path}")
+    
+    def execute_query(self, query: str, params: Tuple = None) -> List[Tuple]:
+        cursor = self.connection.cursor()
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+        return cursor.fetchall()
+    
+    def execute_update(self, query: str, params: Tuple = None):
+        cursor = self.connection.cursor()
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+        self.connection.commit()
+    
+    def close(self):
+        if self.connection:
+            self.connection.close()
+            print("✓ Connexion SQLite fermée")
+
+
+class PostgreSQLDatabase(Database):
+    """✅ Implémentation PostgreSQL dépend de l'abstraction"""
+    
+    def __init__(self, host: str, database: str, user: str, password: str):
+        self.host = host
+        self.database = database
+        self.user = user
+        self.password = password
+        self.connection = None
+    
+    def connect(self):
+        # Simulation (psycopg2 nécessaire en réel)
+        print(f"✓ Connecté à PostgreSQL: {self.database}@{self.host}")
+        # import psycopg2
+        # self.connection = psycopg2.connect(...)
+    
+    def execute_query(self, query: str, params: Tuple = None) -> List[Tuple]:
+        # Simulation
+        print(f"[PostgreSQL] Query: {query}")
+        return []
+    
+    def execute_update(self, query: str, params: Tuple = None):
+        # Simulation
+        print(f"[PostgreSQL] Update: {query}")
+    
+    def close(self):
+        print("✓ Connexion PostgreSQL fermée")
+
+
+class InMemoryDatabase(Database):
+    """✅ Implémentation en mémoire pour les tests"""
+    
+    def __init__(self):
+        self.data = {}  # Simule une BD en mémoire
+    
+    def connect(self):
+        print("✓ Base de données en mémoire initialisée")
+    
+    def execute_query(self, query: str, params: Tuple = None) -> List[Tuple]:
+        print(f"[InMemory] Query: {query}")
+        # Logique simplifiée pour la démo
+        if "SELECT" in query:
+            return list(self.data.values())
+        return []
+    
+    def execute_update(self, query: str, params: Tuple = None):
+        print(f"[InMemory] Update: {query}")
+        if params and "INSERT" in query:
+            self.data[params[0]] = params
+    
+    def close(self):
+        print("✓ Base de données en mémoire libérée")
+
+
+# === HAUT NIVEAU (dépend de l'abstraction) ===
+
+class StudentRepository:
+    """
+    ✅ Dépend de l'abstraction Database, pas d'une implémentation
+    """
+    
+    def __init__(self, database: Database):
+        # ✅ Injection de dépendance
+        self.db = database
+        self.db.connect()
+        self._create_table()
+    
+    def _create_table(self):
+        """Crée la table si elle n'existe pas"""
+        query = """
+        CREATE TABLE IF NOT EXISTS students (
+            student_id TEXT PRIMARY KEY,
+            name TEXT,
+            email TEXT
+        )
+        """
+        try:
+            self.db.execute_update(query)
+        except:
+            pass  # Table peut déjà exister
+    
+    def save_student(self, student_id: str, name: str, email: str):
+        """Sauvegarde un étudiant"""
+        query = "INSERT OR REPLACE INTO students VALUES (?, ?, ?)"
+        self.db.execute_update(query, (student_id, name, email))
+        print(f"✓ Étudiant {name} sauvegardé")
+    
+    def find_student(self, student_id: str) -> Tuple:
+        """Trouve un étudiant par ID"""
+        query = "SELECT * FROM students WHERE student_id = ?"
+        results = self.db.execute_query(query, (student_id,))
+        return results[0] if results else None
+    
+    def get_all_students(self) -> List[Tuple]:
+        """Récupère tous les étudiants"""
+        query = "SELECT * FROM students"
+        return self.db.execute_query(query)
+    
+    def close(self):
+        """Ferme la connexion"""
+        self.db.close()
+
+
+# === Utilisation ===
+
+if __name__ == "__main__":
+    print("=" * 70)
+    print("DÉMONSTRATION DU PRINCIPE DIP")
+    print("=" * 70)
+    
+    # Scenario 1: Utilisation avec SQLite
+    print("\n--- Scénario 1: SQLite ---")
+    sqlite_db = SQLiteDatabase(':memory:')
+    repo_sqlite = StudentRepository(sqlite_db)
+    
+    repo_sqlite.save_student("20231001", "Alice Dupont", "alice@ua.fr")
+    repo_sqlite.save_student("20231002", "Bob Martin", "bob@ua.fr")
+    
+    students = repo_sqlite.get_all_students()
+    print(f"Nombre d'étudiants: {len(students)}")
+    repo_sqlite.close()
+    
+    # Scenario 2: Changement vers PostgreSQL (aucune modification du Repository!)
+    print("\n--- Scénario 2: PostgreSQL (changement transparent) ---")
+    # ✅ Même code client, différente implémentation
+    postgres_db = PostgreSQLDatabase(
+        host="localhost",
+        database="campus_db",
+        user="admin",
+        password="secret"
+    )
+    repo_postgres = StudentRepository(postgres_db)
+    repo_postgres.save_student("20231003", "Charlie Leroy", "charlie@ua.fr")
+    repo_postgres.close()
+    
+    # Scenario 3: Tests avec InMemory (pas besoin de vraie BD!)
+    print("\n--- Scénario 3: Tests avec base en mémoire ---")
+    # ✅ Tests rapides sans dépendances externes
+    test_db = InMemoryDatabase()
+    repo_test = StudentRepository(test_db)
+    repo_test.save_student("TEST001", "Test Student", "test@ua.fr")
+    repo_test.close()
+    
+    print("\n" + "=" * 70)
+    print("AVANTAGES DU DIP:")
+    print("- Repository indépendant de l'implémentation de BD")
+    print("- Facile de changer de BD sans toucher au Repository")
+    print("- Tests faciles avec InMemoryDatabase")
+    print("- Code flexible et découplé")
+    print("=" * 70)
+```
+
+**Sortie :**
+```
+======================================================================
+DÉMONSTRATION DU PRINCIPE DIP
+======================================================================
+
+--- Scénario 1: SQLite ---
+✓ Connecté à SQLite: :memory:
+✓ Étudiant Alice Dupont sauvegardé
+✓ Étudiant Bob Martin sauvegardé
+Nombre d'étudiants: 2
+✓ Connexion SQLite fermée
+
+--- Scénario 2: PostgreSQL (changement transparent) ---
+✓ Connecté à PostgreSQL: campus_db@localhost
+[PostgreSQL] Update: INSERT OR REPLACE INTO students VALUES (?, ?, ?)
+✓ Étudiant Charlie Leroy sauvegardé
+✓ Connexion PostgreSQL fermée
+
+--- Scénario 3: Tests avec base en mémoire ---
+✓ Base de données en mémoire initialisée
+[InMemory] Update: INSERT OR REPLACE INTO students VALUES (?, ?, ?)
+✓ Étudiant Test Student sauvegardé
+✓ Base de données en mémoire libérée
+
+======================================================================
+AVANTAGES DU DIP:
+- Repository indépendant de l'implémentation de BD
+- Facile de changer de BD sans toucher au Repository
+- Tests faciles avec InMemoryDatabase
+- Code flexible et découplé
+======================================================================
+```
+
+### Techniques pour appliquer le DIP
+
+1. **Dependency Injection** (comme ci-dessus)
+2. **Factory Pattern**
+3. **Service Locator Pattern**
+4. **IoC Containers** (Inversion of Control)
+
+### Exemple avec Injection de Dépendances
+
+```python
+# ❌ Sans DI
+class UserService:
+    def __init__(self):
+        self.db = MySQLDatabase()  # Couplage fort
+        self.email = GmailSender()  # Couplage fort
+
+
+# ✅ Avec DI
+class UserService:
+    def __init__(self, database: Database, email_sender: EmailSender):
+        self.db = database  # ✅ Dépend de l'abstraction
+        self.email = email_sender  # ✅ Dépend de l'abstraction
+
+
+# Configuration (dans un fichier séparé ou main)
+def create_user_service():
+    db = MySQLDatabase()  # ou PostgreSQLDatabase()
+    email = GmailSender()  # ou SendGridSender()
+    return UserService(db, email)
+```
 
 ---
 
-## 5. Résumé de la Partie 1
+## 6. Synthèse et Exercices Pratiques
 
-### Ce que nous avons vu
-
-1. **Les Design Patterns** sont des solutions réutilisables à des problèmes récurrents
-2. **Trois catégories** : Création, Structure, Comportement
-3. **Singleton** : Une seule instance dans toute l'application
-4. **Factory Method** : Déléguer la création d'objets à des méthodes dédiées
-
-### Principes clés à retenir
-
-- Un pattern n'est pas du code, c'est un modèle
-- Choisir le bon pattern selon le problème
-- Ne pas sur-utiliser les patterns (KISS - Keep It Simple, Stupid)
-- Les patterns facilitent la communication entre développeurs
-
-### Dans la partie 2, nous verrons :
-
-- Builder Pattern (construction d'objets complexes)
-- Prototype Pattern (clonage d'objets)
-- Abstract Factory (familles d'objets)
-- Patterns de structure (Adapter, Decorator, Facade)
-
----
-
-## 6. Ressources complémentaires
-
-**Livres recommandés :**
-- "Design Patterns" (Gang of Four) - Le livre de référence
-- "Head First Design Patterns" - Approche visuelle et ludique
-- "Python Design Patterns" - Spécifique à Python
-
-**Sites web :**
-- [Refactoring.Guru](https://refactoring.guru/design-patterns) - Excellentes illustrations
-- [Python Patterns](https://python-patterns.guide/) - Patterns en Python
-
----
-
-## Questions ?
-
-N'hésitez pas à poser vos questions sur :
-- L'utilisation pratique des patterns
-- Les cas d'usage spécifiques
-- L'implémentation en Python
-- Les différences avec d'autres langages
-
-**Prochaine séance** : CM4 Partie 2 - Suite des patterns de création et introduction aux patterns de structure.
+[La suite dans le prochain message...]

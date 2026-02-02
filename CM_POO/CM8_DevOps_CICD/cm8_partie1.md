@@ -1,5 +1,5 @@
-# CM7 - Tests et Qualité de Code (Partie 1)
-## Tests Unitaires, TDD et Coverage
+# CM8 - DevOps et CI/CD (Partie 1)
+## Docker, Pipelines et Déploiement
 
 ---
 
@@ -7,787 +7,789 @@
 
 ### Rappel des cours précédents
 
-**CM1-CM3 :** Fondamentaux POO (Classes, Héritage, Polymorphisme)  
-**CM4 :** Design Patterns  
-**CM5 :** Principes SOLID  
-**CM6 :** Architecture Logicielle  
+**CM1-CM3 :** Fondamentaux POO  
+**CM4-CM6 :** Patterns, SOLID, Architecture  
+**CM7 :** Tests et Qualité de Code  
 
-**Aujourd'hui - CM7 :**
-- **Tests unitaires** : pytest, unittest
-- **TDD** : Test-Driven Development
-- **Mocking** : Simuler les dépendances
-- **Coverage** : Mesurer la couverture de code
-- **Tests d'intégration** : Tester les interactions
-- **Qualité de code** : Linting, formatage
+**Aujourd'hui - CM8 :**
+- **DevOps** : Culture et pratiques
+- **Docker** : Conteneurisation
+- **CI/CD** : Intégration et déploiement continus
+- **Pipelines** : GitHub Actions, GitLab CI
+- **Déploiement** : Production-ready
 
 ---
 
-## 1. Pourquoi Tester ?
+## 1. Qu'est-ce que DevOps ?
 
-### 1.1 Les Problèmes sans Tests
+### 1.1 Définition
 
-```python
-# ❌ Code sans tests
-class Calculator:
-    def divide(self, a, b):
-        return a / b  # Que se passe-t-il si b=0 ?
+> **DevOps = Development + Operations**
+>
+> **Culture et pratiques qui rapprochent le développement et les opérations pour livrer plus rapidement et plus fiablement.**
 
-# Utilisation en production
-calc = Calculator()
-result = calc.divide(10, 0)  # 💥 CRASH !
+### 1.2 Avant DevOps (❌)
+
+```
+DÉVELOPPEURS          |  OPÉRATIONS
+                      |
+Écrivent du code  →   |  "Ça marche sur ma machine!"
+                      |
+Passent en prod   →   |  💥 CRASH
+                      |
+Blâment les ops   ←   |  Blâment les devs
+                      |
+      ↓ LENT ↓        |      ↓ INSTABLE ↓
 ```
 
-**Problèmes :**
-- ❌ Bugs en production
-- ❌ Peur de modifier le code
-- ❌ Régressions lors des changements
-- ❌ Documentation inexistante
-- ❌ Confiance faible dans le code
+### 1.3 Avec DevOps (✅)
 
-### 1.2 Les Avantages des Tests
+```
+ÉQUIPE DEVOPS (collaboration)
 
-```python
-# ✅ Code avec tests
-class Calculator:
-    def divide(self, a, b):
-        if b == 0:
-            raise ValueError("Division par zéro impossible")
-        return a / b
+Développeurs + Opérations travaillent ensemble
 
+Automatisation   →  Tests automatiques
+                →  Déploiement automatique
+                →  Monitoring
 
-# Tests
-def test_divide_normal():
-    calc = Calculator()
-    assert calc.divide(10, 2) == 5
+      ↓ RAPIDE ↓  et  ↓ STABLE ↓
+```
 
-def test_divide_by_zero():
-    calc = Calculator()
-    with pytest.raises(ValueError):
-        calc.divide(10, 0)
+### 1.4 Principes DevOps
+
+**1. Automatisation**
+- Tests automatiques
+- Déploiement automatique
+- Infrastructure as Code
+
+**2. Collaboration**
+- Dev et Ops travaillent ensemble
+- Communication constante
+- Responsabilité partagée
+
+**3. Mesure**
+- Monitoring en production
+- Métriques de performance
+- Logs centralisés
+
+**4. Amélioration Continue**
+- Feedback loops
+- Post-mortems sans blâme
+- Apprentissage continu
+
+---
+
+## 2. Docker : Conteneurisation
+
+### 2.1 Qu'est-ce qu'un Conteneur ?
+
+> **Un conteneur est un package léger qui contient tout ce dont une application a besoin pour fonctionner.**
+
+**Différence VM vs Conteneur :**
+
+```
+MACHINE VIRTUELLE (VM)              CONTENEUR
+┌─────────────────────┐            ┌──────────┐
+│    Application      │            │   App    │
+├─────────────────────┤            ├──────────┤
+│     Librairies      │            │   Libs   │
+├─────────────────────┤            ├──────────┤
+│    OS Invité        │            │  Docker  │
+├─────────────────────┤            ├──────────┤
+│    Hypervisor       │            │  OS Host │
+├─────────────────────┤            └──────────┘
+│      OS Host        │
+└─────────────────────┘
+
+Lourd (~GB)                        Léger (~MB)
+Lent à démarrer (minutes)          Rapide (secondes)
+```
+
+### 2.2 Installation Docker
+
+```bash
+# Ubuntu/Debian
+curl -fsSL https://get.docker.com -o get-docker.sh
+sh get-docker.sh
+
+# Vérification
+docker --version
+docker run hello-world
+```
+
+### 2.3 Premier Dockerfile
+
+**Dockerfile :**
+```dockerfile
+# Image de base
+FROM python:3.11-slim
+
+# Métadonnées
+LABEL maintainer="roor@ua.fr"
+LABEL description="Application Flask de gestion d'étudiants"
+
+# Répertoire de travail
+WORKDIR /app
+
+# Copier les dépendances
+COPY requirements.txt .
+
+# Installer les dépendances
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copier le code source
+COPY src/ ./src/
+
+# Port exposé
+EXPOSE 5000
+
+# Variable d'environnement
+ENV FLASK_APP=src/app.py
+ENV FLASK_ENV=production
+
+# Commande de démarrage
+CMD ["flask", "run", "--host=0.0.0.0"]
+```
+
+**requirements.txt :**
+```
+flask==3.0.0
+pytest==7.4.3
+```
+
+**Construction et exécution :**
+```bash
+# Construire l'image
+docker build -t student-api:v1.0 .
+
+# Exécuter le conteneur
+docker run -d -p 5000:5000 --name student-api student-api:v1.0
+
+# Vérifier
+curl http://localhost:5000
+
+# Voir les logs
+docker logs student-api
+
+# Arrêter
+docker stop student-api
+
+# Supprimer
+docker rm student-api
+```
+
+### 2.4 Docker Compose
+
+**docker-compose.yml :**
+```yaml
+version: '3.8'
+
+services:
+  # Application Flask
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://user:pass@db:5432/students
+      - FLASK_ENV=development
+    depends_on:
+      - db
+    volumes:
+      - ./src:/app/src  # Hot reload en dev
+    networks:
+      - app-network
+
+  # Base de données PostgreSQL
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=students
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # pgAdmin pour l'administration
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@ua.fr
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+volumes:
+  postgres-data:
+
+networks:
+  app-network:
+    driver: bridge
+```
+
+**Utilisation :**
+```bash
+# Démarrer tous les services
+docker-compose up -d
+
+# Voir les logs
+docker-compose logs -f app
+
+# Arrêter
+docker-compose down
+
+# Arrêter et supprimer les volumes
+docker-compose down -v
+```
+
+### 2.5 Multi-stage Build (Optimisation)
+
+**Dockerfile optimisé :**
+```dockerfile
+# ============================================================================
+# ÉTAPE 1 : BUILD
+# ============================================================================
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+
+# Installer les dépendances de build
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copier et installer les dépendances Python
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+# ============================================================================
+# ÉTAPE 2 : RUNTIME
+# ============================================================================
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copier uniquement les dépendances installées (pas gcc ni build tools)
+COPY --from=builder /root/.local /root/.local
+
+# Copier le code source
+COPY src/ ./src/
+
+# S'assurer que les scripts Python sont dans PATH
+ENV PATH=/root/.local/bin:$PATH
+
+# Utilisateur non-root pour la sécurité
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 5000
+
+CMD ["python", "-m", "flask", "run", "--host=0.0.0.0"]
 ```
 
 **Avantages :**
-- ✅ Détection précoce des bugs
-- ✅ Confiance pour refactorer
-- ✅ Documentation vivante
-- ✅ Design meilleur (testable = modulaire)
-- ✅ Régression impossible
+- ✅ Image finale plus légère (pas de build tools)
+- ✅ Plus sécurisée (pas de gcc en production)
+- ✅ Build rapide (cache des layers)
 
 ---
 
-## 2. Types de Tests
+## 3. CI/CD avec GitHub Actions
 
-### Pyramide des Tests
+### 3.1 Pipeline de Base
 
-```
-           /\
-          /  \
-         / E2E \        ← Tests End-to-End (lents, peu nombreux)
-        /--------\
-       /          \
-      / Intégration \   ← Tests d'intégration (moyens)
-     /--------------\
-    /                \
-   /   Tests          \  ← Tests unitaires (rapides, nombreux)
-  /    Unitaires       \
- /______________________\
-```
+**.github/workflows/ci.yml :**
+```yaml
+name: CI/CD Pipeline
 
-### 2.1 Tests Unitaires
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
 
-> **Testent une fonction/méthode isolée, sans dépendances externes.**
+env:
+  PYTHON_VERSION: '3.11'
+  DOCKER_IMAGE: student-api
 
-**Caractéristiques :**
-- ⚡ Très rapides (millisecondes)
-- 🔒 Isolés (pas de BD, réseau, fichiers)
-- 🎯 Focalisés (une seule fonctionnalité)
-
-```python
-# Exemple : Test unitaire d'une fonction pure
-def test_calculate_average():
-    # Arrange
-    grades = [15, 16, 14]
+jobs:
+  # =========================================================================
+  # JOB 1 : TESTS
+  # =========================================================================
+  test:
+    name: Tests unitaires et intégration
+    runs-on: ubuntu-latest
     
-    # Act
-    result = calculate_average(grades)
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     
-    # Assert
-    assert result == 15.0
-```
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+      
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+        run: |
+          pytest --cov=src --cov-report=xml --cov-report=term -v
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: true
 
-### 2.2 Tests d'Intégration
-
-> **Testent l'interaction entre plusieurs composants.**
-
-```python
-# Exemple : Test d'intégration avec base de données
-def test_save_and_retrieve_student():
-    # Arrange
-    db = Database()
-    student = Student("Marie", "marie@ua.fr")
+  # =========================================================================
+  # JOB 2 : QUALITÉ DE CODE
+  # =========================================================================
+  quality:
+    name: Qualité de code
+    runs-on: ubuntu-latest
     
-    # Act
-    db.save(student)
-    retrieved = db.find_by_id(student.id)
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install linters
+        run: |
+          pip install black flake8 mypy pylint
+      
+      - name: Check formatting with Black
+        run: black --check src/ tests/
+      
+      - name: Lint with Flake8
+        run: flake8 src/ tests/ --max-line-length=100
+      
+      - name: Type check with MyPy
+        run: mypy src/
+      
+      - name: Lint with Pylint
+        run: pylint src/ --max-line-length=100
+
+  # =========================================================================
+  # JOB 3 : BUILD DOCKER
+  # =========================================================================
+  build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    needs: [test, quality]  # Attend que test et quality passent
     
-    # Assert
-    assert retrieved.name == "Marie"
-```
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Build Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: false
+          tags: ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Test Docker image
+        run: |
+          docker run --rm ${{ env.DOCKER_IMAGE }}:${{ github.sha }} \
+            python -c "import flask; print('OK')"
 
-### 2.3 Tests End-to-End (E2E)
-
-> **Testent l'application complète, du début à la fin.**
-
-```python
-# Exemple : Test E2E d'une API
-def test_complete_user_workflow():
-    # 1. Inscription
-    response = client.post("/register", data={"email": "marie@ua.fr"})
-    assert response.status_code == 201
+  # =========================================================================
+  # JOB 4 : DEPLOY (seulement sur main)
+  # =========================================================================
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
-    # 2. Connexion
-    response = client.post("/login", data={"email": "marie@ua.fr"})
-    token = response.json()["token"]
-    
-    # 3. Utilisation
-    response = client.get("/profile", headers={"Authorization": token})
-    assert response.json()["email"] == "marie@ua.fr"
-```
-
----
-
-## 3. pytest : Framework de Test Python
-
-### 3.1 Installation et Premiers Tests
-
-```bash
-# Installation
-pip install pytest pytest-cov
-
-# Structure de projet
-project/
-├── src/
-│   └── calculator.py
-└── tests/
-    └── test_calculator.py
-```
-
-**calculator.py :**
-```python
-class Calculator:
-    """Calculatrice simple"""
-    
-    def add(self, a: float, b: float) -> float:
-        """Addition"""
-        return a + b
-    
-    def subtract(self, a: float, b: float) -> float:
-        """Soustraction"""
-        return a - b
-    
-    def multiply(self, a: float, b: float) -> float:
-        """Multiplication"""
-        return a * b
-    
-    def divide(self, a: float, b: float) -> float:
-        """Division"""
-        if b == 0:
-            raise ValueError("Division par zéro impossible")
-        return a / b
-```
-
-**test_calculator.py :**
-```python
-import pytest
-from src.calculator import Calculator
-
-
-class TestCalculator:
-    """Tests de la calculatrice"""
-    
-    def setup_method(self):
-        """Exécuté avant chaque test"""
-        self.calc = Calculator()
-    
-    def test_add(self):
-        """Test de l'addition"""
-        assert self.calc.add(2, 3) == 5
-        assert self.calc.add(-1, 1) == 0
-        assert self.calc.add(0, 0) == 0
-    
-    def test_subtract(self):
-        """Test de la soustraction"""
-        assert self.calc.subtract(5, 3) == 2
-        assert self.calc.subtract(0, 5) == -5
-    
-    def test_multiply(self):
-        """Test de la multiplication"""
-        assert self.calc.multiply(3, 4) == 12
-        assert self.calc.multiply(0, 100) == 0
-    
-    def test_divide(self):
-        """Test de la division normale"""
-        assert self.calc.divide(10, 2) == 5
-        assert self.calc.divide(7, 2) == 3.5
-    
-    def test_divide_by_zero(self):
-        """Test de la division par zéro"""
-        with pytest.raises(ValueError, match="Division par zéro"):
-            self.calc.divide(10, 0)
-
-
-# Exécution : pytest tests/
-# Ou : pytest tests/ -v (verbose)
-```
-
-**Sortie :**
-```
-======================== test session starts ========================
-collected 5 items
-
-tests/test_calculator.py .....                                [100%]
-
-========================= 5 passed in 0.02s =========================
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
+            ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+      
+      - name: Deploy notification
+        run: |
+          echo "🚀 Deployed version ${{ github.sha }} to production"
 ```
 
-### 3.2 Fixtures pytest
+### 3.2 Pipeline avec GitLab CI
 
-> **Les fixtures fournissent des données/objets réutilisables pour les tests.**
+**.gitlab-ci.yml :**
+```yaml
+stages:
+  - test
+  - build
+  - deploy
 
-```python
-import pytest
-
-
-@pytest.fixture
-def calculator():
-    """Fixture : crée une calculatrice pour chaque test"""
-    return Calculator()
-
-
-@pytest.fixture
-def sample_grades():
-    """Fixture : données de test"""
-    return [15, 16, 14, 17, 13]
-
-
-def test_with_fixtures(calculator, sample_grades):
-    """Utilisation de fixtures"""
-    total = sum(sample_grades)
-    avg = calculator.divide(total, len(sample_grades))
-    assert avg == 15.0
-```
-
-### 3.3 Paramétrage de Tests
-
-```python
-@pytest.mark.parametrize("a,b,expected", [
-    (2, 3, 5),
-    (0, 0, 0),
-    (-1, 1, 0),
-    (10, -5, 5),
-])
-def test_add_multiple_cases(calculator, a, b, expected):
-    """Test avec plusieurs cas"""
-    assert calculator.add(a, b) == expected
-
-
-@pytest.mark.parametrize("a,b,expected", [
-    (10, 2, 5),
-    (15, 3, 5),
-    (7, 2, 3.5),
-    (1, 4, 0.25),
-])
-def test_divide_multiple_cases(calculator, a, b, expected):
-    """Test division avec plusieurs cas"""
-    assert calculator.divide(a, b) == expected
-```
-
----
-
-## 4. TDD (Test-Driven Development)
-
-### 4.1 Cycle TDD : Red-Green-Refactor
-
-```
-1. 🔴 RED : Écrire un test qui échoue
-2. 🟢 GREEN : Écrire le code minimal pour passer le test
-3. 🔵 REFACTOR : Améliorer le code sans casser les tests
-4. Répéter
-```
-
-### 4.2 Exemple Pratique : Classe Student
-
-**Étape 1 - RED : Écrire le test**
-
-```python
-# test_student.py
-import pytest
-
-
-def test_student_creation():
-    """Test création d'un étudiant"""
-    # Ce test va ÉCHOUER (Student n'existe pas encore)
-    student = Student("20231001", "Marie Lafleur", "marie@ua.fr")
-    
-    assert student.student_id == "20231001"
-    assert student.name == "Marie Lafleur"
-    assert student.email == "marie@ua.fr"
-    assert student.grades == []
-```
-
-**Exécution :**
-```bash
-pytest tests/test_student.py
-# ❌ FAILED - NameError: name 'Student' is not defined
-```
-
-**Étape 2 - GREEN : Code minimal**
-
-```python
-# student.py
-class Student:
-    def __init__(self, student_id, name, email):
-        self.student_id = student_id
-        self.name = name
-        self.email = email
-        self.grades = []
-```
-
-**Exécution :**
-```bash
-pytest tests/test_student.py
-# ✅ PASSED
-```
-
-**Étape 3 - Nouveau test (RED)**
-
-```python
-def test_add_grade():
-    """Test ajout de note"""
-    student = Student("20231001", "Marie", "marie@ua.fr")
-    
-    student.add_grade(15)
-    student.add_grade(16)
-    
-    assert len(student.grades) == 2
-    assert 15 in student.grades
-    assert 16 in student.grades
-```
-
-**Exécution :**
-```bash
-pytest tests/test_student.py::test_add_grade
-# ❌ FAILED - AttributeError: 'Student' object has no attribute 'add_grade'
-```
-
-**Étape 4 - GREEN : Implémenter**
-
-```python
-class Student:
-    def __init__(self, student_id, name, email):
-        self.student_id = student_id
-        self.name = name
-        self.email = email
-        self.grades = []
-    
-    def add_grade(self, grade):
-        """Ajoute une note"""
-        self.grades.append(grade)
-```
-
-**Étape 5 - Nouveau test avec validation**
-
-```python
-def test_add_grade_validation():
-    """Test validation des notes"""
-    student = Student("20231001", "Marie", "marie@ua.fr")
-    
-    # Note valide
-    student.add_grade(15)
-    assert 15 in student.grades
-    
-    # Note invalide
-    with pytest.raises(ValueError):
-        student.add_grade(25)  # > 20
-    
-    with pytest.raises(ValueError):
-        student.add_grade(-5)  # < 0
-```
-
-**Implémentation avec validation :**
-
-```python
-class Student:
-    def __init__(self, student_id, name, email):
-        self.student_id = student_id
-        self.name = name
-        self.email = email
-        self.grades = []
-    
-    def add_grade(self, grade):
-        """Ajoute une note avec validation"""
-        if not 0 <= grade <= 20:
-            raise ValueError(f"Note invalide: {grade}. Doit être entre 0 et 20")
-        self.grades.append(grade)
-    
-    def calculate_average(self):
-        """Calcule la moyenne"""
-        if not self.grades:
-            return 0.0
-        return sum(self.grades) / len(self.grades)
-```
-
-**Étape 6 - Tests complets**
-
-```python
-import pytest
-from src.student import Student
-
-
-class TestStudent:
-    """Suite de tests complète pour Student"""
-    
-    @pytest.fixture
-    def student(self):
-        """Fixture : étudiant pour les tests"""
-        return Student("20231001", "Marie Lafleur", "marie@ua.fr")
-    
-    def test_creation(self, student):
-        """Test création"""
-        assert student.student_id == "20231001"
-        assert student.name == "Marie Lafleur"
-        assert student.email == "marie@ua.fr"
-        assert student.grades == []
-    
-    def test_add_grade(self, student):
-        """Test ajout de notes valides"""
-        student.add_grade(15)
-        student.add_grade(16)
-        
-        assert len(student.grades) == 2
-        assert student.grades == [15, 16]
-    
-    @pytest.mark.parametrize("invalid_grade", [-1, -10, 21, 25, 100])
-    def test_add_invalid_grade(self, student, invalid_grade):
-        """Test notes invalides"""
-        with pytest.raises(ValueError, match="Note invalide"):
-            student.add_grade(invalid_grade)
-    
-    def test_calculate_average_empty(self, student):
-        """Test moyenne avec aucune note"""
-        assert student.calculate_average() == 0.0
-    
-    def test_calculate_average(self, student):
-        """Test calcul de moyenne"""
-        student.add_grade(15)
-        student.add_grade(16)
-        student.add_grade(14)
-        
-        assert student.calculate_average() == 15.0
-    
-    def test_edge_cases(self, student):
-        """Test cas limites"""
-        # Note minimale
-        student.add_grade(0)
-        assert 0 in student.grades
-        
-        # Note maximale
-        student.add_grade(20)
-        assert 20 in student.grades
-```
-
----
-
-## 5. Exemple Complet : TDD pour une Classe BankAccount
-
-### 5.1 Tests d'abord (TDD)
-
-```python
-# tests/test_bank_account.py
-import pytest
-from src.bank_account import BankAccount
-
-
-class TestBankAccount:
-    """Tests TDD pour BankAccount"""
-    
-    @pytest.fixture
-    def account(self):
-        """Fixture : compte avec solde initial"""
-        return BankAccount("Marie Lafleur", initial_balance=1000)
-    
-    # Test 1 : Création
-    def test_account_creation(self):
-        """Test création de compte"""
-        account = BankAccount("Jean Martin", 500)
-        
-        assert account.owner == "Jean Martin"
-        assert account.balance == 500
-        assert account.transactions == []
-    
-    # Test 2 : Dépôt
-    def test_deposit(self, account):
-        """Test dépôt d'argent"""
-        result = account.deposit(500)
-        
-        assert result is True
-        assert account.balance == 1500
-        assert len(account.transactions) == 1
-        assert account.transactions[0]['type'] == 'DEPOSIT'
-        assert account.transactions[0]['amount'] == 500
-    
-    # Test 3 : Dépôt invalide
-    def test_deposit_invalid_amount(self, account):
-        """Test dépôt avec montant invalide"""
-        with pytest.raises(ValueError, match="Montant invalide"):
-            account.deposit(-100)
-        
-        with pytest.raises(ValueError):
-            account.deposit(0)
-    
-    # Test 4 : Retrait
-    def test_withdraw(self, account):
-        """Test retrait d'argent"""
-        result = account.withdraw(300)
-        
-        assert result is True
-        assert account.balance == 700
-        assert len(account.transactions) == 1
-    
-    # Test 5 : Retrait avec solde insuffisant
-    def test_withdraw_insufficient_funds(self, account):
-        """Test retrait avec solde insuffisant"""
-        with pytest.raises(ValueError, match="Solde insuffisant"):
-            account.withdraw(2000)
-    
-    # Test 6 : Transfert
-    def test_transfer(self):
-        """Test transfert entre comptes"""
-        account1 = BankAccount("Marie", 1000)
-        account2 = BankAccount("Jean", 500)
-        
-        account1.transfer(account2, 300)
-        
-        assert account1.balance == 700
-        assert account2.balance == 800
-    
-    # Test 7 : Historique
-    def test_transaction_history(self, account):
-        """Test historique des transactions"""
-        account.deposit(500)
-        account.withdraw(200)
-        account.deposit(100)
-        
-        assert len(account.transactions) == 3
-        assert account.transactions[0]['type'] == 'DEPOSIT'
-        assert account.transactions[1]['type'] == 'WITHDRAWAL'
-        assert account.transactions[2]['type'] == 'DEPOSIT'
-```
-
-### 5.2 Implémentation (après les tests)
-
-```python
-# src/bank_account.py
-from datetime import datetime
-from typing import List, Dict
-
-
-class BankAccount:
-    """Compte bancaire"""
-    
-    def __init__(self, owner: str, initial_balance: float = 0):
-        """
-        Initialise un compte bancaire
-        
-        Args:
-            owner: Propriétaire du compte
-            initial_balance: Solde initial
-        """
-        if initial_balance < 0:
-            raise ValueError("Solde initial ne peut pas être négatif")
-        
-        self.owner = owner
-        self._balance = initial_balance
-        self.transactions: List[Dict] = []
-    
-    @property
-    def balance(self) -> float:
-        """Solde actuel (lecture seule)"""
-        return self._balance
-    
-    def deposit(self, amount: float) -> bool:
-        """
-        Dépose de l'argent
-        
-        Args:
-            amount: Montant à déposer
-            
-        Returns:
-            True si succès
-            
-        Raises:
-            ValueError: Si montant invalide
-        """
-        if amount <= 0:
-            raise ValueError(f"Montant invalide: {amount}")
-        
-        self._balance += amount
-        self._add_transaction('DEPOSIT', amount)
-        return True
-    
-    def withdraw(self, amount: float) -> bool:
-        """
-        Retire de l'argent
-        
-        Args:
-            amount: Montant à retirer
-            
-        Returns:
-            True si succès
-            
-        Raises:
-            ValueError: Si montant invalide ou solde insuffisant
-        """
-        if amount <= 0:
-            raise ValueError(f"Montant invalide: {amount}")
-        
-        if amount > self._balance:
-            raise ValueError(
-                f"Solde insuffisant. Disponible: {self._balance}€, "
-                f"Demandé: {amount}€"
-            )
-        
-        self._balance -= amount
-        self._add_transaction('WITHDRAWAL', amount)
-        return True
-    
-    def transfer(self, target_account: 'BankAccount', amount: float) -> bool:
-        """
-        Transfère de l'argent vers un autre compte
-        
-        Args:
-            target_account: Compte destinataire
-            amount: Montant à transférer
-            
-        Returns:
-            True si succès
-        """
-        self.withdraw(amount)
-        target_account.deposit(amount)
-        self._add_transaction('TRANSFER_OUT', amount, target_account.owner)
-        target_account._add_transaction('TRANSFER_IN', amount, self.owner)
-        return True
-    
-    def _add_transaction(self, transaction_type: str, amount: float, 
-                        other_party: str = None):
-        """Ajoute une transaction à l'historique"""
-        transaction = {
-            'type': transaction_type,
-            'amount': amount,
-            'timestamp': datetime.now(),
-            'balance_after': self._balance
-        }
-        
-        if other_party:
-            transaction['other_party'] = other_party
-        
-        self.transactions.append(transaction)
-    
-    def get_statement(self) -> str:
-        """Génère un relevé de compte"""
-        lines = [
-            f"{'='*60}",
-            f"RELEVÉ DE COMPTE - {self.owner}",
-            f"{'='*60}",
-            f"Solde actuel: {self._balance:.2f}€",
-            f"\nDernières transactions:",
-        ]
-        
-        for trans in self.transactions[-10:]:
-            timestamp = trans['timestamp'].strftime("%d/%m/%Y %H:%M")
-            lines.append(
-                f"  {timestamp} | {trans['type']:15} | "
-                f"{trans['amount']:8.2f}€ | Solde: {trans['balance_after']:.2f}€"
-            )
-        
-        lines.append(f"{'='*60}")
-        return '\n'.join(lines)
-
+variables:
+  PYTHON_VERSION: "3.11"
+  DOCKER_IMAGE: "registry.gitlab.com/$CI_PROJECT_PATH"
 
 # ============================================================================
-# DÉMONSTRATION
+# STAGE: TEST
 # ============================================================================
+test:unit:
+  stage: test
+  image: python:${PYTHON_VERSION}
+  
+  services:
+    - postgres:15
+  
+  variables:
+    POSTGRES_DB: test_db
+    POSTGRES_USER: test
+    POSTGRES_PASSWORD: test
+    DATABASE_URL: postgresql://test:test@postgres:5432/test_db
+  
+  before_script:
+    - pip install -r requirements.txt
+    - pip install pytest pytest-cov
+  
+  script:
+    - pytest --cov=src --cov-report=term --cov-report=html
+  
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - htmlcov/
+    expire_in: 1 week
 
-if __name__ == "__main__":
-    print("=" * 70)
-    print("TDD - BANK ACCOUNT DÉMONSTRATION")
-    print("=" * 70)
-    
-    # Créer des comptes
-    marie = BankAccount("Marie Lafleur", 1000)
-    jean = BankAccount("Jean Martin", 500)
-    
-    print("\n--- Opérations ---")
-    marie.deposit(500)
-    marie.withdraw(200)
-    marie.transfer(jean, 300)
-    
-    print("\n--- Relevés ---")
-    print(marie.get_statement())
-    print("\n")
-    print(jean.get_statement())
+lint:
+  stage: test
+  image: python:${PYTHON_VERSION}
+  
+  before_script:
+    - pip install black flake8 mypy
+  
+  script:
+    - black --check src/ tests/
+    - flake8 src/ tests/
+    - mypy src/
+
+# ============================================================================
+# STAGE: BUILD
+# ============================================================================
+build:image:
+  stage: build
+  image: docker:latest
+  
+  services:
+    - docker:dind
+  
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  
+  script:
+    - docker build -t $DOCKER_IMAGE:$CI_COMMIT_SHA .
+    - docker tag $DOCKER_IMAGE:$CI_COMMIT_SHA $DOCKER_IMAGE:latest
+    - docker push $DOCKER_IMAGE:$CI_COMMIT_SHA
+    - docker push $DOCKER_IMAGE:latest
+  
+  only:
+    - main
+    - develop
+
+# ============================================================================
+# STAGE: DEPLOY
+# ============================================================================
+deploy:production:
+  stage: deploy
+  image: alpine:latest
+  
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+  
+  script:
+    - ssh user@production-server "
+        docker pull $DOCKER_IMAGE:$CI_COMMIT_SHA &&
+        docker stop student-api || true &&
+        docker rm student-api || true &&
+        docker run -d --name student-api -p 5000:5000 $DOCKER_IMAGE:$CI_COMMIT_SHA
+      "
+  
+  environment:
+    name: production
+    url: https://api.students.ua.fr
+  
+  only:
+    - main
+  
+  when: manual  # Déploiement manuel
 ```
 
 ---
 
-## 6. Coverage : Mesurer la Couverture
+## 4. Déploiement en Production
 
-### 6.1 Installation et Utilisation
+### 4.1 Configuration pour Production
 
-```bash
-# Installation
-pip install pytest-cov
-
-# Exécution avec coverage
-pytest --cov=src tests/
-
-# Rapport HTML
-pytest --cov=src --cov-report=html tests/
-# Ouvre htmlcov/index.html
-```
-
-**Exemple de sortie :**
-```
-======================== test session starts ========================
-collected 15 items
-
-tests/test_bank_account.py ...............                    [100%]
-
----------- coverage: platform linux, python 3.11.0 -----------
-Name                    Stmts   Miss  Cover
--------------------------------------------
-src/bank_account.py        45      2    96%
--------------------------------------------
-TOTAL                      45      2    96%
-```
-
-### 6.2 Interpréter la Coverage
-
-```
-✅ 80-100% : Excellente couverture
-⚠️  60-80% : Couverture acceptable
-❌ <60% : Couverture insuffisante
-```
-
-**Attention :** 100% coverage ≠ code parfait !
-
+**config.py :**
 ```python
-# Exemple : 100% coverage mais bug possible
-def divide(a, b):
-    return a / b  # ✓ Couvert par les tests, mais crash si b=0
+import os
+from typing import Optional
 
-def test_divide():
-    assert divide(10, 2) == 5  # Test OK, mais pas le cas b=0
+
+class Config:
+    """Configuration de base"""
+    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
+    DEBUG = False
+    TESTING = False
+    
+    # Database
+    DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///app.db')
+    
+    # Logging
+    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+
+
+class DevelopmentConfig(Config):
+    """Configuration développement"""
+    DEBUG = True
+    DATABASE_URL = 'sqlite:///dev.db'
+
+
+class TestingConfig(Config):
+    """Configuration tests"""
+    TESTING = True
+    DATABASE_URL = 'sqlite:///:memory:'
+
+
+class ProductionConfig(Config):
+    """Configuration production"""
+    DEBUG = False
+    
+    # Sécurité
+    SECRET_KEY = os.getenv('SECRET_KEY')  # DOIT être défini
+    if not SECRET_KEY:
+        raise ValueError("SECRET_KEY must be set in production")
+    
+    # Database avec pool de connexions
+    DATABASE_URL = os.getenv('DATABASE_URL')
+    SQLALCHEMY_POOL_SIZE = 10
+    SQLALCHEMY_MAX_OVERFLOW = 20
+    
+    # Logging
+    LOG_LEVEL = 'WARNING'
+
+
+# Factory pour sélectionner la config
+config = {
+    'development': DevelopmentConfig,
+    'testing': TestingConfig,
+    'production': ProductionConfig,
+    'default': DevelopmentConfig
+}
+
+
+def get_config(env: Optional[str] = None) -> Config:
+    """Retourne la configuration selon l'environnement"""
+    env = env or os.getenv('FLASK_ENV', 'development')
+    return config.get(env, config['default'])()
+```
+
+### 4.2 Dockerfile Production
+
+**Dockerfile.prod :**
+```dockerfile
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+
+# Installer les dépendances de build
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gcc \
+        postgresql-client && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copier les dépendances
+COPY --from=builder /root/.local /root/.local
+
+# Copier le code
+COPY src/ ./src/
+COPY migrations/ ./migrations/
+COPY config.py .
+
+# Créer un utilisateur non-root
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+ENV PATH=/root/.local/bin:$PATH
+ENV FLASK_ENV=production
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 5000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:5000/health')"
+
+# Utiliser gunicorn pour la production
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "src.app:app"]
+```
+
+**requirements.txt (production) :**
+```
+flask==3.0.0
+flask-sqlalchemy==3.1.1
+psycopg2-binary==2.9.9
+gunicorn==21.2.0
+python-dotenv==1.0.0
+```
+
+### 4.3 Docker Compose Production
+
+**docker-compose.prod.yml :**
+```yaml
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    restart: always
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://user:${DB_PASSWORD}@db:5432/students
+      - SECRET_KEY=${SECRET_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`api.students.ua.fr`)"
+      - "traefik.http.routers.app.tls.certresolver=letsencrypt"
+
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=students
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backups:/backups
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  traefik:
+    image: traefik:v2.10
+    restart: always
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.email=admin@ua.fr"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    networks:
+      - app-network
+
+volumes:
+  postgres-data:
+  letsencrypt:
+
+networks:
+  app-network:
+    driver: bridge
 ```
 
 ---
@@ -796,30 +798,27 @@ def test_divide():
 
 ### Ce que nous avons vu
 
-✅ **Pourquoi tester** : Avantages et problèmes sans tests  
-✅ **Types de tests** : Unitaires, Intégration, E2E  
-✅ **pytest** : Framework moderne de test Python  
-✅ **Fixtures** : Données réutilisables pour tests  
-✅ **TDD** : Cycle Red-Green-Refactor  
-✅ **Exemple complet** : BankAccount avec TDD  
-✅ **Coverage** : Mesurer la couverture de code  
+✅ **DevOps** : Culture et principes  
+✅ **Docker** : Conteneurisation et Dockerfile  
+✅ **Docker Compose** : Orchestration multi-conteneurs  
+✅ **CI/CD** : Pipelines GitHub Actions et GitLab CI  
+✅ **Déploiement** : Configuration production  
+✅ **Multi-stage builds** : Optimisation des images  
 
 ### Concepts clés
 
-- **AAA Pattern** : Arrange, Act, Assert
-- **Fixtures** : Données/objets pour tests
-- **TDD** : Tests avant le code
-- **Coverage** : % de code testé
-- **Isolation** : Tests indépendants
+- **Conteneurisation** = Package portable
+- **CI/CD** = Automatisation du build au déploiement
+- **Infrastructure as Code** = Configuration versionnée
+- **Environnements** = dev, test, prod séparés
 
 ### Dans la Partie 2, nous verrons :
 
-- Mocking et Test Doubles
-- Tests d'intégration avancés
-- Tests de performance
-- Qualité de code (Linting, Formatage)
-- CI/CD avec GitHub Actions
-- Cas pratiques complets
+- Monitoring et Logging
+- Backup et Disaster Recovery
+- Sécurité en production
+- Scaling et Load Balancing
+- Cas pratique complet
 
 ---
 
