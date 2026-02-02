@@ -1,0 +1,1 @@
+Test de fonctionnement pour les outils de la programmation orientée objet.
