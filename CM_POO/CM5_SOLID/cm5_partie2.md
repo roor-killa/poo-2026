@@ -1,594 +1,932 @@
-# CM4 - Design Patterns (Partie 1)
-## Programmation Orientée Objet
+# CM5 - Principes SOLID (Partie 2)
+## Synthèse, Exercices et Applications Pratiques
 
 ---
 
-## Objectifs du cours
+## 6. Synthèse des Principes SOLID
 
-À la fin de cette partie, vous serez capable de :
-- Comprendre ce qu'est un design pattern et pourquoi l'utiliser
-- Identifier les situations où appliquer des patterns
-- Implémenter les patterns de création fondamentaux
-- Reconnaître les anti-patterns à éviter
+### Tableau Récapitulatif
 
----
+| Principe | Acronyme | En bref | Bénéfice principal |
+|----------|----------|---------|-------------------|
+| **Single Responsibility** | **S** | Une classe = une responsabilité | Maintenabilité |
+| **Open/Closed** | **O** | Ouvert extension, fermé modification | Évolutivité |
+| **Liskov Substitution** | **L** | Sous-classes interchangeables | Polymorphisme sûr |
+| **Interface Segregation** | **I** | Interfaces spécifiques | Découplage |
+| **Dependency Inversion** | **D** | Dépendre des abstractions | Flexibilité |
 
-## 1. Introduction aux Design Patterns
+### Interconnexions entre les Principes
 
-### 1.1 Qu'est-ce qu'un Design Pattern ?
+```
+     SRP ─────┐
+              ├──→ Code modulaire
+     ISP ─────┘
 
-Un **design pattern** (ou patron de conception) est une solution réutilisable à un problème récurrent dans la conception logicielle. Ce n'est pas du code prêt à l'emploi, mais plutôt un **modèle** ou une **recette** pour résoudre un type de problème.
+     OCP ─────┐
+              ├──→ Extensibilité
+     DIP ─────┘
 
-**Analogie concrète** : Tout comme une recette de cuisine donne des instructions pour préparer un plat (sans être le plat lui-même), un design pattern donne une structure pour résoudre un problème (sans être le code final).
+     LSP ─────→ Polymorphisme correct
 
-### 1.2 Pourquoi utiliser des Design Patterns ?
-
-**1. Communication efficace**
-```python
-# Au lieu de dire : "J'ai fait une classe qui gère une seule instance..."
-# On dit simplement : "J'ai utilisé un Singleton"
+     Tous ────→ QUALITÉ LOGICIELLE
 ```
 
-**2. Solutions éprouvées**
-- Évite de réinventer la roue
-- Réduit les bugs potentiels
-- Accélère le développement
+### SOLID et Design Patterns
 
-**3. Code maintenable**
-- Structure claire et prévisible
-- Facilite les modifications futures
-- Améliore la collaboration en équipe
-
-**4. Évolutivité**
-- Facilite l'ajout de nouvelles fonctionnalités
-- Réduit l'impact des changements
-
-### 1.3 Les trois catégories de patterns
-
-Les design patterns sont classés en trois grandes familles :
-
-#### 🏗️ **Patterns de Création** (Creational Patterns)
-Concernent la **création d'objets** de manière flexible et réutilisable.
-- Singleton
-- Factory Method
-- Abstract Factory
-- Builder
-- Prototype
-
-#### 🔧 **Patterns de Structure** (Structural Patterns)
-Concernent l'**organisation des classes et objets** pour former des structures plus complexes.
-- Adapter
-- Decorator
-- Facade
-- Composite
-- Proxy
-
-#### ⚡ **Patterns de Comportement** (Behavioral Patterns)
-Concernent la **communication entre objets** et la répartition des responsabilités.
-- Observer
-- Strategy
-- Command
-- State
-- Template Method
+| Pattern | Principes SOLID appliqués |
+|---------|---------------------------|
+| **Strategy** | OCP, DIP |
+| **Observer** | OCP, DIP |
+| **Decorator** | OCP, SRP |
+| **Factory** | OCP, DIP |
+| **Adapter** | LSP, ISP |
+| **Facade** | SRP, ISP |
+| **Command** | SRP, OCP |
 
 ---
 
-## 2. Les Patterns de Création
+## 7. Applications Pratiques - Refactoring
 
-Dans cette première partie, nous allons étudier les patterns de création les plus fondamentaux.
+### Cas d'étude 1 : Système de Notification
 
-### 2.1 Le Pattern Singleton
-
-#### Problème à résoudre
-
-Imaginez que vous développez une application pour gérer les ressources d'un campus universitaire. Vous avez besoin d'une classe `Configuration` qui charge les paramètres de l'application (base de données, API keys, etc.).
-
-**Problème** : Si plusieurs parties du code créent des instances de `Configuration`, vous aurez :
-- Plusieurs lectures du fichier de configuration (ralentissement)
-- Incohérences possibles si les valeurs changent
-- Gaspillage de mémoire
-
-**Solution** : Garantir qu'une seule instance de la classe existe dans toute l'application.
-
-#### Structure du Singleton
+#### ❌ Version initiale (viole plusieurs principes)
 
 ```python
-class Singleton:
+class NotificationSystem:
     """
-    Pattern Singleton classique
+    ❌ Viole SRP, OCP, ISP
     """
-    _instance = None
     
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+    def send_notification(self, user_id, message, method):
+        # Récupérer l'utilisateur
+        import sqlite3
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")
+        user = cursor.fetchone()
+        conn.close()
+        
+        # Envoyer selon la méthode
+        if method == "email":
+            import smtplib
+            server = smtplib.SMTP('smtp.gmail.com', 587)
+            server.send_message(user[2], message)
+        elif method == "sms":
+            import requests
+            requests.post('https://sms-api.com/send', 
+                         data={'phone': user[3], 'message': message})
+        elif method == "push":
+            import firebase
+            firebase.send(user[1], message)
 ```
 
-#### Exemple concret : Gestionnaire de Configuration
+#### ✅ Version refactorisée (respecte SOLID)
 
 ```python
-class ConfigurationManager:
+from abc import ABC, abstractmethod
+from typing import Dict
+
+
+# === SRP: Séparation des responsabilités ===
+
+class User:
+    """Représente un utilisateur"""
+    
+    def __init__(self, user_id: str, email: str, phone: str, device_token: str):
+        self.user_id = user_id
+        self.email = email
+        self.phone = phone
+        self.device_token = device_token
+
+
+class UserRepository:
+    """Responsabilité: Persistance des utilisateurs"""
+    
+    def __init__(self, database):
+        self.db = database
+    
+    def find_by_id(self, user_id: str) -> User:
+        """Récupère un utilisateur"""
+        # Logique de récupération
+        pass
+
+
+# === ISP: Interfaces ségrégées ===
+
+class NotificationChannel(ABC):
+    """Interface pour les canaux de notification"""
+    
+    @abstractmethod
+    def send(self, recipient: str, message: str) -> bool:
+        """Envoie une notification"""
+        pass
+
+
+# === OCP: Ouvert à l'extension ===
+
+class EmailChannel(NotificationChannel):
+    """Canal email"""
+    
+    def __init__(self, smtp_config: Dict):
+        self.config = smtp_config
+    
+    def send(self, recipient: str, message: str) -> bool:
+        print(f"📧 Email envoyé à {recipient}: {message}")
+        # import smtplib
+        # Logique d'envoi
+        return True
+
+
+class SMSChannel(NotificationChannel):
+    """Canal SMS"""
+    
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+    
+    def send(self, recipient: str, message: str) -> bool:
+        print(f"📱 SMS envoyé à {recipient}: {message}")
+        # import requests
+        # Logique d'envoi
+        return True
+
+
+class PushChannel(NotificationChannel):
+    """Canal push notification"""
+    
+    def __init__(self, firebase_config: Dict):
+        self.config = firebase_config
+    
+    def send(self, recipient: str, message: str) -> bool:
+        print(f"🔔 Push envoyé à {recipient}: {message}")
+        # Logique Firebase
+        return True
+
+
+# Nouveau canal ajouté SANS modifier le code existant
+class SlackChannel(NotificationChannel):
+    """Canal Slack"""
+    
+    def __init__(self, webhook_url: str):
+        self.webhook_url = webhook_url
+    
+    def send(self, recipient: str, message: str) -> bool:
+        print(f"💬 Slack envoyé à {recipient}: {message}")
+        return True
+
+
+# === DIP: Dépendance sur l'abstraction ===
+
+class NotificationService:
     """
-    Gestionnaire de configuration pour l'application campus
+    Service de notification qui dépend de l'abstraction NotificationChannel
     """
-    _instance = None
-    _initialized = False
     
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+    def __init__(self, user_repository: UserRepository):
+        self.user_repo = user_repository
+        self.channels: Dict[str, NotificationChannel] = {}
     
-    def __init__(self):
-        # Éviter la réinitialisation à chaque appel
-        if not ConfigurationManager._initialized:
-            self.config = {}
-            self.load_config()
-            ConfigurationManager._initialized = True
+    def register_channel(self, name: str, channel: NotificationChannel):
+        """Enregistre un canal de notification"""
+        self.channels[name] = channel
     
-    def load_config(self):
-        """Charge la configuration depuis un fichier"""
-        self.config = {
-            'db_host': 'localhost',
-            'db_port': 5432,
-            'api_key': 'secret_key_123',
-            'max_connections': 100
+    def send_notification(self, user_id: str, message: str, channel_name: str) -> bool:
+        """
+        Envoie une notification via le canal spécifié
+        """
+        # Récupérer l'utilisateur
+        user = self.user_repo.find_by_id(user_id)
+        
+        # Récupérer le canal
+        if channel_name not in self.channels:
+            raise ValueError(f"Canal inconnu: {channel_name}")
+        
+        channel = self.channels[channel_name]
+        
+        # Déterminer le destinataire selon le canal
+        recipient_map = {
+            'email': user.email,
+            'sms': user.phone,
+            'push': user.device_token,
+            'slack': user.email  # ou username Slack
         }
-        print("Configuration chargée")
+        
+        recipient = recipient_map.get(channel_name, user.email)
+        
+        # Envoyer
+        return channel.send(recipient, message)
     
-    def get(self, key):
-        """Récupère une valeur de configuration"""
-        return self.config.get(key)
-    
-    def set(self, key, value):
-        """Modifie une valeur de configuration"""
-        self.config[key] = value
+    def broadcast(self, user_id: str, message: str):
+        """Envoie sur tous les canaux"""
+        for channel_name in self.channels.keys():
+            self.send_notification(user_id, message, channel_name)
 
 
-# Utilisation
+# === Utilisation ===
+
 if __name__ == "__main__":
-    # Première instance
-    config1 = ConfigurationManager()
-    print(f"DB Host: {config1.get('db_host')}")
+    print("=" * 70)
+    print("REFACTORING AVEC SOLID - SYSTÈME DE NOTIFICATION")
+    print("=" * 70)
     
-    # Deuxième "instance" - en réalité, c'est la même !
-    config2 = ConfigurationManager()
+    # Setup (normalement dans un fichier de config)
+    from typing import Optional
     
-    # Vérification
-    print(f"config1 est config2 ? {config1 is config2}")  # True
+    class MockUserRepository(UserRepository):
+        def __init__(self):
+            self.users = {
+                "001": User("001", "alice@ua.fr", "0696123456", "device_abc")
+            }
+        
+        def find_by_id(self, user_id: str) -> Optional[User]:
+            return self.users.get(user_id)
     
-    # Modification via config2
-    config2.set('db_host', 'production-server')
+    # Créer le service
+    user_repo = MockUserRepository()
+    notification_service = NotificationService(user_repo)
     
-    # La modification est visible via config1
-    print(f"DB Host via config1: {config1.get('db_host')}")  # production-server
+    # Enregistrer les canaux
+    notification_service.register_channel("email", EmailChannel({}))
+    notification_service.register_channel("sms", SMSChannel("api_key_123"))
+    notification_service.register_channel("push", PushChannel({}))
+    notification_service.register_channel("slack", SlackChannel("webhook_url"))
+    
+    # Envoyer des notifications
+    print("\n--- Notifications individuelles ---")
+    notification_service.send_notification("001", "Nouveau message!", "email")
+    notification_service.send_notification("001", "Alerte urgente", "sms")
+    
+    print("\n--- Broadcast (tous les canaux) ---")
+    notification_service.broadcast("001", "Maintenance prévue ce soir")
+    
+    print("\n" + "=" * 70)
+    print("✅ Code respecte tous les principes SOLID")
+    print("=" * 70)
 ```
-
-**Sortie** :
-```
-Configuration chargée
-DB Host: localhost
-config1 est config2 ? True
-DB Host via config1: production-server
-```
-
-#### Variante : Singleton avec décorateur (Pythonic)
-
-```python
-def singleton(cls):
-    """
-    Décorateur pour transformer une classe en Singleton
-    """
-    instances = {}
-    
-    def get_instance(*args, **kwargs):
-        if cls not in instances:
-            instances[cls] = cls(*args, **kwargs)
-        return instances[cls]
-    
-    return get_instance
-
-
-@singleton
-class DatabaseConnection:
-    """
-    Connexion unique à la base de données
-    """
-    def __init__(self):
-        self.connection = None
-        self.connect()
-    
-    def connect(self):
-        print("Connexion à la base de données établie")
-        self.connection = "Connection Object"
-    
-    def query(self, sql):
-        return f"Exécution de : {sql}"
-
-
-# Utilisation
-db1 = DatabaseConnection()
-db2 = DatabaseConnection()
-
-print(f"db1 is db2 ? {db1 is db2}")  # True
-print(db1.query("SELECT * FROM students"))
-```
-
-#### ⚠️ Quand utiliser le Singleton ?
-
-**✅ Utilisez-le pour :**
-- Gestionnaires de configuration
-- Connexions à la base de données (pool de connexions)
-- Gestionnaires de logs
-- Gestionnaires de cache
-- Services partagés globalement
-
-**❌ Évitez-le pour :**
-- Tout ce qui nécessite plusieurs instances
-- Classes avec état modifiable par plusieurs composants (risque de bugs)
-- Tests unitaires (difficile à mocker)
 
 ---
 
-### 2.2 Le Pattern Factory Method
+### Cas d'étude 2 : Système de Rapports
 
-#### Problème à résoudre
-
-Vous développez un système de gestion d'événements pour le campus. Vous avez différents types d'événements (conférences, ateliers, compétitions sportives), chacun avec des comportements spécifiques.
-
-**Problème** : Comment créer le bon type d'événement sans avoir à connaître les détails de chaque classe ?
-
-**Mauvaise approche** :
 ```python
-# Code difficile à maintenir
-if event_type == "conference":
-    event = Conference(title, date, speaker)
-elif event_type == "workshop":
-    event = Workshop(title, date, max_participants)
-elif event_type == "sport":
-    event = SportEvent(title, date, sport_type)
-# ... et si on ajoute un nouveau type ?
+from abc import ABC, abstractmethod
+from typing import List, Dict
+import json
+
+
+# === Données ===
+
+class CourseData:
+    """Données d'un cours"""
+    
+    def __init__(self, name: str, instructor: str, students: List[str], grades: Dict[str, float]):
+        self.name = name
+        self.instructor = instructor
+        self.students = students
+        self.grades = grades
+    
+    def get_average(self) -> float:
+        if not self.grades:
+            return 0.0
+        return sum(self.grades.values()) / len(self.grades)
+
+
+# === SRP: Extraction de données séparée de la génération ===
+
+class DataExtractor(ABC):
+    """Interface pour extraire des données"""
+    
+    @abstractmethod
+    def extract(self, course: CourseData) -> Dict:
+        pass
+
+
+class BasicDataExtractor(DataExtractor):
+    """Extraction des données de base"""
+    
+    def extract(self, course: CourseData) -> Dict:
+        return {
+            'name': course.name,
+            'instructor': course.instructor,
+            'student_count': len(course.students),
+            'average': course.get_average()
+        }
+
+
+class DetailedDataExtractor(DataExtractor):
+    """Extraction détaillée avec toutes les notes"""
+    
+    def extract(self, course: CourseData) -> Dict:
+        return {
+            'name': course.name,
+            'instructor': course.instructor,
+            'students': course.students,
+            'grades': course.grades,
+            'average': course.get_average(),
+            'max_grade': max(course.grades.values()) if course.grades else 0,
+            'min_grade': min(course.grades.values()) if course.grades else 0
+        }
+
+
+# === OCP + Strategy: Formats de rapports ===
+
+class ReportFormatter(ABC):
+    """Interface pour formater les rapports"""
+    
+    @abstractmethod
+    def format(self, data: Dict) -> str:
+        pass
+
+
+class TextFormatter(ReportFormatter):
+    """Formatage texte"""
+    
+    def format(self, data: Dict) -> str:
+        report = "=" * 50 + "\n"
+        report += f"RAPPORT: {data['name']}\n"
+        report += "=" * 50 + "\n"
+        report += f"Enseignant: {data['instructor']}\n"
+        report += f"Étudiants: {data['student_count']}\n"
+        report += f"Moyenne: {data['average']:.2f}/20\n"
+        report += "=" * 50
+        return report
+
+
+class JSONFormatter(ReportFormatter):
+    """Formatage JSON"""
+    
+    def format(self, data: Dict) -> str:
+        return json.dumps(data, indent=2)
+
+
+class HTMLFormatter(ReportFormatter):
+    """Formatage HTML"""
+    
+    def format(self, data: Dict) -> str:
+        html = f"""
+        <div class="report">
+            <h2>{data['name']}</h2>
+            <p><strong>Enseignant:</strong> {data['instructor']}</p>
+            <p><strong>Étudiants:</strong> {data['student_count']}</p>
+            <p><strong>Moyenne:</strong> {data['average']:.2f}/20</p>
+        </div>
+        """
+        return html
+
+
+class MarkdownFormatter(ReportFormatter):
+    """Formatage Markdown"""
+    
+    def format(self, data: Dict) -> str:
+        md = f"# Rapport: {data['name']}\n\n"
+        md += f"**Enseignant:** {data['instructor']}\n\n"
+        md += f"**Étudiants:** {data['student_count']}\n\n"
+        md += f"**Moyenne:** {data['average']:.2f}/20\n"
+        return md
+
+
+# === DIP: Service qui dépend des abstractions ===
+
+class ReportGenerator:
+    """
+    Générateur de rapports flexible
+    Respecte tous les principes SOLID
+    """
+    
+    def __init__(self, extractor: DataExtractor, formatter: ReportFormatter):
+        self.extractor = extractor
+        self.formatter = formatter
+    
+    def generate(self, course: CourseData) -> str:
+        """Génère un rapport"""
+        # 1. Extraire les données
+        data = self.extractor.extract(course)
+        
+        # 2. Formater
+        report = self.formatter.format(data)
+        
+        return report
+    
+    def set_extractor(self, extractor: DataExtractor):
+        """Change l'extracteur (OCP)"""
+        self.extractor = extractor
+    
+    def set_formatter(self, formatter: ReportFormatter):
+        """Change le formateur (OCP)"""
+        self.formatter = formatter
+
+
+# === Utilisation ===
+
+if __name__ == "__main__":
+    print("=" * 70)
+    print("SYSTÈME DE RAPPORTS - SOLID")
+    print("=" * 70)
+    
+    # Créer des données de cours
+    course = CourseData(
+        name="Programmation Orientée Objet",
+        instructor="Prof. Roor",
+        students=["Alice", "Bob", "Charlie", "Diana"],
+        grades={
+            "Alice": 16,
+            "Bob": 14,
+            "Charlie": 15,
+            "Diana": 17
+        }
+    )
+    
+    # Rapport basique en texte
+    print("\n--- Rapport Basique (Texte) ---")
+    generator = ReportGenerator(
+        BasicDataExtractor(),
+        TextFormatter()
+    )
+    print(generator.generate(course))
+    
+    # Rapport détaillé en JSON
+    print("\n--- Rapport Détaillé (JSON) ---")
+    generator.set_extractor(DetailedDataExtractor())
+    generator.set_formatter(JSONFormatter())
+    print(generator.generate(course))
+    
+    # Rapport en Markdown
+    print("\n--- Rapport (Markdown) ---")
+    generator.set_formatter(MarkdownFormatter())
+    print(generator.generate(course))
+    
+    print("\n" + "=" * 70)
+    print("AVANTAGES:")
+    print("- SRP: Extraction, formatage, génération séparés")
+    print("- OCP: Nouveaux formats sans modifier le générateur")
+    print("- DIP: Générateur dépend des abstractions")
+    print("- Combinaisons infinies: extractor x formatter")
+    print("=" * 70)
 ```
 
-**Solution** : Déléguer la création d'objets à des méthodes factory.
+---
 
-#### Structure du Factory Method
+## 8. Exercices Pratiques
+
+### Exercice 1 : Refactoring d'un système de paiement
+
+**Code initial (viole SOLID) :**
+
+```python
+class PaymentSystem:
+    def process_payment(self, amount, method, user_data):
+        # Validation
+        if amount <= 0:
+            return False
+        if not user_data.get('email'):
+            return False
+        
+        # Traitement
+        if method == "credit_card":
+            # Code carte
+            pass
+        elif method == "paypal":
+            # Code PayPal
+            pass
+        
+        # Sauvegarde en base
+        import sqlite3
+        conn = sqlite3.connect('payments.db')
+        # ...
+        
+        # Email de confirmation
+        import smtplib
+        # ...
+        
+        return True
+```
+
+**Consignes :**
+1. Identifiez les violations de SOLID
+2. Refactorisez en respectant tous les principes
+3. Ajoutez 2 nouvelles méthodes de paiement sans modifier le code existant
+
+---
+
+### Exercice 2 : Système de validation
+
+**Objectif :** Créer un système de validation flexible pour des formulaires.
+
+**Exigences :**
+- Valider différents types de champs (email, téléphone, date, etc.)
+- Composer plusieurs validations (requis + format)
+- Ajouter facilement de nouvelles règles de validation
+- Messages d'erreur personnalisables
+
+**Principes à appliquer :**
+- SRP : Chaque validator une responsabilité
+- OCP : Nouveaux validators sans modification
+- ISP : Interfaces spécifiques
+- DIP : Dépendre des abstractions
+
+**Structure suggérée :**
 
 ```python
 from abc import ABC, abstractmethod
 
-
-class Event(ABC):
-    """Classe abstraite pour tous les événements"""
-    
-    def __init__(self, title, date):
-        self.title = title
-        self.date = date
-    
+class Validator(ABC):
     @abstractmethod
-    def get_description(self):
-        """Retourne une description de l'événement"""
-        pass
-    
-    @abstractmethod
-    def get_duration(self):
-        """Retourne la durée de l'événement"""
+    def validate(self, value) -> tuple[bool, str]:
+        """Returns (is_valid, error_message)"""
         pass
 
-
-class Conference(Event):
-    """Événement de type conférence"""
-    
-    def __init__(self, title, date, speaker, topic):
-        super().__init__(title, date)
-        self.speaker = speaker
-        self.topic = topic
-    
-    def get_description(self):
-        return f"Conférence: {self.title} par {self.speaker} sur {self.topic}"
-    
-    def get_duration(self):
-        return "2 heures"
-
-
-class Workshop(Event):
-    """Événement de type atelier pratique"""
-    
-    def __init__(self, title, date, max_participants, materials):
-        super().__init__(title, date)
-        self.max_participants = max_participants
-        self.materials = materials
-    
-    def get_description(self):
-        return f"Atelier: {self.title} (max {self.max_participants} participants)"
-    
-    def get_duration(self):
-        return "3 heures"
-
-
-class SportEvent(Event):
-    """Événement sportif"""
-    
-    def __init__(self, title, date, sport_type, teams):
-        super().__init__(title, date)
-        self.sport_type = sport_type
-        self.teams = teams
-    
-    def get_description(self):
-        return f"Compétition de {self.sport_type}: {self.title}"
-    
-    def get_duration(self):
-        return "Variable selon le sport"
-
-
-class EventFactory:
-    """
-    Factory pour créer des événements
-    """
-    
-    @staticmethod
-    def create_event(event_type, **kwargs):
-        """
-        Crée un événement selon son type
-        
-        Args:
-            event_type: Type d'événement ('conference', 'workshop', 'sport')
-            **kwargs: Paramètres spécifiques à chaque type
-        
-        Returns:
-            Instance de Event
-        """
-        event_types = {
-            'conference': Conference,
-            'workshop': Workshop,
-            'sport': SportEvent
-        }
-        
-        event_class = event_types.get(event_type)
-        
-        if event_class is None:
-            raise ValueError(f"Type d'événement inconnu: {event_type}")
-        
-        return event_class(**kwargs)
-
-
-# Utilisation
-if __name__ == "__main__":
-    factory = EventFactory()
-    
-    # Créer une conférence
-    conf = factory.create_event(
-        'conference',
-        title="Intelligence Artificielle et Éducation",
-        date="2025-03-15",
-        speaker="Dr. Dupont",
-        topic="IA dans l'enseignement"
-    )
-    
-    # Créer un atelier
-    workshop = factory.create_event(
-        'workshop',
-        title="Développement Web avec Laravel",
-        date="2025-03-20",
-        max_participants=25,
-        materials=["Ordinateur", "Connexion Internet"]
-    )
-    
-    # Créer un événement sportif
-    sport = factory.create_event(
-        'sport',
-        title="Tournoi Inter-Universités",
-        date="2025-04-10",
-        sport_type="Football",
-        teams=["UA", "UG", "UAG"]
-    )
-    
-    # Afficher les événements
-    events = [conf, workshop, sport]
-    for event in events:
-        print(f"{event.get_description()}")
-        print(f"Durée: {event.get_duration()}")
-        print("-" * 50)
-```
-
-**Sortie** :
-```
-Conférence: Intelligence Artificielle et Éducation par Dr. Dupont sur IA dans l'enseignement
-Durée: 2 heures
---------------------------------------------------
-Atelier: Développement Web avec Laravel (max 25 participants)
-Durée: 3 heures
---------------------------------------------------
-Compétition de Football: Tournoi Inter-Universités
-Durée: Variable selon le sport
---------------------------------------------------
-```
-
-#### Variante avancée : Factory avec enregistrement dynamique
-
-```python
-class EventRegistry:
-    """
-    Registry pattern combiné avec Factory
-    Permet d'enregistrer dynamiquement de nouveaux types d'événements
-    """
-    _event_types = {}
-    
-    @classmethod
-    def register(cls, event_type_name):
-        """Décorateur pour enregistrer un type d'événement"""
-        def decorator(event_class):
-            cls._event_types[event_type_name] = event_class
-            return event_class
-        return decorator
-    
-    @classmethod
-    def create(cls, event_type, **kwargs):
-        """Crée un événement enregistré"""
-        event_class = cls._event_types.get(event_type)
-        if event_class is None:
-            raise ValueError(f"Type non enregistré: {event_type}")
-        return event_class(**kwargs)
-    
-    @classmethod
-    def list_types(cls):
-        """Liste tous les types d'événements disponibles"""
-        return list(cls._event_types.keys())
-
-
-# Utilisation avec le décorateur
-@EventRegistry.register('conference')
-class Conference(Event):
-    # ... (même implémentation)
+class EmailValidator(Validator):
+    # À implémenter
     pass
 
-@EventRegistry.register('workshop')
-class Workshop(Event):
-    # ... (même implémentation)
+class CompositeValidator(Validator):
+    """Combine plusieurs validators"""
+    # À implémenter
     pass
 
-# Créer un événement
-event = EventRegistry.create('conference', title="...", date="...", ...)
-
-# Lister les types disponibles
-print(EventRegistry.list_types())  # ['conference', 'workshop']
+class FormValidator:
+    """Valide un formulaire complet"""
+    # À implémenter
+    pass
 ```
-
-#### ⚠️ Quand utiliser Factory Method ?
-
-**✅ Utilisez-le pour :**
-- Créer des objets dont le type exact n'est connu qu'à l'exécution
-- Centraliser la logique de création complexe
-- Faciliter l'ajout de nouveaux types sans modifier le code existant
-- Encapsuler les dépendances de création
-
-**❌ Évitez-le pour :**
-- Création simple d'objets (surcharge inutile)
-- Quand vous avez seulement 1-2 types d'objets
 
 ---
 
-## 3. Exercices pratiques
+### Exercice 3 : Système de logging
 
-### Exercice 1 : Singleton - Gestionnaire de Session
+**Objectif :** Créer un système de logging flexible.
 
-Créez un gestionnaire de session utilisateur pour une application campus qui :
-- Stocke l'utilisateur connecté
-- Garde trace de l'heure de connexion
-- Permet de vérifier si la session est active (max 2 heures)
-- Garantit qu'une seule session existe
+**Exigences :**
+- Différents niveaux (DEBUG, INFO, WARNING, ERROR)
+- Différentes destinations (console, fichier, database, remote)
+- Formatage personnalisable
+- Filtrage par niveau
 
-```python
-# À compléter
-class SessionManager:
-    # Votre code ici
-    pass
-```
-
-### Exercice 2 : Factory Method - Système de Notifications
-
-Créez un système de notifications qui peut envoyer des messages via différents canaux :
-- Email
-- SMS
-- Push notification (mobile)
-
-Chaque type de notification a des paramètres spécifiques et une méthode `send()`.
-
-```python
-# À compléter
-class NotificationFactory:
-    # Votre code ici
-    pass
-```
-
-### Exercice 3 : Combinaison - Logger avec Factory
-
-Créez un système de logging qui :
-- Utilise Singleton pour avoir une instance unique du logger
-- Utilise Factory pour créer différents types de handlers (console, fichier, remote)
-- Permet de logger à différents niveaux (DEBUG, INFO, WARNING, ERROR)
+**Consignes :**
+1. Concevoir avec SOLID en tête
+2. Utiliser les design patterns appropriés (Strategy, Decorator, Observer)
+3. Permettre la configuration runtime
 
 ---
 
-## 4. Anti-Patterns à éviter
+## 9. Anti-Patterns et Pièges Courants
 
-### 4.1 Le God Object (Objet Dieu)
-
-**Problème** : Une classe qui fait tout.
+### 9.1 Over-Engineering
 
 ```python
-# ❌ Mauvais
-class Application:
-    def connect_database(self): pass
-    def send_email(self): pass
-    def process_payment(self): pass
-    def generate_report(self): pass
-    def manage_users(self): pass
-    # ... 50 autres méthodes
-```
-
-**Solution** : Séparer les responsabilités (principe SRP - Single Responsibility Principle).
-
-### 4.2 Singleton Abuse
-
-**Problème** : Utiliser Singleton partout par facilité.
-
-```python
-# ❌ Mauvais - Singleton inutile
-@singleton
-class Student:  # Pourquoi une seule instance d'étudiant ?!
+# ❌ Sur-ingénierie pour un cas simple
+class SimpleName:
     pass
+
+class SimpleNameFactory(ABC):
+    @abstractmethod
+    def create_name(self): pass
+
+class ConcreteSimpleNameFactory(SimpleNameFactory):
+    def create_name(self):
+        return SimpleName()
+
+class SimpleNameFactoryProvider:
+    def get_factory(self):
+        return ConcreteSimpleNameFactory()
+
+# Pour créer un simple objet !
+name = SimpleNameFactoryProvider().get_factory().create_name()
+
+# ✅ KISS (Keep It Simple, Stupid)
+name = SimpleName()  # C'est suffisant !
 ```
 
-**Solution** : N'utiliser Singleton que quand c'est vraiment nécessaire.
+**Règle :** Appliquer SOLID quand c'est nécessaire, pas systématiquement.
+
+### 9.2 Abstraction Prématurée
+
+```python
+# ❌ Créer des abstractions "au cas où"
+class DataSource(ABC):  # Abstraction jamais utilisée
+    @abstractmethod
+    def get_data(self): pass
+
+class MySQLDataSource(DataSource):  # Seule implémentation
+    def get_data(self):
+        return []
+
+# ✅ Commencer simple, abstraire quand nécessaire
+class DataSource:
+    def get_data(self):
+        return []
+
+# Plus tard, si besoin d'une deuxième implémentation:
+# 1. Créer l'interface
+# 2. Refactorer l'existant
+# 3. Ajouter la nouvelle implémentation
+```
+
+**Règle :** YAGNI (You Aren't Gonna Need It)
+
+### 9.3 Interface Bloat
+
+```python
+# ❌ Interface trop grosse qui viole ISP
+class Repository(ABC):
+    @abstractmethod
+    def find_all(self): pass
+    
+    @abstractmethod
+    def find_by_id(self, id): pass
+    
+    @abstractmethod
+    def save(self, entity): pass
+    
+    @abstractmethod
+    def delete(self, id): pass
+    
+    @abstractmethod
+    def count(self): pass
+    
+    @abstractmethod
+    def exists(self, id): pass
+    
+    # ... 20 autres méthodes
+
+# ReadOnlyRepository forcé d'implémenter save() et delete()
+class ReadOnlyRepository(Repository):
+    def save(self, entity):
+        raise NotImplementedError("Read-only!")
+    
+    def delete(self, id):
+        raise NotImplementedError("Read-only!")
+```
 
 ---
 
-## 5. Résumé de la Partie 1
+## 10. SOLID dans le Monde Réel
 
-### Ce que nous avons vu
+### 10.1 Frameworks Populaires
 
-1. **Les Design Patterns** sont des solutions réutilisables à des problèmes récurrents
-2. **Trois catégories** : Création, Structure, Comportement
-3. **Singleton** : Une seule instance dans toute l'application
-4. **Factory Method** : Déléguer la création d'objets à des méthodes dédiées
+**Django (Python Web Framework)**
+- **SRP** : Models, Views, Forms séparés
+- **OCP** : Middleware extensible
+- **DIP** : Settings injectables
+
+**Flask (Python Web Framework)**
+- **OCP** : Blueprints
+- **DIP** : Extensions
+
+**React (JavaScript)**
+- **SRP** : Composants à responsabilité unique
+- **OCP** : Higher-Order Components
+- **ISP** : Props spécifiques
+
+### 10.2 Architecture Logicielle
+
+**Clean Architecture (Uncle Bob)**
+
+```
+┌─────────────────────────────────────┐
+│     Frameworks & Drivers            │
+│  (Web, DB, UI, External Interfaces) │
+├─────────────────────────────────────┤
+│     Interface Adapters              │
+│  (Controllers, Gateways, Presenters)│
+├─────────────────────────────────────┤
+│     Use Cases                       │
+│  (Application Business Rules)       │
+├─────────────────────────────────────┤
+│     Entities                        │
+│  (Enterprise Business Rules)        │
+└─────────────────────────────────────┘
+
+Dépendances : Extérieur → Intérieur (DIP)
+```
+
+**Hexagonal Architecture (Ports & Adapters)**
+- **DIP** : Dépendance sur les ports (interfaces)
+- **OCP** : Nouveaux adapters sans modifier le core
+
+---
+
+## 11. Checklist SOLID pour Code Review
+
+### Avant de merger du code, vérifiez :
+
+**Single Responsibility**
+- [ ] Chaque classe a-t-elle UNE seule raison de changer ?
+- [ ] Peut-on décrire la classe en une phrase sans "et" ?
+- [ ] La classe a-t-elle moins de 200 lignes ?
+
+**Open/Closed**
+- [ ] Peut-on étendre sans modifier ?
+- [ ] Y a-t-il trop de if/else ou switch ?
+- [ ] Utilise-t-on le polymorphisme ?
+
+**Liskov Substitution**
+- [ ] Les sous-classes respectent-elles le contrat de la classe de base ?
+- [ ] Pas d'exceptions inattendues dans les sous-classes ?
+- [ ] Le polymorphisme fonctionne-t-il correctement ?
+
+**Interface Segregation**
+- [ ] Les interfaces sont-elles spécifiques ?
+- [ ] Y a-t-il des méthodes NotImplementedError ?
+- [ ] Les clients utilisent-ils toutes les méthodes ?
+
+**Dependency Inversion**
+- [ ] Dépend-on des abstractions ?
+- [ ] Utilise-t-on l'injection de dépendances ?
+- [ ] Le code est-il testable sans mocks complexes ?
+
+---
+
+## 12. Conclusion
+
+### Ce que nous avons appris
+
+✅ **Les 5 principes SOLID** en profondeur  
+✅ **Violations courantes** et comment les corriger  
+✅ **Applications pratiques** avec refactoring  
+✅ **Liens avec les design patterns**  
+✅ **Anti-patterns** à éviter  
 
 ### Principes clés à retenir
 
-- Un pattern n'est pas du code, c'est un modèle
-- Choisir le bon pattern selon le problème
-- Ne pas sur-utiliser les patterns (KISS - Keep It Simple, Stupid)
-- Les patterns facilitent la communication entre développeurs
+1. **SOLID n'est pas dogmatique** : Utilisez avec jugement
+2. **Commencez simple** : Refactorez vers SOLID quand nécessaire
+3. **La maintenabilité avant tout** : SOLID sert ce but
+4. **Testabilité** : Code SOLID = code testable
+5. **Évolutivité** : Anticiper le changement sans sur-ingénierie
 
-### Dans la partie 2, nous verrons :
+### Règles d'Or
 
-- Builder Pattern (construction d'objets complexes)
-- Prototype Pattern (clonage d'objets)
-- Abstract Factory (familles d'objets)
-- Patterns de structure (Adapter, Decorator, Facade)
+**KISS** - Keep It Simple, Stupid  
+**YAGNI** - You Aren't Gonna Need It  
+**DRY** - Don't Repeat Yourself  
+**SOLID** - Pour la qualité et la maintenabilité  
+
+### La Pyramide de la Qualité
+
+```
+         Fonctionne
+            ↑
+         Maintenable (SOLID)
+            ↑
+         Testable
+            ↑
+         Compréhensible
+            ↑
+         Simple
+```
 
 ---
 
-## 6. Ressources complémentaires
+## 13. Pour Aller Plus Loin
 
-**Livres recommandés :**
-- "Design Patterns" (Gang of Four) - Le livre de référence
-- "Head First Design Patterns" - Approche visuelle et ludique
-- "Python Design Patterns" - Spécifique à Python
+### Livres Recommandés
 
-**Sites web :**
-- [Refactoring.Guru](https://refactoring.guru/design-patterns) - Excellentes illustrations
-- [Python Patterns](https://python-patterns.guide/) - Patterns en Python
+- **"Clean Code"** - Robert C. Martin  
+  Les fondations de la qualité logicielle
+
+- **"Clean Architecture"** - Robert C. Martin  
+  Architecture et principes SOLID
+
+- **"Refactoring"** - Martin Fowler  
+  Améliorer le code existant
+
+- **"Design Patterns"** - Gang of Four  
+  Patterns classiques
+
+### Ressources en Ligne
+
+- **Refactoring.Guru** - Excellentes illustrations
+- **SOLID Principles (Uncle Bob)** - Articles originaux
+- **Python Design Patterns** - Implémentations Python
+
+### Pratique
+
+- **Code Katas** : Exercices de refactoring
+- **Open Source** : Lire du code de qualité
+- **Code Review** : Appliquer SOLID dans vos projets
+
+---
+
+## 14. Projet Final
+
+### Système de Gestion de Bibliothèque
+
+**Objectif :** Concevoir et implémenter un système complet en respectant SOLID.
+
+**Fonctionnalités :**
+1. Gestion des livres (ajout, recherche, emprunt, retour)
+2. Gestion des membres (inscription, historique)
+3. Système de pénalités (retards)
+4. Notifications (email, SMS)
+5. Rapports (statistiques, inventaire)
+6. Différentes sources de données (SQLite, PostgreSQL, JSON)
+
+**Contraintes :**
+- Respecter tous les principes SOLID
+- Utiliser au moins 5 design patterns
+- Code 100% testé
+- Documentation complète
+
+**Livrables :**
+1. Diagramme UML de classes
+2. Code source avec commentaires
+3. Tests unitaires
+4. README avec justification des choix architecturaux
+
+**Critères d'évaluation :**
+- Respect de SOLID (40%)
+- Qualité du code (30%)
+- Tests (20%)
+- Documentation (10%)
+
+---
+
+## 15. Quiz Final
+
+### Questions Théoriques
+
+1. **SRP :** Donnez 3 exemples de violations du SRP dans du code réel
+2. **OCP :** Comment Strategy Pattern applique-t-il l'OCP ?
+3. **LSP :** Expliquez pourquoi Square héritant de Rectangle viole le LSP
+4. **ISP :** Quelle est la différence entre ISP et SRP ?
+5. **DIP :** Qu'est-ce que l'injection de dépendances ?
+
+### Questions Pratiques
+
+**Identifiez les violations :**
+
+```python
+class UserManager:
+    def create_user(self, data):
+        # Validation
+        if not data.get('email'):
+            return False
+        
+        # Hash password
+        import hashlib
+        password = hashlib.sha256(data['password'].encode()).hexdigest()
+        
+        # Save to DB
+        import sqlite3
+        conn = sqlite3.connect('users.db')
+        # ...
+        
+        # Send email
+        import smtplib
+        # ...
+        
+        # Log
+        print(f"User created: {data['email']}")
+        
+        return True
+```
+
+**Quels principes sont violés ? Comment corriger ?**
+
+---
+
+## 16. Prochains Cours
+
+**CM6 : Architecture Logicielle**
+- Clean Architecture
+- Hexagonal Architecture
+- Domain-Driven Design
+- Microservices
+
+**CM7 : Tests et Qualité**
+- Tests unitaires
+- TDD (Test-Driven Development)
+- Mocking et Dependency Injection
+- Code Coverage
+
+**CM8 : Patterns Avancés**
+- CQRS (Command Query Responsibility Segregation)
+- Event Sourcing
+- Repository Pattern
+- Unit of Work
+
+---
+
+## Conclusion Finale
+
+Les principes SOLID ne sont pas des règles strictes, mais des **guidelines** pour créer du code de qualité. Utilisez votre jugement :
+
+- ✅ Appliquez SOLID quand ça améliore la maintenabilité
+- ❌ N'appliquez pas SOLID aveuglément
+- ✅ Refactorez vers SOLID progressivement
+- ❌ Ne faites pas de sur-ingénierie
+
+**Objectif final :** Code **simple**, **maintenable**, et **évolutif**.
 
 ---
 
 ## Questions ?
 
-N'hésitez pas à poser vos questions sur :
-- L'utilisation pratique des patterns
-- Les cas d'usage spécifiques
-- L'implémentation en Python
-- Les différences avec d'autres langages
+Merci pour votre attention !
 
-**Prochaine séance** : CM4 Partie 2 - Suite des patterns de création et introduction aux patterns de structure.
+**Contact :** roland.ratenan@nasdy.fr  
+**Office Hours :** 9h-17h
+
+---
+
+*Fin du CM5 - Principes SOLID*
