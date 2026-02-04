@@ -12,6 +12,8 @@ class Animal:
         """Méthode à redéfinir"""
         return f"{self.name} se déplace"
 
+    def jump(self):
+        return "Un saut quelconque"
 
 class Dog(Animal):
     """Chien"""
@@ -22,6 +24,8 @@ class Dog(Animal):
     def move(self):
         return f"{self.name} court en remuant la queue"
 
+    def jump(self):
+        return "Je saute comme un chien"
 
 class Cat(Animal):
     """Chat"""
@@ -32,7 +36,9 @@ class Cat(Animal):
     def move(self):
         return f"{self.name} se déplace silencieusement"
 
-
+    def jump(self):
+        return "Je saute comme un chat"
+    
 class Bird(Animal):
     """Oiseau"""
     
@@ -55,7 +61,7 @@ def make_animal_perform(animal: Animal):
     print(f"\n{animal.name}:")
     print(f"  Son: {animal.make_sound()}")
     print(f"  Mouvement: {animal.move()}")
-
+    print(f"  Saut: {animal.jump()}")
 
 if __name__ == "__main__":
     print("=" * 70)

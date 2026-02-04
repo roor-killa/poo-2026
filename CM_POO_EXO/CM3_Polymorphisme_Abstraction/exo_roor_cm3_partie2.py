@@ -81,7 +81,7 @@ class BankTransfer(PaymentMethod):
 class Cryptocurrency(PaymentMethod):
     """Paiement en crypto-monnaie"""
     
-    def __init__(self, wallet_address: str, crypto_type: str = "Bitcoin"):
+    def __init__(self, wallet_address: str, crypto_type: str = "BoKryptoNou"):
         self.wallet_address = wallet_address
         self.crypto_type = crypto_type
     
