@@ -61,7 +61,7 @@ def make_animal_perform(animal: Animal):
     print(f"\n{animal.name}:")
     print(f"  Son: {animal.make_sound()}")
     print(f"  Mouvement: {animal.move()}")
-    print(f"  Saut: {animal.jump()}")
+
 
 if __name__ == "__main__":
     print("=" * 70)
