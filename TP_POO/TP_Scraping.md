@@ -119,13 +119,14 @@ python-dotenv>=1.0.0
 5. **Documentation** : Docstrings Google style pour toutes les classes et méthodes
 6. **Gestion d'erreurs** : Try-except appropriés avec logging
 7. **Git** : Commits réguliers avec messages explicites
+8. **Containerisation** avec Docker
 
 ### Optionnelles (bonus)
 
 - Utilisation de **Selenium** pour les sites avec JavaScript dynamique
 - **Tests unitaires** avec pytest
 - **Interface CLI** avec argparse ou click
-- **Containerisation** avec Docker
+
 - **Base de données** SQLite pour stocker les résultats
 
 ---
@@ -272,4 +273,4 @@ Si vous terminez en avance ou souhaitez approfondir :
 
 **Date de rendu :** 4 mars 2026  
 **Contact :** roor@nasdy.fr  
-**Plateforme de soumission :** GitHub / eCursus (A définir)
+**Plateforme de soumission :** GitHub
