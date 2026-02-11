@@ -15,7 +15,6 @@ class PaymentMethod(ABC):
         """Retourne le nom de la méthode"""
         pass
 
-
 class CreditCard(PaymentMethod):
     """Paiement par carte de crédit"""
     

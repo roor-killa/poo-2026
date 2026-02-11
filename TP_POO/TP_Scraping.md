@@ -273,4 +273,4 @@ Si vous terminez en avance ou souhaitez approfondir :
 
 **Date de rendu :** 4 mars 2026  
 **Contact :** roor@nasdy.fr  
-**Plateforme de soumission :** GitHub / eCursus (A définir)
+**Plateforme de soumission :** GitHub
