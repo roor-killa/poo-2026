@@ -2,7 +2,7 @@ import re
 
 class Etudiant:
    universite = "Université des Antilles"
-   nombre_etudiants = 0
+   compteur_total = 0
 
 
    def __init__(self, nom, prenom, numero_etudiant):
@@ -12,7 +12,17 @@ class Etudiant:
             raise ValueError("Numéro étudiant invalide (format: E12345)")
       self.__numero_etudiant = numero_etudiant
       self._notes = []
-      Etudiant.nombre_etudiants += 1
+      Etudiant.compteur_total += 1
+
+   @classmethod
+   def get_nombre_etudiants(cls):
+      return cls.compteur_total
+   
+
+   @classmethod
+   def changer_universite(cls, nouvelle_universite):
+      cls.universite = nouvelle_universite
+      return f"Université changée pour {Etudiant.universite}"
 
 
    @property
@@ -26,6 +36,7 @@ class Etudiant:
       
       if note >= 0 and note <= 20:
          self._notes.append(note)
+         CompteurNotes.ajouter_note_historique(note)
          return "La note a été ajouté"
       else:
          return "Note invalide"
@@ -101,19 +112,47 @@ class Promotion:
          if etudiant.est_admis():
             admis.append(etudiant)
       return admis
+
+
+class CompteurNotes:
+   historique = []
+
+
+   @classmethod
+   def ajouter_note_historique(cls, note):
+      cls.historique.append(note)
+      return "Note ajoutée à l'historique"
    
+   @classmethod
+   def statistiques(cls):
+      if cls.historique:
+         min = cls.historique[0]
+         max = cls.historique[0]
+         moyenne = sum(cls.historique) / len(cls.historique)
+      else:
+         return "Aucune note dans l'historique"
+      for note in cls.historique:
+         if note < min:
+            min = note
+         if note > max:
+            max = note
+      return f"Statistiques de l'historique : Min = {min}, Max = {max}, moyenne = {moyenne:.2f}"
+   
+         
+print(Etudiant.get_nombre_etudiants())  # 0
 
+e1 = Etudiant("A", "A", "E00001")
+e2 = Etudiant("B", "B", "E00002")
+e3 = Etudiant("C", "C", "E00003")
 
+print(Etudiant.get_nombre_etudiants())  # 3
+print(e1.universite)  # Université des Antilles
 
-# Tester l'accès aux propriétés
-etudiant = Etudiant("Dubois", "Jean", "E12347")
-print(etudiant.moyenne)  # Doit fonctionner
-# etudiant.moyenne = 15  # Doit échouer
-print(etudiant.numero_etudiant)  # Doit fonctionner
-# etudiant.numero_etudiant = "E99999"  # Doit échouer
+Etudiant.changer_universite("UA - Campus de Schoelcher")
+print(e2.universite)  # UA - Campus de Schoelcher
 
-# Tester validation
-try:
-    etudiant_invalide = Etudiant("Test", "Test", "12345")  # Doit échouer
-except ValueError as e:
-    print(f"Erreur attendue : {e}")
+# Test statistiques
+e1.ajouter_note(15)
+e2.ajouter_note(12)
+e3.ajouter_note(18)
+print(CompteurNotes.statistiques())
