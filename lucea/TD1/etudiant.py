@@ -1,56 +1,48 @@
+import re
+
 class Etudiant:
    universite = "Université des Antilles"
    nombre_etudiants = 0
 
 
-   def __init__(self, nom, prenom, numero_etudiant, filiere):
+   def __init__(self, nom, prenom, numero_etudiant):
       self.nom = nom
       self.prenom = prenom
-      self.numero_etudiant = numero_etudiant
-      self.filiere = filiere
-      self.notes = {}
+      if not re.fullmatch(r"E\d{5}", numero_etudiant):
+            raise ValueError("Numéro étudiant invalide (format: E12345)")
+      self.__numero_etudiant = numero_etudiant
+      self._notes = []
       Etudiant.nombre_etudiants += 1
 
 
-   def ajouter_note(self, matiere, note):
-      if matiere not in self.notes:
-         self.notes[matiere] = []
+   @property
+   def numero_etudiant(self):
+      return self.__numero_etudiant
 
+
+   def ajouter_note(self, note):
+      if len(self._notes) >= 10:
+        return "Nombre maximum de notes atteint (10)"
+      
       if note >= 0 and note <= 20:
-         self.notes[matiere].append(note)
-         return "La note a été ajouté a la matiere :" + matiere
+         self._notes.append(note)
+         return "La note a été ajouté"
       else:
          return "Note invalide"
 
 
-   def calculer_moyenne(self):
-      total_notes = 0
-      nb_notes = 0
-       
-      for matiere, note in self.notes.items():
-         total_notes += sum(note)
-         nb_notes += len(note)
-
-      if nb_notes > 0:
-         self.moyenne = total_notes / nb_notes
-         return "Moyenne général =" + self.moyenne
-      else:
-         return "Aucune note pour cet(te) étudiant(e)"
-    
-
-   def calculer_moyenne_matiere(self, matiere):
-      nb_notes = len(self.notes[matiere])
-      if nb_notes == 0:
-         return "Aucune note pour cet(te) étudiant(e)"
-      else :
-         for i in range(nb_notes):
-            total_notes += self.notes[matiere][i]
-
-         moyenne = total_notes / nb_notes
-         return "Moyenne pour la matiere :" + matiere + "=" + moyenne
+   @property
+   def moyenne(self):
+      if not self._notes:
+         return None
+      return sum(self._notes) / len(self._notes)
 
 
    def est_admis(self, seuil=10):
+      if self.moyenne is None:
+         print("Aucune note pour cet(te) étudiant(e)")
+         return False
+
       if self.moyenne < seuil:
          print("L'étudiant(e) n'est pas admis")
          return False
@@ -59,43 +51,69 @@ class Etudiant:
          return True
 
 
-   def obtenir_mention(self):
-      if self.est_admis():
-         if self.moyenne <= 12:
-            self.mention = "Passable"
-         elif self.moyenne <= 14:
-            self.mention = "Asser bien"
-         elif self.moyenne <= 16:
-            self.mention = "Bien"
-         else:
-            self.mention = "Très bien"
-         return "La mention de l'étudiant(e) est :" + self.mention
-      else:
-         return "L'étudiant(e) n'a pas de mention" 
-      
-   def comparer_avec(self, autre_etudiant):
-      if self.moyenne > autre_etudiant.moyenne:
-         return f"{self.nom, self.prenom, self.numero_etudiant} a une meilleur moyenne que {autre_etudiant.nom, autre_etudiant.prenom, autre_etudiant.numero_etudiant}"
-      else:
-         return f"{autre_etudiant.nom, autre_etudiant.prenom, autre_etudiant.numero_etudiant} a une meilleur moyenne que {self.nom, self.prenom, self.numero_etudiant}"
-
-          
-   #Affichage par -GPT5
    def __str__(self):
       lignes = [
          f"Nom : {self.nom} {self.prenom}",
          f"Numéro étudiant : {self.numero_etudiant}",
-         f"Filière : {self.filiere}",
          f"Université : {Etudiant.universite}",
          f"Nombre total d'étudiants : {Etudiant.nombre_etudiants}"
-         ]
+      ]
 
-      if hasattr(self, 'moyenne'):
-         lignes.append(f"Moyenne générale : {self.moyenne:.2f}")
-         if hasattr(self, 'mention'):
-            lignes.append(f"Mention : {self.mention}")
-      if self.notes:
-         lignes.append("Notes par matière :")
-         for matiere, notes in self.notes.items():
-            lignes.append(f"  {matiere} : {notes}")
+      if self.moyenne is not None:
+        lignes.append(f"Moyenne générale : {self.moyenne:.2f}")
+
+      if self._notes:
+         lignes.append("Notes :")
+         for note in self._notes:
+            lignes.append(f"  {note}")
       return "\n".join(lignes)
+
+
+class Promotion:
+   def __init__(self, nom_promotion):
+      self.nom_promotion = nom_promotion
+      self.etudiants = []
+
+   def ajouter_etudiant(self, etudiant):
+      self.etudiants.append(etudiant)
+      return "L'étudiant(e) a été ajouté à la promotion"
+   
+   def calculer_moyenne_promotion(self):
+      total_moyennes = 0
+      nb_etudiants = 0
+
+      for etudiant in self.etudiants:
+         if etudiant.moyenne is not None:
+            total_moyennes += etudiant.moyenne
+            nb_etudiants += 1
+
+      if nb_etudiants > 0:
+         moyenne_promotion = total_moyennes / nb_etudiants
+         return f"Moyenne de la promotion {self.nom_promotion} : {moyenne_promotion:.2f}"
+      else:
+         return f"Aucun étudiant n'a de moyenne dans la promotion {self.nom_promotion}"
+
+      
+   
+   def lister_admis(self):
+      admis = []
+      for etudiant in self.etudiants:
+         if etudiant.est_admis():
+            admis.append(etudiant)
+      return admis
+   
+
+
+
+# Tester l'accès aux propriétés
+etudiant = Etudiant("Dubois", "Jean", "E12347")
+print(etudiant.moyenne)  # Doit fonctionner
+# etudiant.moyenne = 15  # Doit échouer
+print(etudiant.numero_etudiant)  # Doit fonctionner
+# etudiant.numero_etudiant = "E99999"  # Doit échouer
+
+# Tester validation
+try:
+    etudiant_invalide = Etudiant("Test", "Test", "12345")  # Doit échouer
+except ValueError as e:
+    print(f"Erreur attendue : {e}")

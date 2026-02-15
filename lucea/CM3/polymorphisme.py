@@ -1,9 +1,12 @@
-class Animal:
+from abc import ABC, abstractmethod
+
+class Animal(ABC):
     """Classe de base"""
     
     def __init__(self, name):
         self.name = name
     
+    @abstractmethod
     def make_sound(self):
         """Méthode à redéfinir"""
         return "Un son quelconque"
@@ -17,7 +20,7 @@ class Dog(Animal):
     """Chien"""
     
     def make_sound(self):
-        return "Woof! Woof!"
+        return "Woof! Woof!"  
     
     def move(self):
         return f"{self.name} court en remuant la queue"
