@@ -1,11 +1,10 @@
 import re
 
-class Etudiant:
-   universite = "Université des Antilles"
-   compteur_total = 0
+class Etudiant: 
+   compteur_total = 0 # Attribut de classe pour compter le nombre total d'étudiants
 
 
-   def __init__(self, nom, prenom, numero_etudiant):
+   def __init__(self, nom, prenom, numero_etudiant): # Attributs d'instance pour le nom, prénom et numéro étudiant
       self.nom = nom
       self.prenom = prenom
       if not re.fullmatch(r"E\d{5}", numero_etudiant):
@@ -15,22 +14,22 @@ class Etudiant:
       Etudiant.compteur_total += 1
 
    @classmethod
-   def get_nombre_etudiants(cls):
+   def get_nombre_etudiants(cls): # Méthode de classe pour obtenir le nombre total d'étudiants
       return cls.compteur_total
    
 
    @classmethod
-   def changer_universite(cls, nouvelle_universite):
+   def changer_universite(cls, nouvelle_universite): # Méthode de classe pour changer l'université
       cls.universite = nouvelle_universite
       return f"Université changée pour {Etudiant.universite}"
 
 
    @property
-   def numero_etudiant(self):
+   def numero_etudiant(self): # Propriété pour accéder au numéro étudiant de manière sécurisée
       return self.__numero_etudiant
 
 
-   def ajouter_note(self, note):
+   def ajouter_note(self, note): # Méthode pour ajouter une note à l'étudiant, avec validation et mise à jour de l'historique des notes
       if len(self._notes) >= 10:
         return "Nombre maximum de notes atteint (10)"
       
@@ -43,13 +42,13 @@ class Etudiant:
 
 
    @property
-   def moyenne(self):
+   def moyenne(self): # Propriété pour calculer la moyenne des notes de l'étudiant, avec gestion du cas où il n'y a pas de notes
       if not self._notes:
          return None
       return sum(self._notes) / len(self._notes)
 
 
-   def est_admis(self, seuil=10):
+   def est_admis(self, seuil=10): # Méthode pour déterminer si l'étudiant est admis en fonction de sa moyenne et d'un seuil, avec gestion du cas où il n'y a pas de notes
       if self.moyenne is None:
          print("Aucune note pour cet(te) étudiant(e)")
          return False
@@ -62,7 +61,7 @@ class Etudiant:
          return True
 
 
-   def __str__(self):
+   def __str__(self): # Méthode spéciale pour représenter l'étudiant sous forme de chaîne de caractères, avec affichage des informations et des notes
       lignes = [
          f"Nom : {self.nom} {self.prenom}",
          f"Numéro étudiant : {self.numero_etudiant}",
@@ -80,16 +79,18 @@ class Etudiant:
       return "\n".join(lignes)
 
 
-class Promotion:
-   def __init__(self, nom_promotion):
+class Promotion: 
+   def __init__(self, nom_promotion): # Attribut d'instance pour le nom de la promotion et une liste d'étudiants
       self.nom_promotion = nom_promotion
       self.etudiants = []
 
-   def ajouter_etudiant(self, etudiant):
+   def ajouter_etudiant(self, etudiant): # Méthode pour ajouter un étudiant à la promotion, avec vérification du type de l'objet et gestion du cas où l'étudiant n'est pas valide
+      if not isinstance(etudiant, Etudiant):
+         return "L'objet fourni n'est pas un étudiant valide"
       self.etudiants.append(etudiant)
       return "L'étudiant(e) a été ajouté à la promotion"
    
-   def calculer_moyenne_promotion(self):
+   def calculer_moyenne_promotion(self): # Méthode pour calculer la moyenne de la promotion en utilisant les moyennes des étudiants, avec gestion du cas où aucun étudiant n'a de moyenne
       total_moyennes = 0
       nb_etudiants = 0
 
@@ -106,7 +107,7 @@ class Promotion:
 
       
    
-   def lister_admis(self):
+   def lister_admis(self): # Méthode pour lister les étudiants admis dans la promotion en utilisant la méthode est_admis de chaque étudiant
       admis = []
       for etudiant in self.etudiants:
          if etudiant.est_admis():
@@ -119,12 +120,12 @@ class CompteurNotes:
 
 
    @classmethod
-   def ajouter_note_historique(cls, note):
+   def ajouter_note_historique(cls, note): # Méthode de classe pour ajouter une note à l'historique des notes
       cls.historique.append(note)
       return "Note ajoutée à l'historique"
    
    @classmethod
-   def statistiques(cls):
+   def statistiques(cls): # Méthode de classe pour calculer les statistiques de l'historique des notes, avec gestion du cas où il n'y a pas de notes dans l'historique
       if cls.historique:
          min = cls.historique[0]
          max = cls.historique[0]
@@ -137,22 +138,3 @@ class CompteurNotes:
          if note > max:
             max = note
       return f"Statistiques de l'historique : Min = {min}, Max = {max}, moyenne = {moyenne:.2f}"
-   
-         
-print(Etudiant.get_nombre_etudiants())  # 0
-
-e1 = Etudiant("A", "A", "E00001")
-e2 = Etudiant("B", "B", "E00002")
-e3 = Etudiant("C", "C", "E00003")
-
-print(Etudiant.get_nombre_etudiants())  # 3
-print(e1.universite)  # Université des Antilles
-
-Etudiant.changer_universite("UA - Campus de Schoelcher")
-print(e2.universite)  # UA - Campus de Schoelcher
-
-# Test statistiques
-e1.ajouter_note(15)
-e2.ajouter_note(12)
-e3.ajouter_note(18)
-print(CompteurNotes.statistiques())
