@@ -1,4 +1,4 @@
-import re
+import re # Importation du module re pour les expressions régulières utilisées dans la validation du numéro étudiant
 
 class Etudiant: 
    compteur_total = 0 # Attribut de classe pour compter le nombre total d'étudiants

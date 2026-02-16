@@ -39,3 +39,12 @@ Diagramme UML :
     - Q2 : Si on oublie d'appeler super().__init__() dans les classes filles, les attributs de la classe parent ne seront pas initialisés, ce qui peut entraîner des erreurs lors de l'accès à ces attributs ou lors de l'utilisation de méthodes qui dépendent de ces attributs.
 
     - Q3 : On ne peut pas créer une instance de Utilisateur car c'est une classe abstraite, elle est conçue pour être héritée et ne peut pas être instanciée directement. Les classes filles (Etudiant, Enseignant, Personnel) doivent implémenter les méthodes abstraites de la classe Utilisateur pour pouvoir être instanciées.
+
+
+- Exercice 5 :
+    - Q1 : Le MRO de la classe Doctorant affiche l'ordre d'appel des classes utilisées donc :
+    (<class '__main__.Doctorant'>, <class '__main__.Utilisateur'>, <class 'abc.ABC'>, <class '__main__.AccesSalleRecherche'>, <class '__main__.PrioriteReservation'>, <class 'object'>)
+
+    - Q2 : Python cherche les méthodes dans l'ordre dans laquelle les classes sont définies dans la déclaration de la classe Doctorant (Il prend également en compte les classes appelées par les classes parentes).
+
+    - Q3 : Le Diamond Problem se produit avec l’héritage multiple quand une méthode est présente dans plusieurs parents, et Python le résout automatiquement grâce au MRO (C3 Linearization) qui définit un ordre unique pour rechercher les méthodes.
