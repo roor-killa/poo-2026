@@ -48,3 +48,11 @@ Diagramme UML :
     - Q2 : Python cherche les méthodes dans l'ordre dans laquelle les classes sont définies dans la déclaration de la classe Doctorant (Il prend également en compte les classes appelées par les classes parentes).
 
     - Q3 : Le Diamond Problem se produit avec l’héritage multiple quand une méthode est présente dans plusieurs parents, et Python le résout automatiquement grâce au MRO (C3 Linearization) qui définit un ordre unique pour rechercher les méthodes.
+
+
+- Exercice 6 :
+    - Q1 : L’approche A (héritage) permet de représenter clairement une hiérarchie, de réutiliser le code du parent, de bénéficier du polymorphisme et de clarifier les catégories de bibliothèques.
+
+    - Q2 : L’approche B (composition) permet de créer des bibliothèques flexibles en assemblant des sections modulaires, de changer ou ajouter des composants facilement sans modifier la hiérarchie, et favorise la réutilisation et l’extensibilité du code.
+
+    - Q3 : Je préfère l’approche B (composition) car elle est plus flexible, modulable et facilite l’extension ou la modification des bibliothèques sans dépendre d’une hiérarchie rigide.
