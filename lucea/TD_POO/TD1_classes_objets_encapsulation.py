@@ -2,7 +2,7 @@ import re
 
 class Etudiant: 
    compteur_total = 0 # Attribut de classe pour compter le nombre total d'étudiants
-
+   universite = "Université des Antilles" # Attribut de classe pour stocker le nom de l'université
 
    def __init__(self, nom, prenom, numero_etudiant): # Attributs d'instance pour le nom, prénom et numéro étudiant
       self.nom = nom
@@ -21,7 +21,7 @@ class Etudiant:
    @classmethod
    def changer_universite(cls, nouvelle_universite): # Méthode de classe pour changer l'université
       cls.universite = nouvelle_universite
-      return f"Université changée pour {Etudiant.universite}"
+      return f"Université changée pour {cls.universite}"
 
 
    @property
@@ -63,7 +63,8 @@ class Etudiant:
 
    def __str__(self): # Méthode spéciale pour représenter l'étudiant sous forme de chaîne de caractères, avec affichage des informations et des notes
       lignes = [
-         f"Nom : {self.nom} {self.prenom}",
+         f"Nom : {self.nom}",
+         f"Prénom : {self.prenom}",
          f"Numéro étudiant : {self.numero_etudiant}",
          f"Université : {Etudiant.universite}",
          f"Nombre total d'étudiants : {Etudiant.nombre_etudiants}"
