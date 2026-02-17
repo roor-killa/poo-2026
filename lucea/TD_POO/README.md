@@ -64,3 +64,11 @@ Diagramme UML :
     - Q2 : Notification est abstraite pour imposer une interface commune et forcer chaque type de notification à implémenter sa propre méthode d’envoi.
 
     - Q3 : On peut ajouter un nouveau canal en créant une nouvelle sous-classe de Notification et en l’ajoutant au gestionnaire, sans modifier le code existant.
+
+
+- Exercice 8 :
+    - Q1 : Le pattern Factory permet de découpler la création des objets de leur utilisation, rendant le code plus flexible et plus facile à maintenir.
+
+    - Q2 : Pour ajouter un nouveau type, on crée la classe correspondante puis on ajoute son cas dans la méthode creer() de la fabrique.
+
+    - Q3 : Oui, utiliser un dictionnaire permet d’associer dynamiquement un type à une classe et rend la factory plus propre, flexible et maintenable.

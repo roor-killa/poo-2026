@@ -40,9 +40,79 @@ class GestionnaireNotifications: #classe qui gère les notifications en utilisan
             print(notification.envoyer(message, destinataire))
 
 
-gestionnaire = GestionnaireNotifications()
-gestionnaire.ajouter_canal(NotificationEmail())
-gestionnaire.ajouter_canal(NotificationSMS())
-gestionnaire.ajouter_canal(NotificationPush())
 
-gestionnaire.notifier_tous("Votre livre est disponible", "marie@example.com")
+
+
+class Livre: #classe qui représente un livre avec des attributs tels que le titre, l'auteur, l'ISBN et le nombre de pages
+    def __init__(self, titre, auteur, isbn, nb_pages):
+        self.titre = titre
+        self.auteur = auteur
+        self.isbn = isbn
+        self.nb_pages = nb_pages
+
+
+class Magazine: #classe qui représente un magazine avec des attributs tels que le titre, l'éditeur, le numéro et le mois de publication
+    def __init__(self, titre, editeur, numero, mois):
+        self.titre = titre
+        self.editeur = editeur
+        self.numero = numero
+        self.mois = mois
+
+
+class DVD: #classe qui représente un DVD avec des attributs tels que le titre, le réalisateur et la durée
+    def __init__(self, titre, realisateur, duree):
+        self.titre = titre
+        self.realisateur = realisateur
+        self.duree = duree
+
+
+class Ebook: #classe qui représente un ebook avec des attributs tels que le titre, l'auteur, le format et la taille en Mo
+    def __init__(self, titre, auteur, format, taille_mo):
+        self.titre = titre
+        self.auteur = auteur
+        self.format = format
+        self.taille_mo = taille_mo
+
+
+class FabriqueDocument: #V1 classe qui implémente le design pattern de la fabrique pour créer des instances de différentes classes de documents en fonction d'un type de document donné
+    @staticmethod
+    def creer(type_doc, **kwargs):
+        if type_doc == "livre":
+            return Livre(**kwargs)
+        elif type_doc == "magazine":
+            return Magazine(**kwargs)
+        elif type_doc == "dvd":
+            return DVD(**kwargs)
+        elif type_doc == "ebook":
+            return Ebook(**kwargs)
+        else:
+            raise ValueError(f"Type de document inconnu : {type_doc}")
+
+
+"""class FabriqueDocument: #V2 classe qui implémente le design pattern de la fabrique pour créer des instances de différentes classes de documents en fonction d'un type de document donné
+    _types = {
+        "livre": Livre,
+        "magazine": Magazine,
+        "dvd": DVD,
+        "ebook": Ebook
+    }
+    
+    @classmethod
+    def creer(cls, type_doc, **kwargs):
+        if type_doc in cls._types:
+            return cls._types[type_doc](**kwargs)
+        else:            
+            raise ValueError(f"Type de document inconnu : {type_doc}")"""
+
+
+donnees = [
+    {"type": "livre", "titre": "1984", "auteur": "Orwell", "isbn": "123", "nb_pages": 328},
+    {"type": "magazine", "titre": "Science", "editeur": "Nature", "numero": 42, "mois": "Janvier"},
+    {"type": "dvd", "titre": "Matrix", "realisateur": "Wachowski", "duree": 136}
+]
+
+documents = []
+for data in donnees:
+    type_doc = data.pop("type")
+    doc = FabriqueDocument.creer(type_doc, **data)
+    documents.append(doc)
