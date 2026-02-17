@@ -72,3 +72,11 @@ Diagramme UML :
     - Q2 : Pour ajouter un nouveau type, on crée la classe correspondante puis on ajoute son cas dans la méthode creer() de la fabrique.
 
     - Q3 : Oui, utiliser un dictionnaire permet d’associer dynamiquement un type à une classe et rend la factory plus propre, flexible et maintenable.
+
+
+- Exercice 9 :
+    - Q1 : Un observer notifie plusieurs abonnés lorsqu’il change tandisqu'un strategy change son comportement en choisissant dynamiquement une implémentation interchangeable.
+
+    - Q2 : La liste d’observateurs permet de notifier dynamiquement tous les abonnés d’un événement, garantissant flexibilité et extensibilité.
+
+    - Q3 : On peut éviter les références circulaires en stockant les observateurs sous forme de références faibles (weakref) ou en les retirant explicitement, ce qui permet au garbage collector de libérer les objets normalement.
