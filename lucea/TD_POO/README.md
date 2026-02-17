@@ -56,3 +56,11 @@ Diagramme UML :
     - Q2 : L’approche B (composition) permet de créer des bibliothèques flexibles en assemblant des sections modulaires, de changer ou ajouter des composants facilement sans modifier la hiérarchie, et favorise la réutilisation et l’extensibilité du code.
 
     - Q3 : Je préfère l’approche B (composition) car elle est plus flexible, modulable et facilite l’extension ou la modification des bibliothèques sans dépendre d’une hiérarchie rigide.
+
+
+- Exercice 7 :
+    - Q1 : Dans cet exercice le polymorphisme permet d’utiliser différentes implémentations (Email, SMS, Push) via une même interface commune (Notification) sans modifier le code du gestionnaire.
+
+    - Q2 : Notification est abstraite pour imposer une interface commune et forcer chaque type de notification à implémenter sa propre méthode d’envoi.
+
+    - Q3 : On peut ajouter un nouveau canal en créant une nouvelle sous-classe de Notification et en l’ajoutant au gestionnaire, sans modifier le code existant.
