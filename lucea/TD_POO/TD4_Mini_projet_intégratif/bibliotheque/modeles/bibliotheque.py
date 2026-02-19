@@ -8,8 +8,8 @@ class Bibliotheque:
 
     
     def ajouter_document(self, document):
-        # ...
-        pass
+        self.catalogue.append(document)
+        return f"Document {document.titre} ajouté à la bibliothèque {self.nom}"
     
     def emprunter(self, utilisateur, document):
         # Vérifier disponibilité

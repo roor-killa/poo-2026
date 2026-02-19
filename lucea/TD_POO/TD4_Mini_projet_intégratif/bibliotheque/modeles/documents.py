@@ -64,18 +64,3 @@ class Ebook(Document): #classe qui représente un ebook avec des attributs tels 
 
     def calculer_frais_retard(self, jours):
         return jours * 0.25  # Frais de retard pour un ebook en euros par jour de retard
-
-
-class FabriqueDocument: #V1 classe qui implémente le design pattern de la fabrique pour créer des instances de différentes classes de documents en fonction d'un type de document donné
-    @staticmethod
-    def creer(type_doc, **kwargs):
-        if type_doc == "livre":
-            return Livre(**kwargs)
-        elif type_doc == "magazine":
-            return Magazine(**kwargs)
-        elif type_doc == "dvd":
-            return DVD(**kwargs)
-        elif type_doc == "ebook":
-            return Ebook(**kwargs)
-        else:
-            raise ValueError(f"Type de document inconnu : {type_doc}")
