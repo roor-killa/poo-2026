@@ -8,21 +8,21 @@ Comme convenu, tout le groupe travaille exclusivement sur le site **kiprix.com**
 
 ## 👥 Répartition des Missions
 
-### 👤 Membre 1 : Lead Développeur & Architecte
+### 👤 Guindo : Lead Développeur & Architecte
 **Vos tâches :**
 - Maintenir et améliorer `BaseScraper.py` (cœur du système).
 - Gérer la logique de navigation et pagination dans `kiprix_scraper.py`.
 - Assurer le bon fonctionnement du `ScraperManager` et du système de cache.
 - Développer et enrichir l'interface en ligne de commande (`cli.py`).
 
-### 👤 Membre 2 : Analyste de Données & Features
+### 👤 Akonou : Analyste de Données & Features
 **Vos tâches :**
 - Enrichir l'extraction dans `kiprix_scraper.py` (récupérer les images, les catégories précises, les stocks si disponibles).
 - Développer les algorithmes d'analyse dans `analyzer.py` (calcul des écarts de prix, détection des promos).
 - Créer un **Notebook Jupyter** pour visualiser les résultats (graphiques de distribution des prix).
 - Gérer les exports multi-formats (Excel stylisé).
 
-### 👤 Membre 3 : Qualité, DevOps & Documentation
+### 👤 Sadi : Qualité, DevOps & Documentation
 **Vos tâches :**
 - Écrire les **tests unitaires** avec `pytest` pour atteindre > 70% de couverture.
 - Configurer l'environnement **Docker** pour que le scraper tourne partout.
@@ -51,6 +51,6 @@ python main.py analyze data/raw/kiprix_gp.json
 ---
 
 ## 📅 Objectifs de la Semaine
-1. **Membre 1** : S'assurer que la pagination fonctionne sur 10+ pages.
-2. **Membre 2** : Commencer les premiers graphiques sur les prix en Guadeloupe vs France.
-3. **Membre 3** : Initialiser la suite de tests pour le scraper de base.
+1. **Guindo** : S'assurer que la pagination fonctionne sur 10+ pages.
+2. **Akonou** : Commencer les premiers graphiques sur les prix en Martinique vs France.
+3. **Sadi** : Initialiser la suite de tests pour le scraper de base.
