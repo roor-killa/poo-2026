@@ -1,0 +1,22 @@
+services:
+  # Service principal : scraper Kiprix
+  scraper:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ../data:/app/data # Partage le dossier data avec l'hôte
+    # Commande par défaut : scraper 10 pages en Guadeloupe
+    command: scrape --pages 10 --territory gp
+
+  # Service optionnel : Jupyter pour l'analyse (Membre 2)
+  jupyter:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8888:8888"
+    volumes:
+      - ../data:/app/data
+      - ../notebooks:/app/notebooks
+    entrypoint: [ "jupyter", "notebook", "--ip=0.0.0.0", "--no-browser", "--allow-root" ]
