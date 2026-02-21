@@ -21,5 +21,6 @@ print()
 print('---------')
 headlines = soup.find_all("h3")
 
+print(headlines)
 for h in headlines:
     print(h.text)
