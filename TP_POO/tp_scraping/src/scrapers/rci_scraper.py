@@ -32,3 +32,7 @@ if soup:
         list_h2 = h.find_all('h2')
         for h2 in list_h2:
             print(h2.text)
+
+        list_span = h.find_all('span')
+        for span in list_span:
+            print(span.text)
