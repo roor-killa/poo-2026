@@ -19,8 +19,16 @@ soup= new_scrap.fetch_page(new_scrap.base_url)
 
 print()
 print('---------')
-headlines = soup.find_all("h3")
+if soup:
+    headlines = soup.find_all(class_='data')
 
-print(headlines)
-for h in headlines:
-    print(h.text)
+    print(headlines)
+    print('------------------------------------')
+    for h in headlines:
+        list_p = h.find_all('p')
+        for p in list_p:
+            print(p.text)
+
+        list_h2 = h.find_all('h2')
+        for h2 in list_h2:
+            print(h2.text)
