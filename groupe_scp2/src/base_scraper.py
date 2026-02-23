@@ -7,12 +7,19 @@ MEMBRE 1 : Ce fichier est entièrement sous ta responsabilité.
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
 import requests
-import time
 import json
 import csv
 import logging
 from pathlib import Path
 from bs4 import BeautifulSoup
+
+try:
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.chrome.service import Service
+    from webdriver_manager.chrome import ChromeDriverManager
+except ImportError:
+    logging.warning("Selenium et/ou webdriver-manager ne sont pas installés.")
 
 
 class BaseScraper(ABC):
@@ -40,8 +47,18 @@ class BaseScraper(ABC):
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
                           'AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/120.0.0.0 Safari/537.36',
-            'From': 'groupe2@univ-antilles.fr'
+                          'Chrome/121.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,'
+                      'image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
         }
         self.data: List[Dict] = []
         self.logger = self._setup_logger()
@@ -58,14 +75,30 @@ class BaseScraper(ABC):
         logger.setLevel(logging.INFO)
         return logger
 
+    def _get_driver(self):
+        """Crée et retourne une instance de Selenium WebDriver."""
+        if not hasattr(self, '_driver') or self._driver is None:
+            from selenium import webdriver
+            from selenium.webdriver.chrome.options import Options
+            from selenium.webdriver.chrome.service import Service
+            from webdriver_manager.chrome import ChromeDriverManager
+            
+            options = Options()
+            options.add_argument('--headless=new')
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
+            options.add_argument(f'user-agent={self.headers["User-Agent"]}')
+            
+            self._driver = webdriver.Chrome(
+                service=Service(ChromeDriverManager().install()),
+                options=options
+            )
+        return self._driver
+
     def fetch_page(self, url: str) -> Optional[BeautifulSoup]:
         """
         Récupère une page web et retourne un objet BeautifulSoup.
-
-        Gère les erreurs réseau suivantes :
-        - Timeout (délai dépassé)
-        - Erreur HTTP (404, 503, etc.)
-        - Erreur de connexion
+        Utilise Selenium pour contourner les protections anti-bot (Cloudflare).
 
         Args:
             url: URL complète de la page à récupérer.
@@ -73,19 +106,25 @@ class BaseScraper(ABC):
         Returns:
             Objet BeautifulSoup si succès, None sinon.
         """
-        time.sleep(self.delay)  # Rate limiting — respecter le serveur
+        import time; time.sleep(self.delay)
         try:
-            self.logger.info(f"Fetching: {url}")
-            response = requests.get(url, headers=self.headers, timeout=20)
-            response.raise_for_status()
-            return BeautifulSoup(response.content, 'lxml')
-        except requests.exceptions.HTTPError as e:
-            self.logger.error(f"Erreur HTTP {e.response.status_code}: {url}")
-        except requests.exceptions.Timeout:
-            self.logger.error(f"Timeout pour: {url}")
-        except requests.exceptions.ConnectionError:
-            self.logger.error(f"Connexion impossible: {url}")
-        return None
+            self.logger.info(f"Fetching (Selenium): {url}")
+            driver = self._get_driver()
+            driver.get(url)
+            
+            # Attendre que la page charge (Cloudflare peut prendre qq secondes)
+            import time; time.sleep(2)
+            
+            html = driver.page_source
+            if "Cloudflare" in html or "Just a moment" in driver.title:
+                self.logger.warning(f"Bloqué par Cloudflare sur : {url}")
+                return None
+                
+            return BeautifulSoup(html, 'lxml')
+            
+        except Exception as e:
+            self.logger.error(f"Erreur Selenium sur {url}: {e}")
+            return None
 
     def save_to_json(self, filename: str) -> None:
         """
