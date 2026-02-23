@@ -8,7 +8,7 @@ RESPONSABILITÉS :
 """
 
 import re
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from bs4 import BeautifulSoup
 
 from ..base_scraper import BaseScraper
@@ -143,12 +143,32 @@ class KiprixScraper(BaseScraper):
                 diff_elem = card.select_one('span.text-red-600')
                 difference = diff_elem.get_text(strip=True) if diff_elem else ""
 
+                quantity_value, quantity_unit, quantity_base, unit_reference = self._extract_quantity_from_name(name)
+                price_france_num = self._parse_price_to_float(price_france)
+                price_dom_num = self._parse_price_to_float(price_dom)
+
+                unit_price_france = (
+                    round(price_france_num / quantity_base, 2)
+                    if price_france_num is not None and quantity_base not in (None, 0)
+                    else None
+                )
+                unit_price_dom = (
+                    round(price_dom_num / quantity_base, 2)
+                    if price_dom_num is not None and quantity_base not in (None, 0)
+                    else None
+                )
+
                 items.append({
                     'name': name,
                     'url': url,
                     'price_france': price_france,
                     'price_dom': price_dom,
                     'difference': difference,
+                    'quantity_value': quantity_value,
+                    'quantity_unit': quantity_unit,
+                    'unit_reference': unit_reference,
+                    'unit_price_france': unit_price_france,
+                    'unit_price_dom': unit_price_dom,
                     'territory': self.territory,
                     'territory_name': self.TERRITORIES[self.territory],
                 })
@@ -157,6 +177,57 @@ class KiprixScraper(BaseScraper):
                 self.logger.warning(f"Erreur parsing card : {e}")
 
         return items
+
+    @staticmethod
+    def _parse_price_to_float(price_text: str) -> Optional[float]:
+        """Convertit un prix texte (ex: '4,95 €') en float (4.95)."""
+        match = re.search(r'([0-9]+(?:[\s\u00a0]?[0-9]{3})*(?:[.,][0-9]+)?)', str(price_text))
+        if not match:
+            return None
+
+        cleaned = (
+            match.group(1)
+            .replace(' ', '')
+            .replace('\u00a0', '')
+            .replace(',', '.')
+        )
+        try:
+            return float(cleaned)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _extract_quantity_from_name(name: str) -> Tuple[Optional[float], Optional[str], Optional[float], Optional[str]]:
+        """
+        Extrait la quantité depuis le nom produit.
+
+        Returns:
+            (quantity_value, quantity_unit, quantity_base, unit_reference)
+            - quantity_base: quantité convertie en kg/L (base pour prix unitaire)
+            - unit_reference: '€/kg' ou '€/L'
+        """
+        text = str(name).lower().replace('µ', 'u')
+        match = re.search(r'(\d+(?:[.,]\d+)?)\s*(kg|g|mg|l|ml|cl)\b', text)
+        if not match:
+            return None, None, None, None
+
+        quantity_value = float(match.group(1).replace(',', '.'))
+        quantity_unit = match.group(2)
+
+        if quantity_unit == 'kg':
+            return quantity_value, quantity_unit, quantity_value, '€/kg'
+        if quantity_unit == 'g':
+            return quantity_value, quantity_unit, quantity_value / 1000, '€/kg'
+        if quantity_unit == 'mg':
+            return quantity_value, quantity_unit, quantity_value / 1_000_000, '€/kg'
+        if quantity_unit == 'l':
+            return quantity_value, quantity_unit, quantity_value, '€/L'
+        if quantity_unit == 'cl':
+            return quantity_value, quantity_unit, quantity_value / 100, '€/L'
+        if quantity_unit == 'ml':
+            return quantity_value, quantity_unit, quantity_value / 1000, '€/L'
+
+        return quantity_value, quantity_unit, None, None
 
     # ============================================================
     # MEMBRE 2 — Méthodes d'analyse avancée
@@ -178,8 +249,27 @@ class KiprixScraper(BaseScraper):
         Returns:
             Liste des produits correspondants.
         """
-        # TODO : implémenter le filtrage par catégorie
-        raise NotImplementedError("MEMBRE 2 : à implémenter")
+        if not self.data:
+            return []
+
+        normalized_target = category.strip().lower().replace(' ', '-').strip('/')
+        matched_products: List[Dict] = []
+
+        for product in self.data:
+            product_category = str(product.get('category', '')).strip().lower().replace(' ', '-').strip('/')
+
+            if not product_category:
+                url = str(product.get('url', ''))
+                match = re.search(r'/fr-[a-z]{2}/([a-z0-9\-]+)/produit/', url, flags=re.IGNORECASE)
+                if match:
+                    product_category = match.group(1).lower()
+
+            if product_category == normalized_target:
+                if 'category' not in product or not product.get('category'):
+                    product = {**product, 'category': product_category}
+                matched_products.append(product)
+
+        return matched_products
 
     def get_average_price_difference(self) -> float:
         """
@@ -198,8 +288,33 @@ class KiprixScraper(BaseScraper):
             >>> print(scraper.get_average_price_difference())
             42.5
         """
-        # TODO : implémenter le calcul de la moyenne
-        raise NotImplementedError("MEMBRE 2 : à implémenter")
+        if not self.data:
+            return 0.0
+
+        differences: List[float] = []
+
+        for product in self.data:
+            raw_diff = str(product.get('difference', ''))
+            match = re.search(r'([+-]?\s*\d+[\d\s.,]*)\s*%', raw_diff)
+            if not match:
+                continue
+
+            cleaned = (
+                match.group(1)
+                .replace(' ', '')
+                .replace('\u00a0', '')
+                .replace(',', '.')
+            )
+
+            try:
+                differences.append(float(cleaned))
+            except ValueError:
+                continue
+
+        if not differences:
+            return 0.0
+
+        return round(sum(differences) / len(differences), 2)
 
     def scrape_all_territories(self, max_pages: int = 5) -> List[Dict]:
         """
@@ -217,5 +332,16 @@ class KiprixScraper(BaseScraper):
         Returns:
             Liste combinée de tous les produits de tous les territoires.
         """
-        # TODO : implémenter le scraping multi-territoire
-        raise NotImplementedError("MEMBRE 2 : à implémenter")
+        combined_data: List[Dict] = []
+
+        for territory in self.TERRITORIES:
+            scraper = KiprixScraper(territory=territory, delay=self.delay)
+            territory_items = scraper.scrape(max_pages=max_pages)
+            combined_data.extend(territory_items)
+            self.logger.info(
+                f"Territoire {territory} ({self.TERRITORIES[territory]}) : "
+                f"{len(territory_items)} produits"
+            )
+
+        self.data = combined_data
+        return combined_data
