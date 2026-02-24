@@ -207,6 +207,8 @@ class DataPipeline:
             titre = entry.get("titre", "")
             texte_creole = entry.get("texte_creole", "")
             texte_fr = entry.get("texte_fr", "")
+            # titre_fr = titre français (ex: contes bilingues Potomitan)
+            titre_fr = entry.get("titre_fr", "")
             audio_url = entry.get("audio_url", "")
             source_id = entry.get("source_id", 1)
 
@@ -233,10 +235,19 @@ class DataPipeline:
                     (titre, source_id),
                 )
                 row = cur.fetchone()
-                mot_id = row[0] if row else None
+                if row:
+                    mot_id = row[0]
+                else:
+                    # Le mot existait déjà : récupérer son id
+                    cur.execute(
+                        "SELECT id FROM mots WHERE mot_creole = %s", (titre,)
+                    )
+                    existing = cur.fetchone()
+                    mot_id = existing[0] if existing else None
 
-                # Traduction FR → créole si disponible
-                if mot_id and texte_fr:
+                # Traduction FR → créole : texte_fr ou titre_fr si disponibles
+                traduction_fr = texte_fr or titre_fr
+                if mot_id and traduction_fr:
                     cur.execute(
                         """
                         INSERT INTO traductions
@@ -244,7 +255,7 @@ class DataPipeline:
                         VALUES (%s, 'fr', 'crm', %s, %s, %s)
                         ON CONFLICT DO NOTHING
                         """,
-                        (mot_id, texte_fr, titre, source_id),
+                        (mot_id, traduction_fr, titre, source_id),
                     )
 
             # Insertion du média audio
