@@ -35,6 +35,27 @@ services:
     networks:
       - langmatinitje_net
 
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: langmatinitje_api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-langmatinitje}
+      POSTGRES_USER: ${POSTGRES_USER:-creole}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      API_KEY: ${API_KEY:-changeme}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - langmatinitje_net
+
 volumes:
   postgres_data:
     name: langmatinitje_postgres_data
