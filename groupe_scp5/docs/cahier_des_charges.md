@@ -443,3 +443,20 @@ ScraperObserver (ABC)                  ← Observer Pattern
 
   # Adminer → http://localhost:8080
   # Serveur: db | User: creole | Mot de passe: [ton mdp] | BDD: langmatinitje
+
+  ## Lancer le scraping
+  cd groupe_scp5/scraper
+  .venv/bin/python main.py --source potomitan
+
+  Le délai par défaut est 60 secondes entre chaque requête (imposé par le robots.txt du site). Avec ~170 contes + les poèmes, le scraping complet prendra plusieurs heures.
+
+  Pour tester sur un sous-ensemble d'abord :
+
+  # 10 articles par section (contes + poèmes) — ~22 min
+  .venv/bin/python main.py --source potomitan --max 10
+
+  # Seulement les contes
+  .venv/bin/python main.py --source potomitan --categories contes
+
+  # Seulement les poèmes
+  .venv/bin/python main.py --source potomitan --categories poemes
