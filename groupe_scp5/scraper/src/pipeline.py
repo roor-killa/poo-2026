@@ -144,13 +144,54 @@ class DataPipeline:
         try:
             with conn:
                 with conn.cursor() as cur:
+                    # S'assurer que chaque source référencée existe en base
+                    self._ensure_sources(cur, processed_data)
+                    # Insérer chaque entrée dans un savepoint indépendant
                     for entry in processed_data:
-                        inserted += self._insert_entry(cur, entry)
+                        cur.execute("SAVEPOINT sp_entry")
+                        try:
+                            inserted += self._insert_entry(cur, entry)
+                            cur.execute("RELEASE SAVEPOINT sp_entry")
+                        except Exception as exc:
+                            cur.execute("ROLLBACK TO SAVEPOINT sp_entry")
+                            logger.error(
+                                "Erreur insertion : %s — %s",
+                                entry.get("url"), exc,
+                            )
             logger.info("Import BDD : %d entrées insérées", inserted)
         finally:
             conn.close()
 
         return inserted
+
+    def _ensure_sources(
+        self, cur: Any, data: list[dict[str, Any]]
+    ) -> None:
+        """Insère dans la table sources les sources référencées si absentes.
+
+        Args:
+            cur: Curseur psycopg2 actif.
+            data: Entrées à importer (chacune contient 'source' et 'source_id').
+        """
+        seen: set[str] = set()
+        for entry in data:
+            nom = entry.get("source", "")
+            source_id = entry.get("source_id", 1)
+            url_source = entry.get("url", "").split("/")[0:3]
+            base_url = "/".join(url_source) if url_source else nom
+            key = f"{nom}:{source_id}"
+            if key in seen:
+                continue
+            seen.add(key)
+            cur.execute(
+                """
+                INSERT INTO sources (id, nom, url, type, robots_ok)
+                VALUES (%s, %s, %s, 'mixte', TRUE)
+                ON CONFLICT (id) DO NOTHING
+                """,
+                (source_id, nom, base_url),
+            )
+            logger.debug("Source assurée : %s (id=%s)", nom, source_id)
 
     def _insert_entry(self, cur: Any, entry: dict[str, Any]) -> int:
         """Insère une entrée dans les tables appropriées.
