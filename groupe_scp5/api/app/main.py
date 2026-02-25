@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .dependencies import require_api_key
 from .models.models import Contributeur
-from .routers import chat, dictionary, media, translation
+from .routers import admin, chat, dictionary, media, translation
 from .schemas.schemas import ContributeurOut
 
 
@@ -103,3 +103,4 @@ app.include_router(dictionary.router, prefix=PREFIX)
 app.include_router(translation.router, prefix=PREFIX)
 app.include_router(media.router, prefix=PREFIX)
 app.include_router(chat.router, prefix=PREFIX)
+app.include_router(admin.router, prefix=PREFIX)

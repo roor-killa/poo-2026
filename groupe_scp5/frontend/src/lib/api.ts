@@ -51,6 +51,10 @@ export interface Definition {
   exemple:    string | null;
 }
 
+export interface DefinitionWithId extends Definition {
+  id: number;
+}
+
 export interface Expression {
   id:            number;
   texte_creole:  string;
@@ -238,6 +242,109 @@ export const laravelContrib = {
 // ============================================================
 // Laravel — Admin
 // ============================================================
+
+// ============================================================
+// Admin — CRUD direct (via proxy Next.js /api/admin/*)
+// Toutes les URL sont relatives → appellées côté navigateur uniquement.
+// ============================================================
+
+/** Appel générique vers le proxy admin (gère 204 sans corps). */
+async function adminFetch<T = void>(
+  path: string,
+  options?: RequestInit
+): Promise<T> {
+  const res = await fetch(path, {
+    cache:   "no-store",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    ...options,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { message?: string }).message ?? `HTTP ${res.status}`);
+  }
+  if (res.status === 204) return undefined as T;
+  return res.json() as Promise<T>;
+}
+
+export const adminApi = {
+  // --- Mots ---
+  updateMot: (
+    token: string,
+    id: number,
+    data: { mot_creole?: string; phonetique?: string | null; categorie_gram?: string | null; valide?: boolean }
+  ): Promise<MotDetail> =>
+    adminFetch(`/api/admin/mots/${id}`, {
+      method:  "PUT",
+      headers: authHeaders(token),
+      body:    JSON.stringify(data),
+    }),
+
+  deleteMot: (token: string, id: number): Promise<void> =>
+    adminFetch(`/api/admin/mots/${id}`, {
+      method:  "DELETE",
+      headers: authHeaders(token),
+    }),
+
+  // --- Définitions ---
+  getDefinitions: (token: string, motId: number): Promise<DefinitionWithId[]> =>
+    adminFetch(`/api/admin/mots/${motId}/definitions`, {
+      headers: authHeaders(token),
+    }),
+
+  updateDefinition: (
+    token: string,
+    motId: number,
+    defId: number,
+    data: { definition?: string; exemple?: string | null }
+  ): Promise<DefinitionWithId> =>
+    adminFetch(`/api/admin/mots/${motId}/definitions/${defId}`, {
+      method:  "PUT",
+      headers: authHeaders(token),
+      body:    JSON.stringify(data),
+    }),
+
+  deleteDefinition: (token: string, motId: number, defId: number): Promise<void> =>
+    adminFetch(`/api/admin/mots/${motId}/definitions/${defId}`, {
+      method:  "DELETE",
+      headers: authHeaders(token),
+    }),
+
+  // --- Corpus ---
+  updateCorpus: (
+    token: string,
+    id: number,
+    data: { texte_creole?: string; texte_fr?: string | null; domaine?: string }
+  ): Promise<CorpusEntry> =>
+    adminFetch(`/api/admin/corpus/${id}`, {
+      method:  "PUT",
+      headers: authHeaders(token),
+      body:    JSON.stringify(data),
+    }),
+
+  deleteCorpus: (token: string, id: number): Promise<void> =>
+    adminFetch(`/api/admin/corpus/${id}`, {
+      method:  "DELETE",
+      headers: authHeaders(token),
+    }),
+
+  // --- Expressions ---
+  updateExpression: (
+    token: string,
+    id: number,
+    data: { texte_creole?: string; texte_fr?: string | null; explication?: string | null; type?: string }
+  ): Promise<Expression> =>
+    adminFetch(`/api/admin/expressions/${id}`, {
+      method:  "PUT",
+      headers: authHeaders(token),
+      body:    JSON.stringify(data),
+    }),
+
+  deleteExpression: (token: string, id: number): Promise<void> =>
+    adminFetch(`/api/admin/expressions/${id}`, {
+      method:  "DELETE",
+      headers: authHeaders(token),
+    }),
+};
 
 export const laravelAdmin = {
   listPending: (token: string): Promise<{ data: Contribution[] }> =>

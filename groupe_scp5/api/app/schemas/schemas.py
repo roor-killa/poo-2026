@@ -132,7 +132,42 @@ class MotUpdate(BaseModel):
     mot_creole: Optional[str] = None
     phonetique: Optional[str] = None
     categorie_gram: Optional[str] = None
+    valide: Optional[bool] = None
     source_id: Optional[int] = None
+
+
+# ---------------------------------------------------------------------------
+# Admin — Définitions
+# ---------------------------------------------------------------------------
+
+class DefinitionWithId(BaseModel):
+    id: int
+    definition: str
+    exemple: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DefinitionUpdate(BaseModel):
+    definition: Optional[str] = None
+    exemple: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Admin — Corpus / Expressions (update)
+# ---------------------------------------------------------------------------
+
+class CorpusUpdate(BaseModel):
+    texte_creole: Optional[str] = None
+    texte_fr: Optional[str] = None
+    domaine: Optional[str] = None
+
+
+class ExpressionUpdate(BaseModel):
+    texte_creole: Optional[str] = None
+    texte_fr: Optional[str] = None
+    explication: Optional[str] = None
+    type: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
