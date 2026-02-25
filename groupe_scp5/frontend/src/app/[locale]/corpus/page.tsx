@@ -2,6 +2,9 @@ import { getTranslations }           from "next-intl/server";
 import { fastapi, type CorpusEntry } from "@/lib/api";
 import { Card, CardContent }         from "@/components/ui/card";
 
+// Rendu dynamique : les données viennent de l'API au moment de la requête
+export const dynamic = "force-dynamic";
+
 export default async function CorpusPage() {
   const t = await getTranslations("corpus");
 

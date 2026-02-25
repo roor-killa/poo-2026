@@ -5,8 +5,19 @@
  * - Auth + Contributions → Laravel (token Sanctum Bearer)
  */
 
-const FASTAPI = process.env.NEXT_PUBLIC_FASTAPI_URL ?? "http://localhost:8000/api/v1";
-const LARAVEL = process.env.NEXT_PUBLIC_LARAVEL_URL ?? "http://localhost:8001/api";
+// Sélection de l'URL API :
+//   Serveur (SSR/Docker) : FASTAPI_INTERNAL_URL est défini → http://api:8000/api/v1
+//   Client (navigateur)  : FASTAPI_INTERNAL_URL est undefined (non-NEXT_PUBLIC_)
+//                          → fallback sur NEXT_PUBLIC_FASTAPI_URL → http://localhost:8000/api/v1
+const FASTAPI =
+  process.env.FASTAPI_INTERNAL_URL ??
+  process.env.NEXT_PUBLIC_FASTAPI_URL ??
+  "http://localhost:8000/api/v1";
+
+const LARAVEL =
+  process.env.LARAVEL_INTERNAL_URL ??
+  process.env.NEXT_PUBLIC_LARAVEL_URL ??
+  "http://localhost:8001/api";
 
 // ============================================================
 // Types FastAPI
@@ -112,6 +123,7 @@ export interface Contribution {
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
+    cache:   "no-store",
     headers: { "Content-Type": "application/json", ...options?.headers },
     ...options,
   });

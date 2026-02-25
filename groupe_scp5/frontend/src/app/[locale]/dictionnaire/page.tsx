@@ -3,6 +3,9 @@ import { fastapi, type Mot } from "@/lib/api";
 import WordCard              from "@/components/WordCard";
 import SearchBar             from "@/components/SearchBar";
 
+// Rendu dynamique : les données viennent de l'API au moment de la requête
+export const dynamic = "force-dynamic";
+
 interface Props {
   params:      Promise<{ locale: string }>;
   searchParams: Promise<{ q?: string; page?: string }>;
