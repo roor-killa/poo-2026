@@ -30,53 +30,175 @@ tp_scraping/
 ```bash
 python3 -m venv venv
 source venv/bin/activate       # Mac/Linux
-pip install -r requirements.txt
-```
+## TP Scraping — Groupe 2 — Kiprix
 
-## 💻 Utilisation
+## 📌 Description
+
+Projet de Programmation Orientée Objet (POO) — L2 Informatique.
+
+Ce projet consiste à développer un scraper pour le site **Kiprix.com** afin de récupérer les produits et analyser les écarts de prix entre la France et les territoires d’outre-mer (DOM).
+
+Le projet inclut :
+
+- Scraping structuré et modulaire
+- Gestion du cache
+- Analyse statistique avec pandas
+- Interface CLI avec Click
+- Tests unitaires complets avec pytest
+- Containerisation avec Docker
+
+---
+
+## 👥 Membres du groupe
+
+- **SADI**
+- **GUINDO**
+- **AKONOU**
+
+---
+
+## 🏗 Architecture du projet
+
+
+src/
+│
+├── base_scraper.py # Classe abstraite de scraping
+├── scrapers/
+│ └── kiprix_scraper.py
+│
+├── manager.py # Gestion des scrapers
+├── cache.py # Système de cache
+├── analyzer.py # Analyse des données (pandas)
+├── cli.py # Interface ligne de commande
+│
+tests/ # Tests unitaires
+Dockerfile # Containerisation
+
+
+### 🔹 BaseScraper
+Classe abstraite définissant :
+- fetch_page()
+- save_to_json()
+- save_to_csv()
+
+### 🔹 KiprixScraper
+Implémentation concrète pour Kiprix.com.
+
+### 🔹 ScraperManager
+Factory pour créer dynamiquement les scrapers.
+
+### 🔹 CacheManager
+Système de cache basé sur des fichiers JSON avec expiration.
+
+### 🔹 DataAnalyzer
+Analyse statistique des données scrapées :
+- Statistiques descriptives
+- Export CSV / Excel
+
+### 🔹 CLI
+Interface utilisateur via Click :
 
 ```bash
-# Scraper Kiprix (Guadeloupe, 5 pages)
-python main.py scrape --pages 5 --territory gp
-
-# Scraper en Martinique, sauvegarder en JSON + CSV
-python main.py scrape --pages 10 --territory mq --format both
-
-# Analyser les données
-python main.py analyze data/raw/kiprix_gp.json
-
-# Exporter en Excel
-python main.py analyze data/raw/kiprix_gp.json --export excel
-
-# Cache
+python main.py scrape
+python main.py analyze
 python main.py cache-stats
 python main.py cache-clear
 ```
 
-## 🧪 Tests
+⚙ Installation (mode classique)
+1️⃣ Installer les dépendances
+pip install -r requirements.txt
+2️⃣ Lancer le CLI
+python main.py --help
 
-```bash
-pytest                         # Lancer les tests
-pytest --cov=src               # Avec rapport de couverture
-```
+🚀 Utilisation
+🔹 Scraper
+python main.py scrape --pages 1 --territory gp
 
-## 🐳 Docker
+Territoires disponibles :
 
-```bash
-docker build -t tp-kiprix -f docker/Dockerfile .
-docker run -v $(pwd)/data:/app/data tp-kiprix scrape --pages 5
-```
+gp (Guadeloupe)
 
----
+mq (Martinique)
 
-## 👥 Équipe
+re (Réunion)
 
-| Membre | Responsabilité |
-|--------|---------------|
-| Membre 1 | `BaseScraper`, `KiprixScraper` (core), `ScraperManager`, `CacheManager`, CLI |
-| Membre 2 | `KiprixScraper` (méthodes avancées), `DataAnalyzer`, Notebook Jupyter |
-| Membre 3 | Tests unitaires (>70% coverage), Docker, Diagramme UML, Documentation PDF |
+gf (Guyane)
 
----
+🔹 Analyse des données
+python main.py analyze data/raw/kiprix_gp.json
 
-**Date de rendu :** 4 mars 2026
+Exporter :
+
+python main.py analyze data/raw/kiprix_gp.json --export excel
+python main.py analyze data/raw/kiprix_gp.json --export csv
+🔹 Gestion du cache
+python main.py cache-stats
+python main.py cache-clear
+🧪 Tests & Qualité
+
+Lancer tous les tests :
+
+pytest
+
+Lancer avec couverture :
+
+pytest --cov=src
+
+📊 Couverture actuelle : 72%
+
+Tous les modules principaux sont testés :
+
+base_scraper
+
+kiprix_scraper
+
+manager
+
+cache
+
+analyzer
+
+🐳 Docker
+🔹 Build
+docker build -t kiprix-app .
+🔹 Exécuter
+docker run kiprix-app python main.py scrape --pages 1 --territory gp
+
+Pour sauvegarder les fichiers localement :
+
+docker run -v ${PWD}:/app kiprix-app python main.py scrape --pages 1 --territory gp
+🎯 Objectifs pédagogiques atteints
+
+Architecture modulaire orientée objet
+
+Tests unitaires avancés (mock, monkeypatch)
+
+Couverture de code > 70%
+
+Gestion de cache
+
+Analyse de données avec pandas
+
+Interface CLI professionnelle
+
+Containerisation Docker
+
+📚 Technologies utilisées
+
+Python 3.11
+
+requests
+
+BeautifulSoup
+
+pandas
+
+pytest
+
+click
+
+Docker
+
+
+
