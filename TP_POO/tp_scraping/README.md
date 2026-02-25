@@ -11,7 +11,8 @@ Scrap "https://rci.fm/deuxiles/infos/toutes-les-infos"
 et https://rci.fm/deuxiles/infos/Caraibes/[L'article concerner] de tous les articles dans la premiere page du scrap
 
 
-Pour recuperer le lien d'un article : Chercher les div avec le role = 'article' et le lien relatif a https://rci.fm/ est dans l'attribut about
+Pour recuperer le lien d'un article : 
+Chercher les div avec le role = 'article' et le lien relatif a https://rci.fm/ est dans l'attribut about
 
 
 
