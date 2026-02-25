@@ -3,10 +3,11 @@ export_huggingface.py — Phase 4 Lang Matinitjé
 ===============================================
 Exporte les données scrapées vers le format HuggingFace Datasets.
 
-Trois configurations (subsets) :
-  • corpus        — texte brut créole (Pawolotek + Potomitan, ~270 entrées)
-  • lexique       — entrées dictionnaire Pawolotek (87 mots + définitions)
-  • contes_poemes — contes et poèmes Potomitan (183 entrées)
+Quatre configurations (subsets) :
+  • corpus               — texte brut créole (Pawolotek + Potomitan, ~270 entrées)
+  • lexique              — entrées dictionnaire Pawolotek (87 mots + définitions)
+  • contes_poemes        — contes et poèmes Potomitan (183 entrées)
+  • dictionnaire_confiant — dictionnaire Raphaël Confiant (PDFs Potomitan)
 
 Sorties :
   dataset/data/<config>/train.jsonl   — format JSONL (sans dépendances)
@@ -205,6 +206,10 @@ dataset_info:
       splits:
         - name: train
           num_examples: {stats['contes_poemes']}
+    - config_name: dictionnaire_confiant
+      splits:
+        - name: train
+          num_examples: {stats.get('dictionnaire_confiant', 0)}
 ---
 
 # Lang Matinitjé — Dataset créole martiniquais
@@ -228,6 +233,7 @@ User-Agent identifié) depuis des sources créolophones publiques.
 | `corpus` | {stats['corpus']} | Tous les textes créoles fusionnés |
 | `lexique` | {stats['lexique']} | Mots du dictionnaire + définitions (Pawolotek) |
 | `contes_poemes` | {stats['contes_poemes']} | Contes et poèmes (Potomitan) |
+| `dictionnaire_confiant` | {stats.get('dictionnaire_confiant', 0)} | Dictionnaire créole martiniquais — Raphaël Confiant (PDFs) |
 
 ## Sources
 
@@ -356,6 +362,16 @@ def main() -> None:
         "lexique":       build_lexique(pawolotek),
         "contes_poemes": build_contes_poemes(potomitan),
     }
+
+    # Config dictionnaire_confiant : si le JSONL existe, on le recopie tel quel
+    confiant_jsonl = OUT_DIR / "dictionnaire_confiant" / "train.jsonl"
+    if confiant_jsonl.exists():
+        with confiant_jsonl.open(encoding="utf-8") as f:
+            confiant_records = [json.loads(line) for line in f if line.strip()]
+        configs["dictionnaire_confiant"] = confiant_records
+        log.info("Dictionnaire Confiant : %d entrées chargées", len(confiant_records))
+    else:
+        log.warning("Dictionnaire Confiant non trouvé — pipeline_pdf non lancé ? (%s)", confiant_jsonl)
 
     stats: dict[str, int] = {}
 

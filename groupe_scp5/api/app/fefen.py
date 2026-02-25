@@ -100,7 +100,8 @@ class Fefen:
 
     def _load_data(self) -> None:
         seen: set[str] = set()
-        for config in ("lexique", "corpus"):
+        # Ordre de priorité : dictionnaire Confiant > lexique > corpus
+        for config in ("dictionnaire_confiant", "lexique", "corpus"):
             path = DATASET_DIR / config / "train.jsonl"
             if not path.exists():
                 log.warning("Dataset introuvable : %s", path)
