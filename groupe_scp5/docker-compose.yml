@@ -51,6 +51,8 @@ services:
       POSTGRES_PORT: 5432
       API_KEY: ${API_KEY:-changeme}
       FEFEN_DATASET_DIR: /app/dataset/data
+      HF_TOKEN: ${HF_TOKEN:-}
+      FEFEN_MODEL: ${FEFEN_MODEL:-mistralai/Mistral-7B-Instruct-v0.3}
     volumes:
       - ./dataset/data:/app/dataset/data:ro
     depends_on:

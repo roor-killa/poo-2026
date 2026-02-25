@@ -1,11 +1,15 @@
 """
 fefen.py — Moteur Fèfèn intégré à l'API FastAPI
 =================================================
-Version allégée de chatbot/fefen.py : pas de CLI, pas de save/load,
-index construit en mémoire au démarrage de l'app (lifespan).
+Deux modes :
+  - Fefen    : retrieval TF-IDF pur (retourne l'entrée la plus proche)
+  - FefenRAG : TF-IDF (contexte) + LLM HuggingFace (génération)
+               Activé si HF_TOKEN est défini dans l'environnement.
 
-Chemin dataset résolu par variable d'env FEFEN_DATASET_DIR
-ou par défaut /app/dataset/data (volume Docker).
+Variables d'env :
+  FEFEN_DATASET_DIR — chemin du dataset JSONL (défaut : /app/dataset/data)
+  HF_TOKEN          — token HuggingFace (active le mode RAG)
+  FEFEN_MODEL       — modèle HF à utiliser (défaut : mistralai/Mistral-7B-Instruct-v0.3)
 """
 
 from __future__ import annotations
@@ -25,10 +29,22 @@ from sklearn.metrics.pairwise import cosine_similarity
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Chemin du dataset (configurable via env)
+# Configuration
 # ---------------------------------------------------------------------------
 
-DATASET_DIR = Path(os.getenv("FEFEN_DATASET_DIR", "/app/dataset/data"))
+DATASET_DIR  = Path(os.getenv("FEFEN_DATASET_DIR", "/app/dataset/data"))
+HF_TOKEN     = os.getenv("HF_TOKEN", "")
+FEFEN_MODEL  = os.getenv("FEFEN_MODEL", "mistralai/Mistral-7B-Instruct-v0.3")
+
+SYSTEM_PROMPT = """\
+Tu es Fèfèn, un assistant chaleureux spécialisé dans la langue et la culture créole martiniquaise.
+Tu réponds en mêlant créole martiniquais et français, de façon concise et naturelle (3-5 phrases max).
+Utilise les informations du corpus ci-dessous pour répondre. Si le corpus ne contient pas de réponse \
+pertinente, réponds quand même de façon générale en restant dans le thème de la langue créole.
+
+Corpus de référence :
+{context}
+"""
 
 # ---------------------------------------------------------------------------
 # Phrases de réponse en créole
@@ -99,22 +115,28 @@ class Fefen:
         log.info("Fèfèn : %d entrées chargées depuis %s", len(self._corpus), DATASET_DIR)
 
     # ------------------------------------------------------------------
-    # Réponse
+    # Récupération des entrées les plus proches (pour le RAG)
+    # ------------------------------------------------------------------
+
+    def retrieve(self, message: str, top_k: int = 3) -> list[dict[str, Any]]:
+        """Retourne les top_k entrées du corpus les plus proches du message."""
+        if self._vectorizer is None or not self._corpus:
+            return []
+        vec  = self._vectorizer.transform([message.lower()])
+        sims = cosine_similarity(vec, self._matrix).flatten()
+        idxs = sims.argsort()[::-1][:top_k]
+        return [self._corpus[i] for i in idxs if sims[i] >= self.min_score]
+
+    # ------------------------------------------------------------------
+    # Réponse TF-IDF pure (fallback sans LLM)
     # ------------------------------------------------------------------
 
     def reply(self, message: str) -> str:
         """Retourne une réponse en créole pour le message donné."""
-        if self._vectorizer is None or not self._corpus:
+        results = self.retrieve(message, top_k=1)
+        if not results:
             return random.choice(FALLBACKS)
-
-        vec  = self._vectorizer.transform([message.lower()])
-        sims = cosine_similarity(vec, self._matrix).flatten()
-        idx  = int(np.argmax(sims))
-
-        if sims[idx] < self.min_score:
-            return random.choice(FALLBACKS)
-
-        return self._format(self._corpus[idx])
+        return self._format(results[0])
 
     # ------------------------------------------------------------------
     # Helpers
@@ -152,3 +174,83 @@ class Fefen:
             return f"{random.choice(INTRO_CONTE)}\n\n{header}\n\n{extrait}"
 
         return f"{random.choice(ACCROCHES)}\n\n{extrait}"
+
+
+# ---------------------------------------------------------------------------
+# FefenRAG — TF-IDF + LLM HuggingFace Inference API
+# ---------------------------------------------------------------------------
+
+class FefenRAG(Fefen):
+    """
+    Extension RAG de Fèfèn.
+    Utilise TF-IDF pour récupérer du contexte, puis appelle un LLM
+    HuggingFace pour générer une réponse naturelle en créole/français.
+    """
+
+    def __init__(self, hf_token: str, model: str = FEFEN_MODEL, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        from huggingface_hub import InferenceClient  # type: ignore
+        self._client = InferenceClient(model=model, token=hf_token)
+        self._model  = model
+        log.info("FefenRAG : modèle %s", model)
+
+    def reply(self, message: str) -> str:
+        """Génère une réponse via RAG : contexte TF-IDF + LLM HuggingFace."""
+        # 1. Récupération du contexte
+        entries = self.retrieve(message, top_k=3)
+        context = self._build_context(entries)
+
+        # 2. Appel LLM
+        try:
+            response = self._client.chat_completion(
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT.format(context=context)},
+                    {"role": "user",   "content": message},
+                ],
+                max_tokens=300,
+                temperature=0.7,
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as exc:
+            log.warning("FefenRAG : erreur LLM (%s) — fallback TF-IDF", exc)
+            return super().reply(message)
+
+    def _build_context(self, entries: list[dict]) -> str:
+        """Formate les entrées récupérées en bloc de contexte pour le prompt."""
+        if not entries:
+            return "(aucun contexte trouvé dans le corpus)"
+
+        lines: list[str] = []
+        for e in entries:
+            if e.get("mot"):
+                lines.append(f"Mot : {e['mot']} — {e.get('definition', '')}")
+            elif e.get("titre"):
+                texte = e.get("texte", "")[:200]
+                lines.append(f"Titre : {e['titre']}\nExtrait : {texte}…")
+            else:
+                lines.append(e.get("texte", "")[:200] + "…")
+
+        return "\n\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Factory : choisit FefenRAG si HF_TOKEN présent, sinon Fefen
+# ---------------------------------------------------------------------------
+
+def build_fefen() -> Fefen:
+    """Construit et retourne le moteur Fèfèn adapté à la configuration."""
+    base = Fefen().build()
+
+    if HF_TOKEN:
+        try:
+            rag = FefenRAG(hf_token=HF_TOKEN, model=FEFEN_MODEL)
+            rag._corpus     = base._corpus
+            rag._vectorizer = base._vectorizer
+            rag._matrix     = base._matrix
+            log.info("Fèfèn démarré en mode RAG (modèle : %s)", FEFEN_MODEL)
+            return rag
+        except Exception as exc:
+            log.warning("FefenRAG indisponible (%s) — mode TF-IDF", exc)
+
+    log.info("Fèfèn démarré en mode TF-IDF (pas de HF_TOKEN)")
+    return base
