@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 DATASET_DIR  = Path(os.getenv("FEFEN_DATASET_DIR", "/app/dataset/data"))
 HF_TOKEN     = os.getenv("HF_TOKEN", "")
-FEFEN_MODEL  = os.getenv("FEFEN_MODEL", "mistralai/Mistral-7B-Instruct-v0.3")
+FEFEN_MODEL  = os.getenv("FEFEN_MODEL", "mistralai/Mixtral-8x7B-Instruct-v0.1")
 
 SYSTEM_PROMPT = """\
 Tu es Fèfèn, un assistant chaleureux spécialisé dans la langue et la culture créole martiniquaise.
@@ -196,15 +196,15 @@ class FefenRAG(Fefen):
 
     def reply(self, message: str) -> str:
         """Génère une réponse via RAG : contexte TF-IDF + LLM HuggingFace."""
-        # 1. Récupération du contexte
         entries = self.retrieve(message, top_k=3)
         context = self._build_context(entries)
+        system  = SYSTEM_PROMPT.format(context=context)
 
-        # 2. Appel LLM
+        # Tentative 1 : chat_completion (models avec TGI chat support)
         try:
             response = self._client.chat_completion(
                 messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT.format(context=context)},
+                    {"role": "system", "content": system},
                     {"role": "user",   "content": message},
                 ],
                 max_tokens=300,
@@ -212,7 +212,22 @@ class FefenRAG(Fefen):
             )
             return response.choices[0].message.content.strip()
         except Exception as exc:
-            log.warning("FefenRAG : erreur LLM (%s) — fallback TF-IDF", exc)
+            log.warning("FefenRAG chat_completion échoué (%s) — tentative text_generation", exc)
+
+        # Tentative 2 : text_generation (format prompt Mistral/Mixtral)
+        try:
+            prompt = (
+                f"<s>[INST] {system}\n\nQuestion : {message} [/INST]"
+            )
+            result = self._client.text_generation(
+                prompt,
+                max_new_tokens=300,
+                temperature=0.7,
+                do_sample=True,
+            )
+            return result.strip()
+        except Exception as exc:
+            log.warning("FefenRAG text_generation échoué (%s) — fallback TF-IDF", exc)
             return super().reply(message)
 
     def _build_context(self, entries: list[dict]) -> str:
