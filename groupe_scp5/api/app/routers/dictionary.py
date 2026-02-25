@@ -13,9 +13,11 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..database import get_db
 from ..dependencies import PaginationParams, require_api_key
-from ..models.models import Mot
+from ..models.models import Expression, Mot
 from ..schemas.schemas import (
     DictionarySearchResponse,
+    ExpressionOut,
+    ExpressionsResponse,
     MotCreate,
     MotDetail,
     MotSearchResult,
@@ -24,6 +26,54 @@ from ..schemas.schemas import (
 
 
 router = APIRouter(prefix="/dictionary", tags=["dictionnaire"])
+
+
+# ---------------------------------------------------------------------------
+# GET /dictionary   — liste paginée
+# ---------------------------------------------------------------------------
+
+@router.get("", response_model=DictionarySearchResponse, summary="Liste du dictionnaire")
+def list_dictionary(
+    pagination: PaginationParams = Depends(),
+    db: Session = Depends(get_db),
+) -> DictionarySearchResponse:
+    """Retourne la liste paginée des mots du dictionnaire, triée alphabétiquement."""
+    query = (
+        db.query(Mot)
+        .options(
+            joinedload(Mot.traductions),
+            joinedload(Mot.definitions),
+            joinedload(Mot.source),
+        )
+        .order_by(Mot.mot_creole)
+    )
+    total = query.count()
+    items = query.offset(pagination.offset).limit(pagination.limit).all()
+    return DictionarySearchResponse(
+        total=total,
+        page=pagination.page,
+        limit=pagination.limit,
+        results=[MotSearchResult.from_orm_mot(m) for m in items],
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /dictionary/expressions   (AVANT /{mot_id})
+# ---------------------------------------------------------------------------
+
+@router.get("/expressions", response_model=ExpressionsResponse, summary="Expressions et proverbes")
+def list_expressions(
+    pagination: PaginationParams = Depends(),
+    db: Session = Depends(get_db),
+) -> ExpressionsResponse:
+    """Liste les expressions figées, proverbes et locutions créoles du dictionnaire Confiant."""
+    query = db.query(Expression).options(joinedload(Expression.source))
+    total = query.count()
+    items = query.offset(pagination.offset).limit(pagination.limit).all()
+    return ExpressionsResponse(
+        total=total,
+        results=[ExpressionOut.from_orm_expr(e) for e in items],
+    )
 
 
 # ---------------------------------------------------------------------------

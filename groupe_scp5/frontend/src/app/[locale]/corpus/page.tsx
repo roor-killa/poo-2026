@@ -22,7 +22,7 @@ export default async function CorpusPage() {
         {items.map((entry) => (
           <Card key={entry.id}>
             <CardContent className="pt-4">
-              <p className="text-sm text-zinc-700 dark:text-zinc-300">{entry.texte}</p>
+              <p className="text-sm text-zinc-700 dark:text-zinc-300">{entry.texte_creole}</p>
               <div className="mt-2 flex items-center gap-2">
                 <span className="rounded-xl bg-teal-50 px-2 py-0.5 text-xs text-cyan-700">
                   {entry.domaine}

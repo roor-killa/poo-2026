@@ -162,7 +162,9 @@ class ExpressionOut(BaseModel):
     id: int
     texte_creole: str
     texte_fr: Optional[str] = None
+    traduction_fr: Optional[str] = None   # alias de texte_fr pour le frontend
     type: str
+    explication: Optional[str] = None
     source: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -173,7 +175,9 @@ class ExpressionOut(BaseModel):
             id=expr.id,
             texte_creole=expr.texte_creole,
             texte_fr=expr.texte_fr,
+            traduction_fr=expr.texte_fr,
             type=expr.type,
+            explication=expr.explication,
             source=_domain(expr.source.url) if expr.source else None,
         )
 

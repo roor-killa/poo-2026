@@ -43,8 +43,8 @@ export default async function MotDetailPage({ params }: Props) {
             <CardTitle className="text-base">{t("translations")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {mot.traductions.map((tr) => (
-              <div key={tr.id} className="flex gap-3 text-sm">
+            {mot.traductions.map((tr, idx) => (
+              <div key={idx} className="flex gap-3 text-sm">
                 <span className="w-24 shrink-0 text-zinc-400">
                   {tr.langue_source} → {tr.langue_cible}
                 </span>
@@ -64,10 +64,15 @@ export default async function MotDetailPage({ params }: Props) {
             <CardTitle className="text-base">{t("definitions")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {mot.definitions.map((def) => (
-              <p key={def.id} className="text-sm text-zinc-700 dark:text-zinc-300">
-                {def.texte}
-              </p>
+            {mot.definitions.map((def, idx) => (
+              <div key={idx} className="space-y-0.5">
+                <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                  {def.definition}
+                </p>
+                {def.exemple && (
+                  <p className="text-xs text-zinc-500 italic">{def.exemple}</p>
+                )}
+              </div>
             ))}
           </CardContent>
         </Card>

@@ -24,10 +24,11 @@ export interface MotDetail extends Mot {
   traductions: Traduction[];
   definitions: Definition[];
   expressions: Expression[];
+  source_id:   number | null;
+  created_at:  string | null;
 }
 
 export interface Traduction {
-  id:           number;
   langue_source: string;
   langue_cible:  string;
   texte_source:  string;
@@ -35,28 +36,38 @@ export interface Traduction {
 }
 
 export interface Definition {
-  id:     number;
-  texte:  string;
-  langue: string;
+  definition: string;
+  exemple:    string | null;
 }
 
 export interface Expression {
-  id:           number;
-  texte_creole: string;
+  id:            number;
+  texte_creole:  string;
+  texte_fr:      string | null;
   traduction_fr: string | null;
   explication:   string | null;
+  type:          string;
 }
 
 export interface CorpusEntry {
-  id:      number;
-  texte:   string;
-  domaine: string;
-  source:  string | null;
+  id:           number;
+  texte_creole: string;
+  texte_fr:     string | null;
+  domaine:      string;
+  source:       string | null;
 }
 
 export interface ChatMessage {
   role:    "user" | "fefen";
   content: string;
+}
+
+// Forme générique retournée par l'API (total + results)
+interface ApiListResponse<T> {
+  total:   number;
+  page?:   number;
+  limit?:  number;
+  results: T[];
 }
 
 export interface PaginatedResponse<T> {
@@ -126,25 +137,29 @@ export const fastapi = {
   randomWord: (): Promise<Mot> =>
     apiFetch(`${FASTAPI}/dictionary/random`),
 
-  /** Recherche de mots */
+  /** Recherche de mots — retourne directement le tableau de résultats */
   searchWords: (q: string, limit = 20): Promise<Mot[]> =>
-    apiFetch(`${FASTAPI}/dictionary/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+    apiFetch<ApiListResponse<Mot>>(`${FASTAPI}/dictionary/search?q=${encodeURIComponent(q)}&limit=${limit}`)
+      .then((r) => r.results),
 
   /** Détail d'un mot */
   getWord: (id: number): Promise<MotDetail> =>
     apiFetch(`${FASTAPI}/dictionary/${id}`),
 
-  /** Liste paginée des mots */
-  listWords: (page = 1, size = 20): Promise<PaginatedResponse<Mot>> =>
-    apiFetch(`${FASTAPI}/dictionary?page=${page}&size=${size}`),
+  /** Liste paginée des mots — retourne {items, total} */
+  listWords: (page = 1, size = 20): Promise<{ items: Mot[]; total: number }> =>
+    apiFetch<ApiListResponse<Mot>>(`${FASTAPI}/dictionary?page=${page}&limit=${size}`)
+      .then((r) => ({ items: r.results, total: r.total })),
 
-  /** Corpus paginé */
-  getCorpus: (page = 1, size = 20): Promise<PaginatedResponse<CorpusEntry>> =>
-    apiFetch(`${FASTAPI}/corpus?page=${page}&size=${size}`),
+  /** Corpus paginé — retourne {items, total} */
+  getCorpus: (page = 1, size = 20): Promise<{ items: CorpusEntry[]; total: number }> =>
+    apiFetch<ApiListResponse<CorpusEntry>>(`${FASTAPI}/corpus?page=${page}&limit=${size}`)
+      .then((r) => ({ items: r.results, total: r.total })),
 
-  /** Expressions paginées */
-  getExpressions: (page = 1, size = 20): Promise<PaginatedResponse<Expression>> =>
-    apiFetch(`${FASTAPI}/dictionary/expressions?page=${page}&size=${size}`),
+  /** Expressions paginées — retourne {items, total} */
+  getExpressions: (page = 1, size = 20): Promise<{ items: Expression[]; total: number }> =>
+    apiFetch<ApiListResponse<Expression>>(`${FASTAPI}/dictionary/expressions?page=${page}&limit=${size}`)
+      .then((r) => ({ items: r.results, total: r.total })),
 
   /** Chatbot Fèfèn */
   chat: (message: string, sessionId?: string): Promise<{ reply: string; session_id: string }> =>
