@@ -3,33 +3,82 @@
 import { useEffect, useState, useCallback } from "react";
 import { fastapi, adminApi, type Mot, type MotDetail, type DefinitionWithId } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
-import { Button }       from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button }             from "@/components/ui/button";
+import { Card, CardContent }  from "@/components/ui/card";
 
 const CATEGORIES = [
   "", "nom", "vèb", "adjektif", "advèb", "pwonon",
   "prépoziksyon", "konjonksyon", "entèjèksyon", "atik", "lòt",
 ];
 
-// ── Petit modal réutilisable ──────────────────────────────────────────
+// ── Modal générique ────────────────────────────────────────────────────
 function Modal({ title, onClose, children }: {
   title:    string;
   onClose:  () => void;
   children: React.ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-16">
       <div className="w-full max-w-lg rounded-xl bg-white shadow-xl dark:bg-zinc-900">
         <div className="flex items-center justify-between border-b px-5 py-3 dark:border-zinc-700">
           <h2 className="font-semibold text-zinc-900 dark:text-zinc-50">{title}</h2>
-          <button
-            onClick={onClose}
-            className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-          >
-            ✕
-          </button>
+          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700">✕</button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="max-h-[70vh] overflow-y-auto p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── Formulaire d'édition d'une définition ─────────────────────────────
+function DefEditForm({
+  def,
+  onSave,
+  onCancel,
+  saving,
+}: {
+  def:     DefinitionWithId;
+  onSave:  (data: { definition: string; exemple: string | null }) => void;
+  onCancel: () => void;
+  saving:  boolean;
+}) {
+  const [definition, setDefinition] = useState(def.definition);
+  const [exemple,    setExemple]    = useState(def.exemple ?? "");
+
+  return (
+    <div className="space-y-3 rounded-lg border-2 border-orange-300 bg-orange-50 p-3 dark:bg-orange-950">
+      <p className="text-xs font-semibold uppercase tracking-wide text-orange-600">
+        Modifier la définition #{def.id}
+      </p>
+      <label className="block">
+        <span className="text-xs font-medium text-zinc-600">Définition</span>
+        <textarea
+          value={definition}
+          onChange={(e) => setDefinition(e.target.value)}
+          rows={3}
+          className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+        />
+      </label>
+      <label className="block">
+        <span className="text-xs font-medium text-zinc-600">Exemple (optionnel)</span>
+        <input
+          value={exemple}
+          onChange={(e) => setExemple(e.target.value)}
+          placeholder="ex : …"
+          className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+        />
+      </label>
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          onClick={() => onSave({ definition, exemple: exemple || null })}
+          disabled={saving || !definition.trim()}
+        >
+          {saving ? "Enregistrement…" : "Enregistrer"}
+        </Button>
+        <Button size="sm" variant="outline" onClick={onCancel} disabled={saving}>
+          Annuler
+        </Button>
       </div>
     </div>
   );
@@ -39,26 +88,30 @@ function Modal({ title, onClose, children }: {
 export default function AdminMotsPage() {
   const { token } = useAuthStore();
 
-  const [mots,       setMots]       = useState<Mot[]>([]);
-  const [total,      setTotal]      = useState(0);
-  const [page,       setPage]       = useState(1);
-  const [search,     setSearch]     = useState("");
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState<string | null>(null);
+  // Liste des mots
+  const [mots,    setMots]    = useState<Mot[]>([]);
+  const [total,   setTotal]   = useState(0);
+  const [page,    setPage]    = useState(1);
+  const [search,  setSearch]  = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState<string | null>(null);
 
-  // Édition d'un mot
-  const [editMot,    setEditMot]    = useState<MotDetail | null>(null);
-  const [editForm,   setEditForm]   = useState({ mot_creole: "", phonetique: "", categorie_gram: "", valide: true });
-  const [saving,     setSaving]     = useState(false);
+  // Édition mot
+  const [editMot,  setEditMot]  = useState<MotDetail | null>(null);
+  const [editForm, setEditForm] = useState({ mot_creole: "", phonetique: "", categorie_gram: "", valide: true });
+  const [saving,   setSaving]   = useState(false);
 
-  // Définitions
-  const [defsMotId,  setDefsMotId]  = useState<number | null>(null);
-  const [defs,       setDefs]       = useState<DefinitionWithId[]>([]);
-  const [editDef,    setEditDef]    = useState<DefinitionWithId | null>(null);
-  const [editDefForm,setEditDefForm]= useState({ definition: "", exemple: "" });
+  // Panel définitions
+  const [defsMot,     setDefsMot]     = useState<Mot | null>(null);
+  const [defs,        setDefs]        = useState<DefinitionWithId[]>([]);
+  const [defsLoading, setDefsLoading] = useState(false);
+  const [defsError,   setDefsError]   = useState<string | null>(null);
+  const [editingDef,  setEditingDef]  = useState<DefinitionWithId | null>(null);
+  const [defSaving,   setDefSaving]   = useState(false);
 
   const PAGE_SIZE = 30;
 
+  // ── Chargement mots ──
   const loadMots = useCallback(() => {
     setLoading(true);
     const loader = search.trim()
@@ -72,10 +125,12 @@ export default function AdminMotsPage() {
 
   useEffect(() => { loadMots(); }, [loadMots]);
 
-  // ── Ouverture édition mot ──
+  // ── Édition mot ──
   async function openEditMot(mot: Mot) {
-    const detail = await fastapi.getWord(mot.id);
+    const detail = await fastapi.getWord(mot.id).catch(() => null);
+    if (!detail) return;
     setEditMot(detail);
+    setDefsMot(null); // ferme le panel defs si ouvert
     setEditForm({
       mot_creole:     detail.mot_creole,
       phonetique:     detail.phonetique     ?? "",
@@ -105,44 +160,51 @@ export default function AdminMotsPage() {
 
   async function deleteMot(id: number) {
     if (!token || !confirm("Supprimer ce mot et toutes ses définitions ?")) return;
-    await adminApi.deleteMot(token, id);
+    await adminApi.deleteMot(token, id).catch((e: unknown) => alert((e as Error).message));
     loadMots();
   }
 
-  // ── Définitions ──
+  // ── Panel définitions ──
   async function openDefs(mot: Mot) {
     if (!token) return;
-    setDefsMotId(mot.id);
-    const list = await adminApi.getDefinitions(token, mot.id);
-    setDefs(list);
-  }
-
-  function openEditDef(d: DefinitionWithId) {
-    setEditDef(d);
-    setEditDefForm({ definition: d.definition, exemple: d.exemple ?? "" });
-  }
-
-  async function saveDef() {
-    if (!editDef || !token || defsMotId === null) return;
-    setSaving(true);
+    setEditMot(null); // ferme modal édition mot
+    setDefsMot(mot);
+    setDefs([]);
+    setEditingDef(null);
+    setDefsError(null);
+    setDefsLoading(true);
     try {
-      const updated = await adminApi.updateDefinition(token, defsMotId, editDef.id, {
-        definition: editDefForm.definition || undefined,
-        exemple:    editDefForm.exemple    || null,
-      });
-      setDefs((prev) => prev.map((d) => (d.id === editDef.id ? updated : d)));
-      setEditDef(null);
+      const list = await adminApi.getDefinitions(token, mot.id);
+      setDefs(list);
+    } catch (e: unknown) {
+      setDefsError((e as Error).message ?? "Erreur lors du chargement.");
+    } finally {
+      setDefsLoading(false);
+    }
+  }
+
+  async function saveDef(data: { definition: string; exemple: string | null }) {
+    if (!editingDef || !token || !defsMot) return;
+    setDefSaving(true);
+    try {
+      const updated = await adminApi.updateDefinition(token, defsMot.id, editingDef.id, data);
+      setDefs((prev) => prev.map((d) => (d.id === editingDef.id ? updated : d)));
+      setEditingDef(null);
     } catch (e: unknown) {
       alert((e as Error).message);
     } finally {
-      setSaving(false);
+      setDefSaving(false);
     }
   }
 
   async function deleteDef(defId: number) {
-    if (!token || defsMotId === null || !confirm("Supprimer cette définition ?")) return;
-    await adminApi.deleteDefinition(token, defsMotId, defId);
-    setDefs((prev) => prev.filter((d) => d.id !== defId));
+    if (!token || !defsMot || !confirm("Supprimer cette définition ?")) return;
+    try {
+      await adminApi.deleteDefinition(token, defsMot.id, defId);
+      setDefs((prev) => prev.filter((d) => d.id !== defId));
+    } catch (e: unknown) {
+      alert((e as Error).message);
+    }
   }
 
   // ── Rendu ──────────────────────────────────────────────────────────
@@ -162,13 +224,10 @@ export default function AdminMotsPage() {
           className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:ring-2 focus:ring-orange-400 dark:border-zinc-700 dark:bg-zinc-800"
         />
         {search && (
-          <Button variant="outline" size="sm" onClick={() => setSearch("")}>
-            Effacer
-          </Button>
+          <Button variant="outline" size="sm" onClick={() => setSearch("")}>Effacer</Button>
         )}
       </div>
 
-      {/* Tableau */}
       {loading ? (
         <p className="text-zinc-400">Chargement…</p>
       ) : error ? (
@@ -178,6 +237,7 @@ export default function AdminMotsPage() {
           <p className="text-xs text-zinc-400">
             {total} mot{total > 1 ? "s" : ""}{search ? ` correspondant à "${search}"` : ""}
           </p>
+
           <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
             <table className="w-full text-sm">
               <thead className="bg-zinc-50 text-left text-xs uppercase text-zinc-500 dark:bg-zinc-800">
@@ -194,7 +254,9 @@ export default function AdminMotsPage() {
                 {mots.map((mot) => (
                   <tr
                     key={mot.id}
-                    className="bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+                    className={`bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 ${
+                      defsMot?.id === mot.id ? "ring-1 ring-inset ring-orange-300" : ""
+                    }`}
                   >
                     <td className="px-4 py-2 font-mono text-xs text-zinc-400">{mot.id}</td>
                     <td className="px-4 py-2 font-medium">{mot.mot_creole}</td>
@@ -209,7 +271,11 @@ export default function AdminMotsPage() {
                       <Button size="sm" variant="outline" onClick={() => openEditMot(mot)}>
                         Éditer
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => openDefs(mot)}>
+                      <Button
+                        size="sm"
+                        variant={defsMot?.id === mot.id ? "default" : "outline"}
+                        onClick={() => defsMot?.id === mot.id ? setDefsMot(null) : openDefs(mot)}
+                      >
                         Définitions
                       </Button>
                       <Button size="sm" variant="destructive" onClick={() => deleteMot(mot.id)}>
@@ -225,26 +291,77 @@ export default function AdminMotsPage() {
           {/* Pagination */}
           {!search && total > PAGE_SIZE && (
             <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
+              <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                 ← Précédent
               </Button>
               <span className="text-xs text-zinc-500">
                 Page {page} / {Math.ceil(total / PAGE_SIZE)}
               </span>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={page >= Math.ceil(total / PAGE_SIZE)}
-                onClick={() => setPage((p) => p + 1)}
-              >
+              <Button size="sm" variant="outline" disabled={page >= Math.ceil(total / PAGE_SIZE)} onClick={() => setPage((p) => p + 1)}>
                 Suivant →
               </Button>
             </div>
+          )}
+
+          {/* ── Panel définitions inline (sous le tableau) ── */}
+          {defsMot && (
+            <Card className="border-orange-200">
+              <CardContent className="pt-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="font-semibold text-zinc-900 dark:text-zinc-50">
+                    Définitions — <span className="text-orange-600">{defsMot.mot_creole}</span>
+                  </h2>
+                  <button onClick={() => { setDefsMot(null); setEditingDef(null); }} className="text-zinc-400 hover:text-zinc-700">✕</button>
+                </div>
+
+                {defsLoading && <p className="text-sm text-zinc-400">Chargement…</p>}
+                {defsError   && <p className="text-sm text-red-500">{defsError}</p>}
+
+                {!defsLoading && !defsError && (
+                  defs.length === 0 ? (
+                    <p className="text-sm text-zinc-400">Aucune définition pour ce mot.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {defs.map((d) => (
+                        <div key={d.id}>
+                          {editingDef?.id === d.id ? (
+                            <DefEditForm
+                              def={d}
+                              onSave={saveDef}
+                              onCancel={() => setEditingDef(null)}
+                              saving={defSaving}
+                            />
+                          ) : (
+                            <div className="rounded-lg border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
+                              <p className="text-sm text-zinc-800 dark:text-zinc-200">{d.definition}</p>
+                              {d.exemple && (
+                                <p className="mt-1 text-xs italic text-zinc-500">ex : {d.exemple}</p>
+                              )}
+                              <div className="mt-2 flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => { setEditingDef(d); }}
+                                >
+                                  ✏️ Éditer
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => deleteDef(d.id)}
+                                >
+                                  Supprimer
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                )}
+              </CardContent>
+            </Card>
           )}
         </>
       )}
@@ -297,66 +414,6 @@ export default function AdminMotsPage() {
               </Button>
             </div>
           </div>
-        </Modal>
-      )}
-
-      {/* ── Panel définitions ── */}
-      {defsMotId !== null && (
-        <Modal
-          title={`Définitions — mot #${defsMotId}`}
-          onClose={() => { setDefsMotId(null); setEditDef(null); }}
-        >
-          {defs.length === 0 ? (
-            <p className="text-sm text-zinc-400">Aucune définition.</p>
-          ) : (
-            <div className="space-y-3">
-              {defs.map((d) =>
-                editDef?.id === d.id ? (
-                  <Card key={d.id} className="border-orange-200">
-                    <CardContent className="space-y-2 pt-3">
-                      <textarea
-                        value={editDefForm.definition}
-                        onChange={(e) => setEditDefForm((f) => ({ ...f, definition: e.target.value }))}
-                        rows={3}
-                        className="w-full rounded border border-zinc-200 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                      />
-                      <input
-                        value={editDefForm.exemple}
-                        onChange={(e) => setEditDefForm((f) => ({ ...f, exemple: e.target.value }))}
-                        placeholder="Exemple (optionnel)"
-                        className="w-full rounded border border-zinc-200 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                      />
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={saveDef} disabled={saving}>
-                          {saving ? "…" : "Enregistrer"}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setEditDef(null)}>
-                          Annuler
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <Card key={d.id}>
-                    <CardContent className="pt-3">
-                      <p className="text-sm">{d.definition}</p>
-                      {d.exemple && (
-                        <p className="mt-1 text-xs italic text-zinc-400">ex : {d.exemple}</p>
-                      )}
-                      <div className="mt-2 flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => openEditDef(d)}>
-                          Éditer
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => deleteDef(d.id)}>
-                          Supprimer
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              )}
-            </div>
-          )}
         </Modal>
       )}
     </div>
