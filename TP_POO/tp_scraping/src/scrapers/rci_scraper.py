@@ -1,7 +1,7 @@
 
 from base_scraper import BaseScraper
 
-url_rci = "https://rci.fm/deuxiles"
+url_rci = "https://rci.fm/deuxiles/infos/toutes-les-infos"
 
 class RciScraper(BaseScraper):
     def __init__(self, base_url):
