@@ -28,10 +28,17 @@ async function verifyAdmin(authHeader: string | null): Promise<boolean> {
       headers: { Authorization: authHeader },
       cache:   "no-store",
     });
+    console.log("[admin-proxy] /auth/user status:", res.status);
     if (!res.ok) return false;
-    const user = (await res.json()) as { roles?: string[] };
-    return (user.roles ?? []).includes("admin");
-  } catch {
+    const user = (await res.json()) as { roles?: unknown };
+    console.log("[admin-proxy] user.roles raw:", JSON.stringify(user.roles));
+    // getRoleNames() retourne une Collection Laravel — peut sérialiser en objet ou tableau
+    const roles = user.roles;
+    if (Array.isArray(roles)) return roles.includes("admin");
+    if (roles && typeof roles === "object") return Object.values(roles).includes("admin");
+    return false;
+  } catch (e) {
+    console.error("[admin-proxy] verifyAdmin error:", e);
     return false;
   }
 }
