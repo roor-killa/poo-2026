@@ -46,14 +46,8 @@ export default function AdminCorpusPage() {
 
   const loadCorpus = useCallback(() => {
     setLoading(true);
-    fastapi.getCorpus(page, PAGE_SIZE)
-      .then(({ items, total }) => {
-        const filtered = domaine
-          ? items.filter((c) => c.domaine === domaine)
-          : items;
-        setItems(filtered);
-        setTotal(total);
-      })
+    fastapi.getCorpus(page, PAGE_SIZE, domaine || undefined)
+      .then(({ items, total }) => { setItems(items); setTotal(total); })
       .catch(() => setError("Impossible de charger le corpus."))
       .finally(() => setLoading(false));
   }, [page, domaine]);

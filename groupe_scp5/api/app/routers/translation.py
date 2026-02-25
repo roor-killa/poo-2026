@@ -106,7 +106,8 @@ def list_corpus(
         None,
         description="Filtre par langue présente : crm | fr | both",
     ),
-    limit: int = Query(default=50, ge=1, le=500, description="Nombre de phrases"),
+    page: int = Query(default=1, ge=1, description="Numéro de page"),
+    limit: int = Query(default=50, ge=1, le=500, description="Résultats par page"),
     db: Session = Depends(get_db),
 ) -> CorpusResponse:
     """Accède au corpus de phrases bilingues pour l'entraînement IA."""
@@ -119,10 +120,10 @@ def list_corpus(
         query = query.filter(Corpus.texte_fr.isnot(None))
     elif lang == "crm":
         query = query.filter(Corpus.texte_creole.isnot(None))
-    # "both" et None → pas de filtre supplémentaire
 
     total = query.count()
-    items = query.limit(limit).all()
+    offset = (page - 1) * limit
+    items = query.offset(offset).limit(limit).all()
 
     return CorpusResponse(
         total=total,

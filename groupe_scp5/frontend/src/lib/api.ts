@@ -168,9 +168,16 @@ export const fastapi = {
       .then((r) => ({ items: r.results, total: r.total })),
 
   /** Corpus paginé — retourne {items, total} */
-  getCorpus: (page = 1, size = 20): Promise<{ items: CorpusEntry[]; total: number }> =>
-    apiFetch<ApiListResponse<CorpusEntry>>(`${FASTAPI}/corpus?page=${page}&limit=${size}`)
-      .then((r) => ({ items: r.results, total: r.total })),
+  getCorpus: (
+    page = 1,
+    size = 20,
+    domaine?: string,
+  ): Promise<{ items: CorpusEntry[]; total: number }> => {
+    const params = new URLSearchParams({ page: String(page), limit: String(size) });
+    if (domaine) params.set("domaine", domaine);
+    return apiFetch<ApiListResponse<CorpusEntry>>(`${FASTAPI}/corpus?${params}`)
+      .then((r) => ({ items: r.results, total: r.total }));
+  },
 
   /** Expressions paginées — retourne {items, total} */
   getExpressions: (page = 1, size = 20): Promise<{ items: Expression[]; total: number }> =>
