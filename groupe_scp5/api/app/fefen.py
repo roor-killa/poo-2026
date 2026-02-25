@@ -200,7 +200,7 @@ class FefenRAG(Fefen):
         context = self._build_context(entries)
         system  = SYSTEM_PROMPT.format(context=context)
 
-        # Tentative 1 : chat_completion (models avec TGI chat support)
+        # Tentative 1 : chat_completion (TGI chat — modèles récents)
         try:
             response = self._client.chat_completion(
                 messages=[
@@ -216,9 +216,7 @@ class FefenRAG(Fefen):
 
         # Tentative 2 : text_generation (format prompt Mistral/Mixtral)
         try:
-            prompt = (
-                f"<s>[INST] {system}\n\nQuestion : {message} [/INST]"
-            )
+            prompt = f"<s>[INST] {system}\n\nQuestion : {message} [/INST]"
             result = self._client.text_generation(
                 prompt,
                 max_new_tokens=300,
@@ -227,7 +225,23 @@ class FefenRAG(Fefen):
             )
             return result.strip()
         except Exception as exc:
-            log.warning("FefenRAG text_generation échoué (%s) — fallback TF-IDF", exc)
+            log.warning("FefenRAG text_generation échoué (%s) — tentative flan-t5", exc)
+
+        # Tentative 3 : text2text_generation avec flan-t5-large (toujours gratuit)
+        try:
+            from huggingface_hub import InferenceClient  # type: ignore
+            flan = InferenceClient(model="google/flan-t5-large", token=self._client.token)
+            prompt = (
+                f"Tu es Fèfèn, assistant créole martiniquais. "
+                f"Contexte : {context[:400]} "
+                f"Question : {message} "
+                f"Réponse courte en créole et français :"
+            )
+            result = flan.text2text_generation(prompt, parameters={"max_length": 200})
+            text = result[0]["generated_text"] if isinstance(result, list) else str(result)
+            return text.strip() or super().reply(message)
+        except Exception as exc:
+            log.warning("FefenRAG flan-t5 échoué (%s) — fallback TF-IDF", exc)
             return super().reply(message)
 
     def _build_context(self, entries: list[dict]) -> str:
