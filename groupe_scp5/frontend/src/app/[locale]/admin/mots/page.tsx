@@ -88,6 +88,11 @@ function DefEditForm({
 export default function AdminMotsPage() {
   const { token } = useAuthStore();
 
+  // Zustand rehydrate depuis localStorage après le premier rendu
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  const tok = hydrated ? token : null;
+
   // Liste des mots
   const [mots,    setMots]    = useState<Mot[]>([]);
   const [total,   setTotal]   = useState(0);
@@ -140,10 +145,10 @@ export default function AdminMotsPage() {
   }
 
   async function saveMot() {
-    if (!editMot || !token) return;
+    if (!editMot || !tok) return;
     setSaving(true);
     try {
-      await adminApi.updateMot(token, editMot.id, {
+      await adminApi.updateMot(tok, editMot.id, {
         mot_creole:     editForm.mot_creole     || undefined,
         phonetique:     editForm.phonetique     || null,
         categorie_gram: editForm.categorie_gram || null,
@@ -159,14 +164,14 @@ export default function AdminMotsPage() {
   }
 
   async function deleteMot(id: number) {
-    if (!token || !confirm("Supprimer ce mot et toutes ses définitions ?")) return;
-    await adminApi.deleteMot(token, id).catch((e: unknown) => alert((e as Error).message));
+    if (!tok || !confirm("Supprimer ce mot et toutes ses définitions ?")) return;
+    await adminApi.deleteMot(tok, id).catch((e: unknown) => alert((e as Error).message));
     loadMots();
   }
 
   // ── Panel définitions ──
   async function openDefs(mot: Mot) {
-    if (!token) return;
+    if (!tok) return;
     setEditMot(null); // ferme modal édition mot
     setDefsMot(mot);
     setDefs([]);
@@ -174,7 +179,7 @@ export default function AdminMotsPage() {
     setDefsError(null);
     setDefsLoading(true);
     try {
-      const list = await adminApi.getDefinitions(token, mot.id);
+      const list = await adminApi.getDefinitions(tok, mot.id);
       setDefs(list);
     } catch (e: unknown) {
       setDefsError((e as Error).message ?? "Erreur lors du chargement.");
@@ -184,10 +189,10 @@ export default function AdminMotsPage() {
   }
 
   async function saveDef(data: { definition: string; exemple: string | null }) {
-    if (!editingDef || !token || !defsMot) return;
+    if (!editingDef || !tok || !defsMot) return;
     setDefSaving(true);
     try {
-      const updated = await adminApi.updateDefinition(token, defsMot.id, editingDef.id, data);
+      const updated = await adminApi.updateDefinition(tok, defsMot.id, editingDef.id, data);
       setDefs((prev) => prev.map((d) => (d.id === editingDef.id ? updated : d)));
       setEditingDef(null);
     } catch (e: unknown) {
@@ -198,9 +203,9 @@ export default function AdminMotsPage() {
   }
 
   async function deleteDef(defId: number) {
-    if (!token || !defsMot || !confirm("Supprimer cette définition ?")) return;
+    if (!tok || !defsMot || !confirm("Supprimer cette définition ?")) return;
     try {
-      await adminApi.deleteDefinition(token, defsMot.id, defId);
+      await adminApi.deleteDefinition(tok, defsMot.id, defId);
       setDefs((prev) => prev.filter((d) => d.id !== defId));
     } catch (e: unknown) {
       alert((e as Error).message);
