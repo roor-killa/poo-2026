@@ -7,8 +7,9 @@ export const config = {
   matcher: [
     // Match the root
     "/",
-    // Match all pathnames except _next, api, static files
+    // Match locale-prefixed paths
     "/(fr|en|crm)/:path*",
-    "/((?!_next|_vercel|.*\\..*).*)",
+    // Match everything except _next, _vercel, api routes, and static files
+    "/((?!_next|_vercel|api|.*\\..*).*)",
   ],
 };
