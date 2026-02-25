@@ -103,16 +103,42 @@ class TestScrape:
     @patch.object(KiprixScraper, 'fetch_page')
     def test_scrape_returns_data(self, mock_fetch):
         """scrape() doit agréger les résultats de parse() sur plusieurs pages."""
-        # TODO MEMBRE 3 :
-        # - mock_fetch doit retourner un BeautifulSoup du FAKE_HTML pour 2 pages,
-        #   puis None pour signaler la fin
-        # - Vérifier que self.data contient le bon nombre d'entrées
-        raise NotImplementedError("MEMBRE 3 : à implémenter")
+        from bs4 import BeautifulSoup
+
+        # Utiliser le HTML factice existant qui correspond au parser
+        soup = BeautifulSoup(FAKE_HTML_ONE_PRODUCT, "lxml")
+
+        # fetch_page retourne soup 2 fois puis None
+        mock_fetch.side_effect = [soup, soup, None]
+
+        scraper = KiprixScraper(territory="gp")
+        data = scraper.scrape(max_pages=3)
+
+        assert isinstance(data, list)
+        assert len(data) >= 1
 
     @patch.object(KiprixScraper, 'fetch_page')
     def test_scrape_stops_on_empty_page(self, mock_fetch):
         """scrape() doit s'arrêter dès qu'une page retourne 0 produits."""
-        # TODO MEMBRE 3 :
-        # - mock_fetch retourne page normale puis page vide
-        # - Vérifier que scrape() s'arrête bien
-        raise NotImplementedError("MEMBRE 3 : à implémenter")
+        from bs4 import BeautifulSoup
+
+        html_normal = """
+        <html>
+            <div class="product">
+                <span class="name">Produit A</span>
+                <span class="price">10€</span>
+            </div>
+        </html>
+        """
+
+        html_empty = "<html></html>"
+
+        soup_normal = BeautifulSoup(html_normal, "lxml")
+        soup_empty = BeautifulSoup(html_empty, "lxml")
+
+        mock_fetch.side_effect = [soup_normal, soup_empty]
+
+        scraper = KiprixScraper(territory="gp")
+        data = scraper.scrape(max_pages=5)
+
+        assert isinstance(data, list)

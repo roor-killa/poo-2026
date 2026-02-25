@@ -80,7 +80,11 @@ class BaseScraper(ABC):
             response.raise_for_status()
             return BeautifulSoup(response.content, 'lxml')
         except requests.exceptions.HTTPError as e:
-            self.logger.error(f"Erreur HTTP {e.response.status_code}: {url}")
+            status = getattr(e.response, 'status_code', None)
+            if status is not None:
+                self.logger.error(f"Erreur HTTP {status}: {url}")
+            else:
+                self.logger.error(f"Erreur HTTP: {e}: {url}")
         except requests.exceptions.Timeout:
             self.logger.error(f"Timeout pour: {url}")
         except requests.exceptions.ConnectionError:
