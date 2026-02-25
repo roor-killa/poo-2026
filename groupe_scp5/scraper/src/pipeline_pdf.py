@@ -88,8 +88,12 @@ def export_jsonl(entries: list[dict[str, Any]], out_path: Path) -> None:
 # Import PostgreSQL (optionnel)
 # ---------------------------------------------------------------------------
 
+_SOURCE_URL = "https://www.potomitan.info/dictionnaire/"
+_SOURCE_NOM = "Dictionnaire Créole Martiniquais — Raphaël Confiant"
+
+
 def import_to_db(entries: list[dict[str, Any]]) -> None:
-    """Importe les entrées dans PostgreSQL (mots + traductions)."""
+    """Importe les entrées dans PostgreSQL (mots + traductions + définitions + expressions)."""
     try:
         import psycopg2  # type: ignore
     except ImportError:
@@ -111,18 +115,23 @@ def import_to_db(entries: list[dict[str, Any]]) -> None:
         conn.autocommit = False
         cur = conn.cursor()
 
-        # Récupérer ou créer la source
-        cur.execute("""
-            INSERT INTO sources (nom, url, type, robots_ok)
-            VALUES (%s, %s, 'texte', TRUE)
-            ON CONFLICT (url) DO UPDATE SET nom = EXCLUDED.nom
-            RETURNING id
-        """, ("Dictionnaire Créole Martiniquais — Raphaël Confiant",
-              "https://www.potomitan.info/dictionnaire/"))
-        source_id = cur.fetchone()[0]
+        # Récupérer ou créer la source (SELECT d'abord — évite la désynchronisation de séquence)
+        cur.execute("SELECT id FROM sources WHERE url = %s", (_SOURCE_URL,))
+        row = cur.fetchone()
+        if row:
+            source_id = row[0]
+        else:
+            cur.execute("""
+                INSERT INTO sources (nom, url, type, robots_ok)
+                VALUES (%s, %s, 'texte', TRUE)
+                RETURNING id
+            """, (_SOURCE_NOM, _SOURCE_URL))
+            source_id = cur.fetchone()[0]
 
         inserted_mots  = 0
         inserted_trad  = 0
+        inserted_defs  = 0
+        inserted_exprs = 0
 
         for entry in entries:
             mot = entry["mot_creole"]
@@ -130,10 +139,15 @@ def import_to_db(entries: list[dict[str, Any]]) -> None:
             if not mot or not dfn:
                 continue
 
+            # Exemples : exemples[0] = phrase créole, exemples[1] = traduction fr
+            exemples       = entry.get("exemples", [])
+            exemple_creole = exemples[0].strip() if exemples else ""
+            exemple_fr     = exemples[1].strip() if len(exemples) > 1 else ""
+
             # Savepoint par entrée
             cur.execute("SAVEPOINT sp_entry")
             try:
-                # Insertion dans mots
+                # ── mots ──────────────────────────────────────────────────────
                 cur.execute("""
                     INSERT INTO mots (mot_creole, source_id, valide)
                     VALUES (%s, %s, FALSE)
@@ -150,7 +164,7 @@ def import_to_db(entries: list[dict[str, Any]]) -> None:
                     mot_id = r[0] if r else None
 
                 if mot_id:
-                    # Insertion traduction crm → fr
+                    # ── traductions (crm → fr) ─────────────────────────────
                     cur.execute("""
                         INSERT INTO traductions
                             (mot_id, langue_source, langue_cible,
@@ -160,6 +174,36 @@ def import_to_db(entries: list[dict[str, Any]]) -> None:
                     """, (mot_id, mot, dfn, source_id))
                     inserted_trad += cur.rowcount
 
+                    # ── definitions ───────────────────────────────────────
+                    # Évite les doublons (même mot_id + même définition)
+                    cur.execute("""
+                        INSERT INTO definitions (mot_id, definition, exemple, source_id, valide)
+                        SELECT %s, %s, %s, %s, FALSE
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM definitions
+                            WHERE mot_id = %s AND definition = %s
+                        )
+                    """, (mot_id, dfn, exemple_creole or None, source_id,
+                          mot_id, dfn))
+                    inserted_defs += cur.rowcount
+
+                # ── expressions (phrase créole + traduction) ───────────────
+                # Seulement si l'exemple créole existe et n'est pas déjà présent
+                if exemple_creole:
+                    cur.execute("""
+                        INSERT INTO expressions
+                            (texte_creole, texte_fr, type, explication, source_id, valide)
+                        SELECT %s, %s, 'expression', %s, %s, FALSE
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM expressions WHERE texte_creole = %s
+                        )
+                    """, (exemple_creole,
+                          exemple_fr or None,
+                          dfn[:200],          # la définition sert d'explication contextuelle
+                          source_id,
+                          exemple_creole))
+                    inserted_exprs += cur.rowcount
+
                 cur.execute("RELEASE SAVEPOINT sp_entry")
 
             except Exception as exc:
@@ -167,7 +211,10 @@ def import_to_db(entries: list[dict[str, Any]]) -> None:
                 log.warning("Entrée ignorée (%s) : %s", mot, exc)
 
         conn.commit()
-        log.info("DB : %d mots + %d traductions insérés", inserted_mots, inserted_trad)
+        log.info(
+            "DB : %d mots + %d traductions + %d définitions + %d expressions insérés",
+            inserted_mots, inserted_trad, inserted_defs, inserted_exprs,
+        )
         cur.close()
         conn.close()
 
