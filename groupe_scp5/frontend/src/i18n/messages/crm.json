@@ -1,22 +1,22 @@
 {
   "nav": {
     "home": "Akèy",
-    "dictionary": "Diksiyone",
+    "dictionary": "Diksiyonè",
     "corpus": "Koripis",
     "expressions": "Lexpresyon",
-    "contribute": "Kontribye",
+    "contribute": "Kontribyé",
     "profile": "Pwofil",
     "admin": "Admin",
-    "login": "Konekte",
+    "login": "Konèkté",
     "register": "Enskri",
-    "logout": "Dékonekte"
+    "logout": "Dékonèkté"
   },
   "home": {
     "title": "Lang Matinitjé",
-    "subtitle": "Diksiyone anlè kréyòl matinitjé",
+    "subtitle": "Diksionè anlè kréyòl matinitjé",
     "wordOfDay": "Mo jou-a",
     "searchPlaceholder": "Chèché an mo an kréyòl oben an fransè…",
-    "explore": "Eksploré diksiyone-a"
+    "explore": "Eksploré diksionè-a"
   },
   "dictionary": {
     "title": "Diksiyone",
@@ -47,7 +47,7 @@
     "newContent": "Kontni nef (JSON)",
     "submit": "Voiyé",
     "success": "Kontribisyon wouvèt, mèsi !",
-    "loginRequired": "Konekte-w pou kontribye."
+    "loginRequired": "Konèkté-w pou kontribyé."
   },
   "auth": {
     "login": {

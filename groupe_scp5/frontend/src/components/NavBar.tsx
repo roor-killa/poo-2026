@@ -1,6 +1,7 @@
 "use client";
 
 import Link            from "next/link";
+import { useEffect, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuthStore } from "@/lib/auth";
 import { laravelAuth }  from "@/lib/api";
@@ -11,6 +12,10 @@ export default function NavBar() {
   const t             = useTranslations("nav");
   const locale        = useLocale();
   const { token, user, clearAuth, isAuthenticated, isAdmin } = useAuthStore();
+
+  // Évite le mismatch SSR/client (Zustand persist lit localStorage côté client uniquement)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   async function handleLogout() {
     if (token) {
@@ -55,7 +60,8 @@ export default function NavBar() {
         <div className="ml-auto flex items-center gap-2">
           <LanguageSwitcher />
 
-          {isAuthenticated() ? (
+          {/* Rendu différé côté client uniquement (Zustand persist = localStorage) */}
+          {mounted && isAuthenticated() ? (
             <>
               <Link href={`${prefix}/profil`}>
                 <Button variant="ghost" size="sm">{user?.name ?? t("profile")}</Button>
@@ -64,7 +70,7 @@ export default function NavBar() {
                 {t("logout")}
               </Button>
             </>
-          ) : (
+          ) : mounted ? (
             <>
               <Link href={`${prefix}/auth/connexion`}>
                 <Button variant="ghost" size="sm">{t("login")}</Button>
@@ -73,7 +79,7 @@ export default function NavBar() {
                 <Button size="sm">{t("register")}</Button>
               </Link>
             </>
-          )}
+          ) : null}
         </div>
       </nav>
     </header>
