@@ -177,25 +177,26 @@ def test_translate(client: TestClient):
 # ---------------------------------------------------------------------------
 
 def test_chat_reply(client: TestClient):
-    """Vérifie la réponse du stub (déterministe)."""
+    """Vérifie le contrat du endpoint /chat (réponse non-vide, session_id)."""
     msg = "Saw fè ?"
     resp = client.post("/api/v1/chat", json={"message": msg})
     assert resp.status_code == 200
     data = resp.json()
     assert "reply" in data
+    assert isinstance(data["reply"], str) and len(data["reply"]) > 0
     assert data["session_id"]
-    assert data["model_version"] == "fèfèn-0.1"
+    assert data["model_version"] == "fèfèn-0.2-tfidf"
 
-    # Déterminisme : même message → même réponse
+    # Le session_id fourni doit être retourné tel quel
     resp2 = client.post("/api/v1/chat", json={"message": msg, "session_id": "sess_test"})
-    assert resp2.json()["reply"] == data["reply"]
+    assert resp2.status_code == 200
     assert resp2.json()["session_id"] == "sess_test"
 
 
 def test_chat_reply_index():
-    """reply_index = len(message) % 4 → 4 valeurs possibles."""
-    from app.routers.chat import _REPLIES
-    assert len(_REPLIES) == 4
+    """_STUB_REPLIES contient 4 réponses — reply_index = len(message) % 4."""
+    from app.routers.chat import _STUB_REPLIES
+    assert len(_STUB_REPLIES) == 4
 
 
 # ---------------------------------------------------------------------------
