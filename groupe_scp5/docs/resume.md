@@ -19,6 +19,7 @@
 | 4 | Export dataset HuggingFace | ✅ | `e6e4b80` |
 | 5 | Interface web Laravel + Next.js | ✅ | `785c8a4`, `65abc3b` |
 | 6 | Chatbot Fèfèn (TF-IDF + RAG HuggingFace) | ✅ | `860a4a4` → `cf56330` |
+| 7 | Dictionnaire Confiant — PDFs → RAG | ✅ | `ae49771` → `9ade32b` |
 
 ---
 
@@ -232,6 +233,40 @@ Question utilisateur
 
 ---
 
+## Phase 7 — Dictionnaire Confiant (PDFs → RAG)
+
+**Commits :** `ae49771` → `9ade32b`
+
+### Actions menées
+- Création du scraper PDF (`PotomitanPDFScraper`) :
+  - Télécharge les PDFs du *Dictionnaire du Créole Martiniquais* (Raphaël Confiant)
+  - Source : `potomitan.info/dictionnaire/{lettre}.pdf` — lettres A à N disponibles
+  - Respect du `robots.txt` : délai 60 s, User-Agent identifié
+  - 13 PDFs téléchargés (L, O–W : 404)
+- Création du parseur PDF (`PDFExtractor`) :
+  - Extraction du texte via `pdfplumber`
+  - Patterns regex : en-têtes d'entrée, définitions (`.`), variantes (`var.`),
+    synonymes (`syn.`), féminin (`fém.`), exemples
+  - Suppression des pieds de page automatique
+  - Heuristique `_is_header()` pour distinguer mots-vedettes du corps du texte
+- Pipeline complet (`pipeline_pdf.py`) : download → extract → JSONL → import DB
+- Export JSONL → `dataset/data/dictionnaire_confiant/train.jsonl` :
+  - 919 entrées (867 lettre A + 52 lettres B–N)
+  - Champs enrichis pour TF-IDF : `texte`, `variantes`, `synonymes`, `exemples`
+- Intégration Fèfèn RAG :
+  - `fefen.py` charge `dictionnaire_confiant` en **priorité** avant lexique/corpus
+  - +919 entrées dictionnairiques dans l'index TF-IDF
+- Dataset HuggingFace : ajout config `dictionnaire_confiant` dans `export_huggingface.py`
+
+### Données clés
+| Source | Entrées |
+|---|---|
+| Lettre A | 867 |
+| Lettres B, CH, D–K, M, N | 52 |
+| **Total** | **919** |
+
+---
+
 ## Architecture finale du projet
 
 ```
@@ -276,11 +311,13 @@ groupe_scp5/
 
 | Indicateur | Valeur |
 |---|---|
-| Entrées scrapées | 270 (87 Pawolotek + 183 Potomitan) |
+| Entrées scrapées HTML | 270 (87 Pawolotek + 183 Potomitan) |
+| Entrées dictionnaire Confiant (PDFs) | 919 (13 PDFs, lettres A–N) |
 | Mots dans la BDD | 164 |
 | Entrées corpus BDD | 625 |
 | Traductions BDD | 39 |
-| Entrées dataset HuggingFace | 538 (3 configs) |
+| Entrées dataset HuggingFace | 538 + 919 (4 configs) |
+| Index TF-IDF Fèfèn | ~1 457 entrées (lexique + corpus + Confiant) |
 | Endpoints API FastAPI | 12 |
 | Tests API | 16 passent, 2 skippés |
 | Locales frontend | 3 (fr / en / crm) |
