@@ -9,7 +9,8 @@
     "admin": "Admin",
     "login": "Connexion",
     "register": "Inscription",
-    "logout": "Déconnexion"
+    "logout": "Déconnexion",
+    "chat": "Chat"
   },
   "home": {
     "title": "Lang Matinitjé",
@@ -94,6 +95,14 @@
     "entity": "Entité",
     "content": "Contenu proposé",
     "empty": "Aucune contribution en attente."
+  },
+  "chat": {
+    "title": "Fèfèn — Chatbot créole",
+    "subtitle": "Posez une question en créole ou en français",
+    "placeholder": "Écrivez un mot ou une question…",
+    "send": "Envoyer",
+    "thinking": "Fèfèn réfléchit…",
+    "navLink": "Chat"
   },
   "common": {
     "loading": "Chargement…",

@@ -32,7 +32,15 @@ from .schemas.schemas import ContributeurOut
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # Les tables sont gérées par schema.sql / Docker — pas de create_all ici.
+    # Tables gérées par schema.sql / Docker — pas de create_all ici.
+    # Chargement de Fèfèn (TF-IDF) au démarrage
+    try:
+        from .fefen import Fefen
+        app.state.fefen = Fefen().build()
+    except Exception as exc:  # noqa: BLE001
+        import logging
+        logging.getLogger(__name__).warning("Fèfèn non chargé : %s", exc)
+        app.state.fefen = None
     yield
 
 

@@ -54,6 +54,11 @@ export interface CorpusEntry {
   source:  string | null;
 }
 
+export interface ChatMessage {
+  role:    "user" | "fefen";
+  content: string;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
@@ -140,6 +145,13 @@ export const fastapi = {
   /** Expressions paginées */
   getExpressions: (page = 1, size = 20): Promise<PaginatedResponse<Expression>> =>
     apiFetch(`${FASTAPI}/dictionary/expressions?page=${page}&size=${size}`),
+
+  /** Chatbot Fèfèn */
+  chat: (message: string, sessionId?: string): Promise<{ reply: string; session_id: string }> =>
+    apiFetch(`${FASTAPI}/chat`, {
+      method: "POST",
+      body:   JSON.stringify({ message, session_id: sessionId ?? null }),
+    }),
 };
 
 // ============================================================

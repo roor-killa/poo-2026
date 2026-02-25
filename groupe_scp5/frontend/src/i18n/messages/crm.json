@@ -9,7 +9,8 @@
     "admin": "Admin",
     "login": "Konèkté",
     "register": "Enskri",
-    "logout": "Dékonèkté"
+    "logout": "Dékonèkté",
+    "chat": "Chat"
   },
   "home": {
     "title": "Lang Matinitjé",
@@ -94,6 +95,14 @@
     "entity": "Antité",
     "content": "Kontni pwopozé",
     "empty": "Pa ni kontribisyon an atant."
+  },
+  "chat": {
+    "title": "Fèfèn — Chatbot kréyòl",
+    "subtitle": "Mandé an keksyon an kréyòl oben an fransè",
+    "placeholder": "Ékri an mo oben an keksyon…",
+    "send": "Voiyé",
+    "thinking": "Fèfèn ka réfléchi…",
+    "navLink": "Chat"
   },
   "common": {
     "loading": "Chajman…",

@@ -50,6 +50,9 @@ services:
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
       API_KEY: ${API_KEY:-changeme}
+      FEFEN_DATASET_DIR: /app/dataset/data
+    volumes:
+      - ./dataset/data:/app/dataset/data:ro
     depends_on:
       db:
         condition: service_healthy

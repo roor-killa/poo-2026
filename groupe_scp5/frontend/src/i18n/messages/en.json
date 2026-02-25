@@ -9,7 +9,8 @@
     "admin": "Admin",
     "login": "Login",
     "register": "Register",
-    "logout": "Logout"
+    "logout": "Logout",
+    "chat": "Chat"
   },
   "home": {
     "title": "Lang Matinitjé",
@@ -94,6 +95,14 @@
     "entity": "Entity",
     "content": "Proposed content",
     "empty": "No pending contributions."
+  },
+  "chat": {
+    "title": "Fèfèn — Creole Chatbot",
+    "subtitle": "Ask a question in Creole or French",
+    "placeholder": "Type a word or question…",
+    "send": "Send",
+    "thinking": "Fèfèn is thinking…",
+    "navLink": "Chat"
   },
   "common": {
     "loading": "Loading…",

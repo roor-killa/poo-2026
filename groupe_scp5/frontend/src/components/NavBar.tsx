@@ -45,6 +45,9 @@ export default function NavBar() {
           <Link href={`${prefix}/expressions`} className="text-sm text-zinc-600 hover:text-cyan-700 transition-colors">
             {t("expressions")}
           </Link>
+          <Link href={`${prefix}/chat`} className="text-sm text-zinc-600 hover:text-cyan-700 transition-colors">
+            {t("chat")}
+          </Link>
           {isAuthenticated() && (
             <Link href={`${prefix}/contribuer`} className="text-sm text-zinc-600 hover:text-cyan-700 transition-colors">
               {t("contribute")}
