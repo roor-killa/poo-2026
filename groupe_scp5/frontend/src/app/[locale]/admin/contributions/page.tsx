@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams }           from "next/navigation";
 import { useTranslations }     from "next-intl";
 import { useAuthStore }        from "@/lib/auth";
@@ -17,14 +17,23 @@ export default function AdminContributionsPage() {
   const [contribs, setContribs] = useState<Contribution[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
+  const [mounted,  setMounted]  = useState(false);
+  const fetchedRef = useRef(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    if (!token || !isAdmin()) return;
+    if (!mounted || !token || !isAdmin() || fetchedRef.current) return;
+    fetchedRef.current = true;
     laravelAdmin.listPending(token)
       .then((res) => setContribs(res.data ?? []))
       .catch(() => setError("Accès refusé ou erreur serveur."))
       .finally(() => setLoading(false));
-  }, [token, isAdmin]);
+  }, [mounted, token, isAdmin]);
+
+  if (!mounted) {
+    return <div className="py-16 text-center text-zinc-400">Chargement…</div>;
+  }
 
   if (!isAuthenticated() || !isAdmin()) {
     return (

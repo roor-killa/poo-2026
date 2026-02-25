@@ -1,6 +1,7 @@
 "use client";
 
 import Link          from "next/link";
+import { useEffect, useState } from "react";
 import { useParams, usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/auth";
 
@@ -17,6 +18,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const locale   = params.locale as string;
   const { isAdmin, isAuthenticated } = useAuthStore();
+
+  // Attendre la réhydratation Zustand depuis localStorage avant de vérifier l'auth
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    return <div className="py-20 text-center text-zinc-400">Chargement…</div>;
+  }
 
   if (!isAuthenticated() || !isAdmin()) {
     return (
