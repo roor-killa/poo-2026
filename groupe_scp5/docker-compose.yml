@@ -52,7 +52,7 @@ services:
       API_KEY: ${API_KEY:-changeme}
       FEFEN_DATASET_DIR: /app/dataset/data
       HF_TOKEN: ${HF_TOKEN:-}
-      FEFEN_MODEL: ${FEFEN_MODEL:-mistralai/Mistral-7B-Instruct-v0.3}
+      FEFEN_MODEL: ${FEFEN_MODEL:-mistralai/Mixtral-8x7B-Instruct-v0.1}
     volumes:
       - ./dataset/data:/app/dataset/data:ro
     depends_on:
