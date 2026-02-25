@@ -264,7 +264,7 @@ Envoie un message au chatbot Fèfèn et reçoit une réponse en créole.
 **Corps :**
 ```json
 {
-  "message": "Ki jan ou rélé ?",
+  "message": "Saw fè ?",
   "session_id": "sess_abc123"
 }
 ```
@@ -272,7 +272,7 @@ Envoie un message au chatbot Fèfèn et reçoit une réponse en créole.
 **Réponse 200 :**
 ```json
 {
-  "reply": "Yo ka rélé mwen Fèfèn ! Koman ou fè ?",
+  "reply": "Mwen ka tchenbé ! Yo ka krié mwen Fèfèn ! é ou mèm, say i di a ?",
   "session_id": "sess_abc123",
   "model_version": "fefèn-0.1"
 }

@@ -361,7 +361,7 @@ ScraperObserver (ABC)                  ← Observer Pattern
 ## 7. Phasage et jalons
 
 | Phase | Contenu | Durée estimée | Livrable |
-|---|---|---|---|
+|-------|---|---|---|
 | **0** | CDC + Architecture + UML | 1-2 sem | `docs/` complet |
 | **1** | Scraping + Pipeline données | 2-3 sem | `data/processed/` + rapport |
 | **2** | Schéma PostgreSQL + import | 2 sem | BDD peuplée |
