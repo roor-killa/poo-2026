@@ -13,8 +13,9 @@ url_rci_root = "https://rci.fm"
 class RciScraper(BaseScraper):
     def __init__(self, base_url):
         super().__init__(base_url, delay=120)
-        self.raw_data_dir = "data/raw/rci"
-        self.processed_data_dir = "data/processed/rci"
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        self.raw_data_dir = os.path.join(project_root, "data", "raw", "rci")
+        self.processed_data_dir = os.path.join(project_root, "data", "processed")
         os.makedirs(self.raw_data_dir, exist_ok=True)
         os.makedirs(self.processed_data_dir, exist_ok=True)
         self.root_url = url_rci_root
@@ -138,6 +139,17 @@ class RciScraper(BaseScraper):
                 print(f"  Titre manquant, article ignoré: {html_file}")
                 continue
 
+            title = title.replace("\r\n", " ").replace("\n", " ")
+
+            for key, value in article_data.items():
+                if isinstance(value, str):
+                    article_data[key] = value.replace("\r\n", " ").replace("\n", " ")
+                elif isinstance(value, list):
+                    article_data[key] = [
+                        item.replace("\r\n", " ").replace("\n", " ") if isinstance(item, str) else item
+                        for item in value
+                    ]
+
             all_articles[title] = article_data
             print(f"  Fusionné: {title}")
             
@@ -163,28 +175,28 @@ class RciScraper(BaseScraper):
         if not titre_elem:
             return None
         
-        article_data.titre = titre_elem.text.strip()
+        article_data["titre"] = titre_elem.text.strip()
         
 
         infos_elems = soup.find_all(attrs={"class": "info"})
-        article_data.infos = [info.text.strip() for info in infos_elems]
+        article_data["infos"] = [info.text.strip() for info in infos_elems]
         
-        for info in article_data.infos:
+        for info in article_data["infos"]:
             
             date_match = re.search(r'\d{2}/\d{2}/\d{4}', info)
             if date_match:
-                article_data.date = date_match.group(0)
+                article_data["date"] = date_match.group(0)
             
            
             if "Par" in info or "Auteur" in info:
-                article_data.auteur = info.split(":")[-1].strip() if ":" in info else info.replace("Par", "").strip()
+                article_data["auteur"] = info.split(":")[-1].strip() if ":" in info else info.replace("Par", "").strip()
         
         # Extraire le contenu
         contenu_elems = soup.find_all(attrs={"property": "schema:text"})
-        article_data.contenu = [content.text.strip() for content in contenu_elems]
+        article_data["contenu"] = [content.text.strip() for content in contenu_elems]
         
         # Créer l'objet 
-        article_data.date_extraction = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        article_data["date_extraction"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
         return article_data
     
