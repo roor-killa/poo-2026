@@ -26,6 +26,14 @@ class DummyScraper(BaseScraper):
     def parse(self, soup: BeautifulSoup) -> list[dict]:
         return [{"titre": soup.title.string if soup.title else ""}]
 
+    def to_document(self, item: dict) -> dict:
+        return {
+            "source":   "kreyol",
+            "doc_type": "mot",
+            "title":    item.get("titre", ""),
+            "content":  item.get("titre", ""),
+        }
+
 
 @pytest.fixture()
 def scraper() -> DummyScraper:

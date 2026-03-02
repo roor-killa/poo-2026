@@ -20,12 +20,8 @@ Ce projet vise à constituer, structurer et mettre à disposition la première i
 
 | # | Objectif | Type |
 |---|---|---|
-| O1 | Collecter du texte, audio et vidéo en créole martiniquais via scraping | Technique |
-| O2 | Constituer une base de données bilingue FR ↔ Créole martiniquais | Données |
-| O3 | Publier un dictionnaire créole martiniquais open source | Données |
-| O4 | Publier un dataset public sur HuggingFace | Open Data |
-| O5 | Fournir une interface web communautaire de contribution et correction | Produit |
-| O6 | Déployer un chatbot conversationnel en créole martiniquais (Fèfèn) | IA |
+
+
 
 ### 1.3 Périmètre
 
@@ -73,7 +69,7 @@ Ce projet vise à constituer, structurer et mettre à disposition la première i
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        COLLECTE                             │
-│   Python Scrapers (POO)  →  data/raw/  →  data/processed/  │
+│   Python Scrapers (POO)  →  data/raw/  →  data/processed/   │
 └─────────────────────────┬───────────────────────────────────┘
                           │ import
 ┌─────────────────────────▼───────────────────────────────────┐

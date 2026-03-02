@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: langmatinitje_db
     restart: unless-stopped
     environment:
@@ -10,6 +10,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scraper/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./scraper/db/02_documents.sql:/docker-entrypoint-initdb.d/02_documents.sql:ro
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     networks:
