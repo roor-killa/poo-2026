@@ -87,3 +87,15 @@ class Business:
             if write_header:
                 writer.writeheader()
             writer.writerow(self.to_dict())
+
+    @staticmethod
+    def search_by_commune(business_list: list['Business'], commune: str) -> list['Business']:
+        """
+        Recherche les entreprises situées dans une commune donnée (insensible à la casse).
+        
+        :param business_list: liste d'objets Business
+        :param commune: nom de la commune à rechercher
+        :return: liste d'objets Business correspondant
+        """
+        commune = commune.strip().lower()
+        return [b for b in business_list if b.commune and b.commune.strip().lower() == commune]
