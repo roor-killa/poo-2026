@@ -25,3 +25,10 @@ p : class="infi"
 
 Pour le contenu de l'article : 
 div : id="contenu-article" itemprop="articleBody description"
+
+
+
+
+
+
+INTEGRER LES DONNEES DANS UNE BASE POSTGRESQL

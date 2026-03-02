@@ -177,19 +177,19 @@ class RciScraper(BaseScraper):
         
         article_data["titre"] = titre_elem.text.strip()
         
+        # Extraire l'auteur avec itemprop="author"
+        auteur_elem = soup.find(attrs={"itemprop": "author"})
+        if auteur_elem:
+            article_data["auteur"] = auteur_elem.text.strip()
 
-        infos_elems = soup.find_all(attrs={"class": "info"})
+        infos_elems = soup.find_all(attrs={"class": " info"})
         article_data["infos"] = [info.text.strip() for info in infos_elems]
         
         for info in article_data["infos"]:
             
-            date_match = re.search(r'\d{2}/\d{2}/\d{4}', info)
+            date_match = re.search(r'\d{2}/\d{2}/\d{4}\s*-\s*\d{2}:\d{2}', info)
             if date_match:
                 article_data["date"] = date_match.group(0)
-            
-           
-            if "Par" in info or "Auteur" in info:
-                article_data["auteur"] = info.split(":")[-1].strip() if ":" in info else info.replace("Par", "").strip()
         
         # Extraire le contenu
         contenu_elems = soup.find_all(attrs={"property": "schema:text"})
