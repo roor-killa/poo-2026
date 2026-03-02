@@ -1,0 +1,26 @@
+from typing import List, Dict
+from bs4 import BeautifulSoup
+from scraper.base_scraper import BaseScraper
+
+
+class ExampleScraper(BaseScraper):
+
+    def scrape(self) -> List[Dict]:
+        soup = self.fetch_page(self.base_url)
+        if not soup:
+            return []
+
+        data = self.parse(soup)
+        return data
+
+    def parse(self, soup: BeautifulSoup) -> List[Dict]:
+        results = []
+        titles = soup.find_all("h1")
+
+        for t in titles:
+            results.append({
+                "title": t.get_text(strip=True)
+            })
+
+        return results
+    
