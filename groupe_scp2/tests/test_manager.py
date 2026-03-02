@@ -35,13 +35,27 @@ class TestScrapeAll:
     @patch.object(KiprixScraper, 'scrape')
     def test_scrape_all_sequential(self, mock_scrape):
         """scrape_all() doit retourner un dict avec les résultats de chaque scraper."""
-        # TODO MEMBRE 3 :
-        # - mock_scrape retourne une liste factice (ex: [{'name': 'Produit A'}])
-        # - Vérifier que le résultat est un dict avec la clé 'kiprix'
-        raise NotImplementedError("MEMBRE 3 : à implémenter")
+        mock_scrape.return_value = [{"name": "Produit A"}]
+
+        from src.manager import ScraperManager
+
+        manager = ScraperManager()
+        result = manager.scrape_all(parallel=False)
+
+        assert isinstance(result, dict)
+        assert "kiprix" in result
+        assert result["kiprix"] == [{"name": "Produit A"}]
 
     @patch.object(KiprixScraper, 'scrape')
     def test_scrape_all_parallel(self, mock_scrape):
         """scrape_all(parallel=True) doit produire le même résultat qu'en séquentiel."""
-        # TODO MEMBRE 3 : similaire au test séquentiel mais avec parallel=True
-        raise NotImplementedError("MEMBRE 3 : à implémenter")
+        mock_scrape.return_value = [{"name": "Produit A"}]
+
+        from src.manager import ScraperManager
+
+        manager = ScraperManager()
+        result = manager.scrape_all(parallel=True)
+
+        assert isinstance(result, dict)
+        assert "kiprix" in result
+        assert result["kiprix"] == [{"name": "Produit A"}]
