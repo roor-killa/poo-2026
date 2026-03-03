@@ -5,7 +5,6 @@ Exemples d'utilisation du RciScraper
 from src.scrapers.rci_scraper import RciScraper, url_rci
 
 
-
 if __name__ == "__main__":
     
     scraper = RciScraper(url_rci)

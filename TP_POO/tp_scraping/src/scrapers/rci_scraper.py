@@ -154,8 +154,8 @@ class RciScraper(BaseScraper):
             print(f"  Fusionné: {title}")
             
             # Supprimer le fichier HTML après traitement
-            os.remove(html_path)
-            print(f"  Supprimé: {html_file}")
+            # os.remove(html_path)
+            # print(f"  Supprimé: {html_file}")
             parsed_count += 1
 
         # Sauvegarder le JSON cumulatif unique
@@ -176,14 +176,17 @@ class RciScraper(BaseScraper):
             return None
         
         article_data["titre"] = titre_elem.text.strip()
+
+        photo = soup.find('img',attrs={"itemprop":"image"})
+        article_data["photo"] = photo.get('src')
         
         # Extraire l'auteur avec itemprop="author"
         auteur_elem = soup.find(attrs={"itemprop": "author"})
         if auteur_elem:
             article_data["auteur"] = auteur_elem.text.strip()
 
-        infos_elems = soup.find_all(attrs={"class": " info"})
-        article_data["infos"] = [info.text.strip() for info in infos_elems]
+        infos_elems = soup.find_all(attrs={"class": "info"})
+        article_data["infos"] = infos_elems[2].text.strip()
         
         for info in article_data["infos"]:
             
@@ -193,7 +196,10 @@ class RciScraper(BaseScraper):
         
         # Extraire le contenu
         contenu_elems = soup.find_all(attrs={"property": "schema:text"})
-        article_data["contenu"] = [content.text.strip() for content in contenu_elems]
+        contenu = ''.join([content.text.strip() for content in contenu_elems])
+
+        article_data["contenu"] = contenu
+        # [content.text.strip() for content in contenu_elems]
         
         # Créer l'objet 
         article_data["date_extraction"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -223,6 +229,8 @@ class RciScraper(BaseScraper):
         filename = re.sub(r'\s+', '_', filename)
         return filename[:200]  # Limit filename length
 
+    def to_document(self, item: dict[str, any]) -> dict[str, any]:
+        pass
 
-    
-
+    def save_to_db(self, conn: any) -> int:
+        pass
