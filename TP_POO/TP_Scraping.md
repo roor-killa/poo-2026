@@ -238,7 +238,10 @@ class BaseScraper(ABC):
     
     @abstractmethod
     def parse(self, soup: BeautifulSoup) -> List[Dict]:
-        """Parse le contenu HTML."""
+        """Parse le contenu HTML.
+            Chaque article est dans la class data
+            Avoir dans un objet json : la date, le titre et la description
+        """
         pass
 ```
 
