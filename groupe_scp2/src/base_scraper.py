@@ -76,24 +76,41 @@ class BaseScraper(ABC):
         return logger
 
     def _get_driver(self):
-        """Crée et retourne une instance de Selenium WebDriver."""
+        """Crée et retourne une instance de Selenium WebDriver.
+        Fonctionne en local (télécharge Chrome) et dans Docker (utilise Chromium installé).
+        """
         if not hasattr(self, '_driver') or self._driver is None:
+            import os
             from selenium import webdriver
             from selenium.webdriver.chrome.options import Options
             from selenium.webdriver.chrome.service import Service
-            from webdriver_manager.chrome import ChromeDriverManager
-            
+
             options = Options()
             options.add_argument('--headless=new')
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
             options.add_argument(f'user-agent={self.headers["User-Agent"]}')
-            
-            self._driver = webdriver.Chrome(
-                service=Service(ChromeDriverManager().install()),
-                options=options
-            )
+
+            # En Docker, Chromium est déjà installé dans le container
+            chrome_bin = os.environ.get('CHROME_BIN')
+            chromedriver_path = os.environ.get('CHROMEDRIVER_PATH')
+
+            if chrome_bin and chromedriver_path:
+                # Mode Docker : utiliser les binaires installés
+                options.binary_location = chrome_bin
+                self._driver = webdriver.Chrome(
+                    service=Service(chromedriver_path),
+                    options=options
+                )
+            else:
+                # Mode local : télécharger automatiquement via webdriver-manager
+                from webdriver_manager.chrome import ChromeDriverManager
+                self._driver = webdriver.Chrome(
+                    service=Service(ChromeDriverManager().install()),
+                    options=options
+                )
         return self._driver
+
 
     def fetch_page(self, url: str) -> Optional[BeautifulSoup]:
         """
