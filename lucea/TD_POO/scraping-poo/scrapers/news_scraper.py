@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from typing import List, Dict
 from datetime import datetime
 
-class NewsScraper(BaseScraper):
+class NewsScraper(BaseScraper): # Scraper spécifique pour les articles de presse
     """
     Classe de base abstraite pour tous les scrapers.
     Implémente les fonctionnalités communes.
@@ -16,7 +16,7 @@ class NewsScraper(BaseScraper):
         super().__init__(base_url="https://www.bizouk.com/?region=martinique"+ category)
         self.category = category
         
-    def parse_article(self, article_soup: BeautifulSoup) -> Dict:
+    def parse_article(self, article_soup: BeautifulSoup) -> Dict: # Parse un article individuel
         """
         Parse un article individuel
         Returns:
@@ -35,7 +35,7 @@ class NewsScraper(BaseScraper):
             "tags": [tag.get_text(strip=True) for tag in tags_elements] if tags_elements else []
             }
     
-    def parse(self, soup: BeautifulSoup) -> List[Dict]:
+    def parse(self, soup: BeautifulSoup) -> List[Dict]: # Parse la page de liste d'articles
         """
         Parse la page de liste d'articles
         """
@@ -46,7 +46,7 @@ class NewsScraper(BaseScraper):
             articles_data.append(parsed_article)
         return articles_data
     
-    def scrape(self, max_pages: int = 3) -> List[Dict]:
+    def scrape(self, max_pages: int = 3) -> List[Dict]: # Scrape plusieurs pages d'articles
         """
         Scrape plusieurs pages d'articles
         

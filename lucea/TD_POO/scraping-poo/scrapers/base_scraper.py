@@ -1,5 +1,3 @@
-
-
 from abc import ABC, abstractmethod
 import requests
 from bs4 import BeautifulSoup
@@ -15,7 +13,7 @@ class BaseScraper(ABC):
     Implémente les fonctionnalités communes.
     """
 
-    def __init__(self, base_url: str, delay: float = 1.0):
+    def __init__(self, base_url: str, delay: float = 1.0): # Délai par défaut de 1 seconde entre les requêtes
         """
         Args:
             base_url: URL de base du site à scraper
@@ -66,14 +64,14 @@ class BaseScraper(ABC):
         pass
 
     @abstractmethod
-    def scrape(self) -> List[Dict]:
+    def scrape(self) -> List[Dict]: 
         """
         Méthode principale de scraping.
         À implémenter dans les classes enfants.
         """
         pass
 
-    def save_to_json(self, data: List[Dict], filename: str):
+    def save_to_json(self, data: List[Dict], filename: str): 
         """Sauvegarde les données en JSON"""
         os.makedirs(os.path.dirname(filename), exist_ok=True)
 
