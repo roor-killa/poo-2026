@@ -95,8 +95,12 @@ if menu == "📊 Analyse des données existantes":
             df_display = df_display[df_display['territory_name'] == choix_territoire]
             
         # Affichage du tableau de données
+        display_cols = ['name', 'territory_name', 'price_france', 'price_dom', 'difference']
+        if 'category' in df_display.columns:
+            display_cols.append('category')
+
         st.dataframe(
-            df_display[['name', 'territory_name', 'price_france', 'price_dom', 'difference', 'category']],
+            df_display[display_cols],
             use_container_width=True
         )
         
