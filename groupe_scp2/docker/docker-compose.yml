@@ -6,8 +6,8 @@ services:
       dockerfile: docker/Dockerfile
     volumes:
       - ../data:/app/data # Partage le dossier data avec l'hôte
-    # Commande par défaut : scraper 10 pages en Guadeloupe
-    command: scrape --pages 10 --territory gp
+    # Commande par défaut : scraper 10 pages en Martinique 
+    command: scrape --pages 10 --territory mq
 
   # Service optionnel : Jupyter pour l'analyse (Membre 2)
   # Utilise l'image officielle Jupyter qui a tout le nécessaire
