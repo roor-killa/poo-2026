@@ -1,35 +1,58 @@
-class etudiant:
-    def __init__(self, nom,prenom, numetu):
-        self.nom = nom
-        self.prenom=prenom
-        self.num_etu = numetu
-        self.__notes = []
 
-    def ajouter_note(self, __notes):
-        if __notes < 0 or __notes > 20:
-            print("Note invalide. La note doit être entre 0 et 20.") #ici si la note n'est pas comprise entre 0 et 20 elle n'est pas prise en compte 
-        else:
-            self.__notes.append(__notes)
-    def calculer_moyenne(self):
-        if not self.notes:
+class Etudiant:
+    def __init__(self, nom, prenom, numero_etudiant):
+        self.nom = nom
+        self.prenom = prenom
+
+        # numero_etudiant privé + validation "E" + 5 chiffres
+        if not (isinstance(numero_etudiant, str)
+                and len(numero_etudiant) == 6
+                and numero_etudiant[0] == "E"
+                and numero_etudiant[1:].isdigit()):
+            raise ValueError("Le numéro étudiant doit commencer par 'E' suivi de 5 chiffres (ex: E12347).")
+
+        self.__numero_etudiant = numero_etudiant  # privé, pas de setter
+        self._notes = []  # protégé
+
+    @property
+    def numero_etudiant(self):
+        # lecture seule (pas de setter)
+        return self.__numero_etudiant
+
+    def ajouter_note(self, note):
+        # bloquer si déjà 10 notes
+        if len(self._notes) >= 10:
+            raise ValueError("Impossible d'ajouter une note : l'étudiant a déjà 10 notes.")
+
+        # validation note 0..20
+        if not isinstance(note, (int, float)):
+            raise ValueError("Note invalide : la note doit être un nombre.")
+        if note < 0 or note > 20:
+            raise ValueError("Note invalide : la note doit être entre 0 et 20.")
+
+        self._notes.append(float(note))
+
+    @property
+    def moyenne(self):
+        # lecture seule
+        if not self._notes:
             return 0
-        total = sum(self.notes)
-        return total / len(self.notes)
-        
-    def est_admis(self, base=10):
-        if self.calculer_moyenne() <base:
-            return False
-        else:
-            return True
+        return sum(self._notes) / len(self._notes)
+
+    def __str__(self):
+        return f"{self.prenom} {self.nom} ({self.numero_etudiant}) - Moyenne: {self.moyenne:.2f} - Notes: {len(self._notes)}/10"
+
  
 
 
-class promotion:
+class Promotion:
     def __init__(self, nom_promo=""):
         self.etudiants = []
         self.nom_promo = nom_promo
 
     def ajouter_etudiant(self, etudiant):
+        etudiant.__class__.nombre_etudiants += 1
+
         self.etudiants.append(etudiant)
         etudiant.__class__.nombre_etudiants += 1  # Incrémente le nombre d'étudiants à chaque ajout
 
@@ -52,74 +75,46 @@ class promotion:
 
 
 
+# Créer des étudiants
+etudiant1 = Etudiant("Dupont", "Marie", "E12345")
+etudiant1.ajouter_note(15)
+etudiant1.ajouter_note(12)
+etudiant1.ajouter_note(14)
 
-    def taux_de_reussite(self, base=10):
-        if not self.etudiants:
-            return 0
-        nombre_admis = len(self.lister_admis(base))
-        return (nombre_admis / len(self.etudiants)) * 100
-    
-    def best_etu(self):
-        if not self.etudiants:
-            return None
-        return max(self.etudiants, key=lambda etudiant: etudiant.calculer_moyenne())
-    #key=lambda permet de definir une fonction anonyme pour extraire la moyenne de chaque etudiant pour la comparaison
+etudiant2 = Etudiant("Martin", "Pierre", "E12346")
+etudiant2.ajouter_note(8)
+etudiant2.ajouter_note(9)
 
+# Créer une promotion
+promo = Promotion("L2 Informatique 2025")
+promo.ajouter_etudiant(etudiant1)
+promo.ajouter_etudiant(etudiant2)
 
-
-#test
-alice = etudiant("Alice","Dupont", "E00001", "Informatique")
-bob= etudiant("Bob","Martin", "E00002", "Mathématiques")
-
-#test attributs class
-print(etudiant.nombre_etudiants)
-print(alice.uni)
-
-#test notes 
-alice.ajouter_note("Mathématiques", 15)
-alice.ajouter_note("Mathématiques", 20)
-alice.ajouter_note("Informatique", 18)
-bob.ajouter_note("Mathématiques", 9)
-bob.ajouter_note("Informatique", 12)
-bob.ajouter_note("Informatique", 14)
-print(f"La moyenne générale d'Alice est : {alice.calculer_moyenne()}") #moy generale
-print(f"La moyenne générale de Bob est : {bob.calculer_moyenne()}") #moy generale
-print(f"La moyenne de Mathématiques d'Alice est : {alice.moyerne_matiere('Mathématiques')}")
-print(f"La moyenne de Informatique de Bob est : {bob.moyerne_matiere('Informatique')}")
-
-#test comparaison
-difference = alice.comparer_etudiant(bob)
-if difference > 0:
-    print("Alice a une meilleure moyenne que Bob.")
-elif difference < 0:
-    print("Bob a une meilleure moyenne qu'Alice.")
-else:
-    print("Alice et Bob ont la même moyenne.")
-#test promotion
-promo = promotion("L1 Informatique")
-promo.ajouter_etudiant(alice)
-promo.ajouter_etudiant(bob)
-print(f"Moyenne de la promotion: {promo.calculer_moyenne_promo()}")
-admis = promo.lister_admis()
-print("Étudiants admis:")
-for etu in admis:
-    print(etu)
-print(f"Taux de réussite de la promotion: {promo.taux_de_reussite()}%")
-best_student = promo.best_etu()
-print(f"Le meilleur étudiant est : {best_student.nom} avec une moyenne de {best_student.calculer_moyenne()}")
+# Afficher résultats
+print(f"Moyenne de {etudiant1.prenom} : {etudiant1.calculer_moyenne()}")
+print(f"Est admis ? {etudiant1.est_admis()}")
+print(f"Moyenne de la promotion : {promo.calculer_moyenne_promotion()}")
+print(f"Étudiants admis : {len(promo.lister_admis())}")
 
 
-#test admis et mention
-alice.est_admis()
-bob.est_admis()
-print(f"Alice a obtenu la mention : {alice.obtention_mention()}")
-print(f"Bob a obtenu la mention : {bob.obtention_mention()}")
-
-
-
-#Challenge IA :
+#Challenge IA : dans le fichier etudiant_challenge_ia.py
 #Générez le code avec une IA de votre choix
 #Identifiez 3 problèmes ou améliorations possibles dans le code généré
 #Proposez et implémentez vos corrections
 
+#Q1 : Quelle est la différence entre _attribut et __attribut ?
+#Q2 : Peut-on vraiment rendre un attribut privé en Python ?
+#Q3 : Pourquoi utiliser @property plutôt qu'une méthode get_moyenne() ?
 
+# Q1 :
+# _attribut est protégé  (on ne doit pas y toucher hors de la classe).
+# __attribut est privé grâce au name mangling (Python modifie son nom en interne).
+
+# Q2 :
+# Non on ne peut pas rendre un attribut totalement privé en Python.
+# On peut seulement limiter l’accès par convention ou name mangling.
+
+# Q3 :
+# @property permet d’utiliser une méthode comme un attribut.
+# C’est plus lisible (etudiant.moyenne au lieu de etudiant.get_moyenne()).
+# On peut aussi empêcher la modification en ne mettant pas de setter.
