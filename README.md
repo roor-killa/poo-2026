@@ -11,4 +11,4 @@ Programmation Orientée Objet Python 2026
 ✅ **CM6** : Architecture Logicielle  
 ✅ **CM7** : Tests et Qualité  
 ✅ **CM8** : DevOps et CI/CD  
-✅ **CM9** : Sécurité  
+✅ **CM9** : Sécurité 
