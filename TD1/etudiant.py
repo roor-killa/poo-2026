@@ -53,15 +53,6 @@ class promotion:
 
 
 
-
-
-
-
-
-
-
-
-
     def taux_de_reussite(self, base=10):
         if not self.etudiants:
             return 0
@@ -123,3 +114,12 @@ alice.est_admis()
 bob.est_admis()
 print(f"Alice a obtenu la mention : {alice.obtention_mention()}")
 print(f"Bob a obtenu la mention : {bob.obtention_mention()}")
+
+
+
+#Challenge IA :
+#Générez le code avec une IA de votre choix
+#Identifiez 3 problèmes ou améliorations possibles dans le code généré
+#Proposez et implémentez vos corrections
+
+
