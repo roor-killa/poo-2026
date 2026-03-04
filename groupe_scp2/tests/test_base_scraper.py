@@ -66,53 +66,40 @@ class TestInit:
 
 class TestFetchPage:
 
-    @patch('src.base_scraper.requests.get')
-    def test_fetch_page_success(self, mock_get):
-        """fetch_page doit retourner un BeautifulSoup si la requête réussit."""
-        mock_response = MagicMock()
-        mock_response.content = b"<html><body><h1>Test</h1></body></html>"
-        mock_response.raise_for_status = MagicMock()
-        mock_get.return_value = mock_response
+    @patch.object(ConcreteScraper, '_get_driver')
+    def test_fetch_page_success(self, mock_get_driver):
+        """fetch_page doit retourner un BeautifulSoup si Selenium réussit."""
+        # Simuler un faux driver Selenium
+        mock_driver = MagicMock()
+        mock_driver.page_source = "<html><body><h1>Test</h1></body></html>"
+        mock_driver.title = "Test Page"
+        mock_get_driver.return_value = mock_driver
 
-        scraper = ConcreteScraper("https://example.com")
+        scraper = ConcreteScraper("https://example.com", delay=0)
         result = scraper.fetch_page("https://example.com/page")
 
         assert result is not None
         assert result.find('h1').text == "Test"
 
-    @patch('src.base_scraper.requests.get')
-    def test_fetch_page_timeout(self, mock_get):
-        """fetch_page doit retourner None en cas de Timeout."""
-        import requests
-        mock_get.side_effect = requests.exceptions.Timeout
+    @patch.object(ConcreteScraper, '_get_driver')
+    def test_fetch_page_cloudflare_blocked(self, mock_get_driver):
+        """fetch_page doit retourner None si Cloudflare bloque la page."""
+        mock_driver = MagicMock()
+        mock_driver.page_source = "<html>Cloudflare protection</html>"
+        mock_driver.title = "Just a moment..."
+        mock_get_driver.return_value = mock_driver
 
-        scraper = ConcreteScraper("https://example.com")
+        scraper = ConcreteScraper("https://example.com", delay=0)
         result = scraper.fetch_page("https://example.com/page")
 
         assert result is None
 
-    @patch('src.base_scraper.requests.get')
-    def test_fetch_page_http_error(self, mock_get):
-        """fetch_page doit retourner None sur une erreur HTTP (404, etc.)."""
-        import requests
+    @patch.object(ConcreteScraper, '_get_driver')
+    def test_fetch_page_selenium_error(self, mock_get_driver):
+        """fetch_page doit retourner None si Selenium lève une exception."""
+        mock_get_driver.side_effect = Exception("ChromeDriver not found")
 
-        mock_response = MagicMock()
-        mock_response.raise_for_status.side_effect = requests.HTTPError("404 Error")
-        mock_get.return_value = mock_response
-
-        scraper = ConcreteScraper("https://example.com")
-        result = scraper.fetch_page("https://example.com/page")
-
-        assert result is None
-
-    @patch('src.base_scraper.requests.get')
-    def test_fetch_page_connection_error(self, mock_get):
-        """fetch_page doit retourner None si la connexion échoue."""
-        import requests
-
-        mock_get.side_effect = requests.ConnectionError("Connection failed")
-
-        scraper = ConcreteScraper("https://example.com")
+        scraper = ConcreteScraper("https://example.com", delay=0)
         result = scraper.fetch_page("https://example.com/page")
 
         assert result is None
