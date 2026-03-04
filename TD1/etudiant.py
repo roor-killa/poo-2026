@@ -1,48 +1,111 @@
+class CompteurNotes:
+    # Attribut de classe : partagé par tous
+    # Il stocke TOUTES les notes de TOUS les étudiants
+    historique_notes = []
+
+    @classmethod
+    def ajouter_note_historique(cls, note):
+        # cls représente la classe elle-même
+        # On ajoute la note dans la liste globale
+        cls.historique_notes.append(float(note))
+
+    @classmethod
+    def statistiques(cls):
+        # Si aucune note n'existe
+        if not cls.historique_notes:
+            return {"min": None, "max": None, "moyenne": None}
+
+        # Calcul des statistiques sur toutes les notes
+        mini = min(cls.historique_notes)
+        maxi = max(cls.historique_notes)
+        moyenne = sum(cls.historique_notes) / len(cls.historique_notes)
+
+        return {"min": mini, "max": maxi, "moyenne": moyenne}
+
 
 class Etudiant:
+    # Attributs de classe (partagés par tous les étudiants)
+    compteur_total = 0
+    universite = "Université des Antilles"
+
     def __init__(self, nom, prenom, numero_etudiant):
         self.nom = nom
         self.prenom = prenom
 
-        # numero_etudiant privé + validation "E" + 5 chiffres
+        # Vérifie que le numéro commence par "E" et contient 5 chiffres
+        # Exemple valide : E12345
         if not (isinstance(numero_etudiant, str)
                 and len(numero_etudiant) == 6
                 and numero_etudiant[0] == "E"
                 and numero_etudiant[1:].isdigit()):
-            raise ValueError("Le numéro étudiant doit commencer par 'E' suivi de 5 chiffres (ex: E12347).")
+            raise ValueError("Le numéro étudiant doit commencer par 'E' suivi de 5 chiffres.")
 
-        self.__numero_etudiant = numero_etudiant  # privé, pas de setter
-        self._notes = []  # protégé
+        # __numero_etudiant est privé
+        # Python modifie son nom en interne pour éviter l'accès direct
+        self.__numero_etudiant = numero_etudiant
+
+        # _notes est protégé (convention : ne pas modifier hors classe)
+        self._notes = []
+
+        # On incrémente le compteur à chaque création d'étudiant
+        Etudiant.compteur_total += 1
 
     @property
     def numero_etudiant(self):
-        # lecture seule (pas de setter)
+        # Property en lecture seule (pas de setter)
+        # On peut lire mais pas modifier
         return self.__numero_etudiant
 
     def ajouter_note(self, note):
-        # bloquer si déjà 10 notes
+        # Limite à 10 notes maximum
         if len(self._notes) >= 10:
-            raise ValueError("Impossible d'ajouter une note : l'étudiant a déjà 10 notes.")
+            raise ValueError("Impossible d'ajouter plus de 10 notes.")
 
-        # validation note 0..20
+        # Vérifie que la note est un nombre
         if not isinstance(note, (int, float)):
-            raise ValueError("Note invalide : la note doit être un nombre.")
+            raise ValueError("La note doit être un nombre.")
+
+        # Vérifie que la note est entre 0 et 20
         if note < 0 or note > 20:
-            raise ValueError("Note invalide : la note doit être entre 0 et 20.")
+            raise ValueError("La note doit être entre 0 et 20.")
 
         self._notes.append(float(note))
 
+        # On ajoute aussi la note dans l'historique global
+        CompteurNotes.ajouter_note_historique(note)
+
+    def calculer_moyenne(self):
+        # Méthode simple qui retourne la property moyenne
+        return self.moyenne
+
     @property
     def moyenne(self):
-        # lecture seule
+        # Si aucune note, moyenne = 0
         if not self._notes:
             return 0
+
+        # Calcul classique moyenne = somme / nombre
         return sum(self._notes) / len(self._notes)
 
-    def __str__(self):
-        return f"{self.prenom} {self.nom} ({self.numero_etudiant}) - Moyenne: {self.moyenne:.2f} - Notes: {len(self._notes)}/10"
+    def est_admis(self, base=10):
+        # L'étudiant est admis si moyenne >= 10
+        return self.moyenne >= base
 
- 
+    def __str__(self):
+        # Méthode spéciale appelée avec print(objet)
+        # Permet un affichage propre
+        return f"{self.prenom} {self.nom} ({self.numero_etudiant}) - Moyenne: {self.moyenne:.2f}"
+
+    @classmethod
+    def get_nombre_etudiants(cls):
+        # Retourne le nombre total d'étudiants créés
+        return cls.compteur_total
+
+    @classmethod
+    def changer_universite(cls, nouvelle_universite):
+        # Change l'université pour TOUS les étudiants
+        # car universite est un attribut de classe
+        cls.universite = nouvelle_universite
 
 
 class Promotion:
@@ -51,70 +114,35 @@ class Promotion:
         self.nom_promo = nom_promo
 
     def ajouter_etudiant(self, etudiant):
-        etudiant.__class__.nombre_etudiants += 1
-
+        # On ajoute simplement l'étudiant à la liste
         self.etudiants.append(etudiant)
-        etudiant.__class__.nombre_etudiants += 1  # Incrémente le nombre d'étudiants à chaque ajout
 
     def calculer_moyenne_promo(self):
         if not self.etudiants:
             return 0
-        total_moyenne = sum(etudiant.calculer_moyenne() for etudiant in self.etudiants)
-        return total_moyenne / len(self.etudiants)
-    
-    def lister_admis(self,):
-        etu_admis = []
-        for etudiant in self.etudiants:
-            if etudiant.est_admis():
-                etu_admis.append(etudiant)
-        return etu_admis #ici on cree iune liste pour stocker les etudiants qui sont admis par "est_amis" on verifie si c'est true et on les affiche 
-                
-#q1 : Parce que sinon tous les etudiants vont partager la meme liste de notes car une liste de classe est partagée entre toutes les instances de la classe. 
-#q2 :tous les objets partagent la même liste
-#q3 : notes est encapsulée pour éviter les modifications donc il est privé de plus dans ajouter_notes il y a cette ligne :if __notes < 0 or __notes > 20:
 
+        # On calcule la moyenne des moyennes
+        return sum(e.moyenne for e in self.etudiants) / len(self.etudiants)
 
+    def lister_admis(self, base=10):
+        # Compréhension de liste :
+        # on garde seulement les étudiants admis
+        return [e for e in self.etudiants if e.est_admis(base)]
 
-# Créer des étudiants
-etudiant1 = Etudiant("Dupont", "Marie", "E12345")
-etudiant1.ajouter_note(15)
-etudiant1.ajouter_note(12)
-etudiant1.ajouter_note(14)
+print(Etudiant.get_nombre_etudiants())  # 0
 
-etudiant2 = Etudiant("Martin", "Pierre", "E12346")
-etudiant2.ajouter_note(8)
-etudiant2.ajouter_note(9)
+e1 = Etudiant("A", "A", "E00001")
+e2 = Etudiant("B", "B", "E00002")
+e3 = Etudiant("C", "C", "E00003")
 
-# Créer une promotion
-promo = Promotion("L2 Informatique 2025")
-promo.ajouter_etudiant(etudiant1)
-promo.ajouter_etudiant(etudiant2)
+print(Etudiant.get_nombre_etudiants())  # 3
+print(e1.universite)  # Université des Antilles
 
-# Afficher résultats
-print(f"Moyenne de {etudiant1.prenom} : {etudiant1.calculer_moyenne()}")
-print(f"Est admis ? {etudiant1.est_admis()}")
-print(f"Moyenne de la promotion : {promo.calculer_moyenne_promotion()}")
-print(f"Étudiants admis : {len(promo.lister_admis())}")
+Etudiant.changer_universite("UA - Campus de Schoelcher")
+print(e2.universite)  # UA Campus de Schoelcher
 
-
-#Challenge IA : dans le fichier etudiant_challenge_ia.py
-#Générez le code avec une IA de votre choix
-#Identifiez 3 problèmes ou améliorations possibles dans le code généré
-#Proposez et implémentez vos corrections
-
-#Q1 : Quelle est la différence entre _attribut et __attribut ?
-#Q2 : Peut-on vraiment rendre un attribut privé en Python ?
-#Q3 : Pourquoi utiliser @property plutôt qu'une méthode get_moyenne() ?
-
-# Q1 :
-# _attribut est protégé  (on ne doit pas y toucher hors de la classe).
-# __attribut est privé grâce au name mangling (Python modifie son nom en interne).
-
-# Q2 :
-# Non on ne peut pas rendre un attribut totalement privé en Python.
-# On peut seulement limiter l’accès par convention ou name mangling.
-
-# Q3 :
-# @property permet d’utiliser une méthode comme un attribut.
-# C’est plus lisible (etudiant.moyenne au lieu de etudiant.get_moyenne()).
-# On peut aussi empêcher la modification en ne mettant pas de setter.
+# Test statistiques
+e1.ajouter_note(15)
+e2.ajouter_note(12)
+e3.ajouter_note(18)
+print(CompteurNotes.statistiques())
