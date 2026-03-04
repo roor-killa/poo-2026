@@ -1,28 +1,23 @@
 from datetime import datetime, timedelta
+from modeles.documents import Document
+from modeles.utilisateurs import Utilisateur
 
 class Emprunt:
-    """Représente un emprunt d'un document par un utilisateur"""
-    
-    def __init__(self, utilisateur, document, date_emprunt=None):
+    def __init__(self, utilisateur: Utilisateur, document: Document):
         self.utilisateur = utilisateur
         self.document = document
-        self.date_emprunt = date_emprunt or datetime.now()
-        self.date_retour = self.date_emprunt + timedelta(days=document.calculer_duree_max_emprunt())
-        self.retourne = False
-    
-    def est_en_retard(self):
-        """Retourne True si le document est en retard"""
-        if self.retourne:
-            return False
-        return datetime.now() > self.date_retour
-    
-    def calculer_frais(self):
-        """Calcule les frais si l'emprunt est en retard"""
-        if self.est_en_retard():
-            jours_retard = (datetime.now() - self.date_retour).days
-            return self.document.calculer_frais_retard(jours_retard)
-        return 0.0
-    
-    def marquer_retour(self):
-        """Marque l'emprunt comme retourné"""
-        self.retourne = True
+        self.date_emprunt = datetime.now()
+        self.date_retour: datetime | None = None
+
+    def est_en_retard(self) -> bool:
+        duree_max = self.document.calculer_duree_max_emprunt()
+        date_limite = self.date_emprunt + timedelta(days=duree_max)
+        return datetime.now() > date_limite
+
+    def calculer_frais(self) -> float:
+        if self.date_retour is None:
+            # retour non effectué, calcul sur la durée écoulée
+            jours_retard = max((datetime.now() - self.date_emprunt).days - self.document.calculer_duree_max_emprunt(), 0)
+        else:
+            jours_retard = max((self.date_retour - self.date_emprunt).days - self.document.calculer_duree_max_emprunt(), 0)
+        return self.document.calculer_frais_retard(jours_retard)
