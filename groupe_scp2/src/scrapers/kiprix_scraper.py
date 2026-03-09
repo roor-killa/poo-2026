@@ -237,94 +237,63 @@ class KiprixScraper(BaseScraper):
         """
         Filtre les produits par catégorie.
 
-        TODO MEMBRE 2 :
-            - Parcourir self.data
-            - Retourner les produits dont le champ 'category' correspond
-            - La catégorie est à extraire depuis l'URL (ex: /epicerie-sucree/)
-              ou le fil d'Ariane de la page produit
+        La catégorie est déduite de l'URL du produit
+        (ex: 'epicerie-sucree' trouvé dans l'URL → correspond).
 
         Args:
             category: Catégorie à filtrer (ex: 'epicerie-sucree').
 
         Returns:
-            Liste des produits correspondants.
+            Liste des produits dont l'URL contient la catégorie.
         """
         if not self.data:
+            self.logger.warning("Aucune donnée — lancez d'abord scrape().")
             return []
 
-        normalized_target = category.strip().lower().replace(' ', '-').strip('/')
-        matched_products: List[Dict] = []
-
-        for product in self.data:
-            product_category = str(product.get('category', '')).strip().lower().replace(' ', '-').strip('/')
-
-            if not product_category:
-                url = str(product.get('url', ''))
-                match = re.search(r'/fr-[a-z]{2}/([a-z0-9\-]+)/produit/', url, flags=re.IGNORECASE)
-                if match:
-                    product_category = match.group(1).lower()
-
-            if product_category == normalized_target:
-                if 'category' not in product or not product.get('category'):
-                    product = {**product, 'category': product_category}
-                matched_products.append(product)
-
-        return matched_products
+        filtered = [
+            p for p in self.data
+            if category.lower() in p.get('url', '').lower()
+        ]
+        self.logger.info(f"Catégorie '{category}' : {len(filtered)} produits trouvés.")
+        return filtered
 
     def get_average_price_difference(self) -> float:
         """
         Calcule l'écart de prix moyen (%) entre la France et le DOM.
 
-        TODO MEMBRE 2 :
-            - Parcourir self.data
-            - Extraire le float de la colonne 'difference' (ex: "+ 45,81%" → 45.81)
-            - Retourner la moyenne
+        Extrait le float depuis la colonne 'difference'
+        (ex: "+ 45,81%" → 45.81) et retourne la moyenne.
 
         Returns:
-            Moyenne des écarts en pourcentage (float).
-
-        Example:
-            >>> scraper.scrape(max_pages=3)
-            >>> print(scraper.get_average_price_difference())
-            42.5
+            Moyenne des écarts en pourcentage (float), ou 0.0 si aucune donnée.
         """
         if not self.data:
+            self.logger.warning("Aucune donnée — lancez d'abord scrape().")
             return 0.0
 
-        differences: List[float] = []
+        valeurs = []
+        for p in self.data:
+            diff_str = p.get('difference', '')
+            match = re.search(r'(\d+(?:[,\.]\d+)?)', diff_str.replace(',', '.'))
+            if match:
+                try:
+                    valeurs.append(float(match.group(1)))
+                except ValueError:
+                    pass
 
-        for product in self.data:
-            raw_diff = str(product.get('difference', ''))
-            match = re.search(r'([+-]?\s*\d+[\d\s.,]*)\s*%', raw_diff)
-            if not match:
-                continue
-
-            cleaned = (
-                match.group(1)
-                .replace(' ', '')
-                .replace('\u00a0', '')
-                .replace(',', '.')
-            )
-
-            try:
-                differences.append(float(cleaned))
-            except ValueError:
-                continue
-
-        if not differences:
+        if not valeurs:
             return 0.0
 
-        return round(sum(differences) / len(differences), 2)
+        moyenne = sum(valeurs) / len(valeurs)
+        self.logger.info(f"Écart moyen France/DOM : {round(moyenne, 2)}%")
+        return round(moyenne, 2)
 
     def scrape_all_territories(self, max_pages: int = 5) -> List[Dict]:
         """
-        Scrape plusieurs territoires et fusionne les résultats.
+        Scrape tous les territoires disponibles et fusionne les résultats.
 
-        TODO MEMBRE 2 :
-            - Boucler sur self.TERRITORIES
-            - Pour chaque territoire, créer une instance KiprixScraper(territory=t)
-            - Appeler scrape(max_pages)
-            - Fusionner dans une liste globale
+        Boucle sur self.TERRITORIES, crée une instance KiprixScraper
+        pour chaque territoire, scrape max_pages pages et fusionne tout.
 
         Args:
             max_pages: Pages à scraper par territoire.
@@ -332,16 +301,18 @@ class KiprixScraper(BaseScraper):
         Returns:
             Liste combinée de tous les produits de tous les territoires.
         """
-        combined_data: List[Dict] = []
+        all_data = []
 
-        for territory in self.TERRITORIES:
-            scraper = KiprixScraper(territory=territory, delay=self.delay)
-            territory_items = scraper.scrape(max_pages=max_pages)
-            combined_data.extend(territory_items)
-            self.logger.info(
-                f"Territoire {territory} ({self.TERRITORIES[territory]}) : "
-                f"{len(territory_items)} produits"
-            )
+        for code, nom in self.TERRITORIES.items():
+            self.logger.info(f"Scraping du territoire : {nom} ({code})")
+            try:
+                scraper = KiprixScraper(territory=code, delay=self.delay)
+                data = scraper.scrape(max_pages=max_pages)
+                all_data.extend(data)
+                self.logger.info(f"  → {len(data)} produits récupérés ({nom})")
+            except Exception as e:
+                self.logger.error(f"Erreur sur le territoire {code} : {e}")
 
-        self.data = combined_data
-        return combined_data
+        self.data = all_data
+        self.logger.info(f"Total multi-territoire : {len(all_data)} produits")
+        return all_data

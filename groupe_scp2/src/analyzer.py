@@ -84,16 +84,6 @@ class DataAnalyzer:
 
         Returns:
             Dict avec moyenne, max, min, médiane des écarts.
-
-        TODO MEMBRE 2 — Compléter cette méthode :
-            1. Nettoyer la colonne 'difference' avec regex
-               ex: re.search(r'(\\d+[,\\d]*)', val) -> float
-            2. Calculer moyenne, max, min, médiane
-            3. (Optionnel) Grouper par territoire si plusieurs territoires
-
-        Example:
-            >>> trends = analyzer.detect_price_trends()
-            >>> print(trends['moyenne'])  # ex: 42.5
         """
         if self.df is None or self.df.empty:
             return {"erreur": "Aucune donnée chargée."}
@@ -102,6 +92,7 @@ class DataAnalyzer:
             return {"erreur": "Colonne 'difference' absente des données."}
 
         def _parse_difference(value: Any) -> Optional[float]:
+            import pandas as pd
             if pd.isna(value):
                 return None
             match = re.search(r'([+-]?\s*\d+[\d\s.,]*)\s*%', str(value))
@@ -160,9 +151,6 @@ class DataAnalyzer:
 
         Args:
             filename: Nom du fichier (ex: 'rapport_kiprix.xlsx').
-
-        TODO MEMBRE 2 :
-            Optionnellement : ajouter des styles (couleurs, gras) avec openpyxl.
         """
         if self.df is None:
             self.logger.error("Aucune donnée à exporter.")
@@ -191,7 +179,7 @@ class DataAnalyzer:
         """
         Génère un rapport texte lisible sur les données.
 
-        TODO MEMBRE 2 — Enrichir ce rapport avec :
+        TODO MEMBRE 2 - Enrichir ce rapport avec :
             - Le résultat de detect_price_trends()
             - Les top 5 produits les plus chers en DOM
             - La répartition par territoire
