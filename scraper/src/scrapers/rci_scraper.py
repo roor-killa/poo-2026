@@ -8,7 +8,6 @@ Sortie : fichier JSON dans scraper/data/raw/
 """
 
 import logging
-import re
 import time
 from pathlib import Path
 from typing import Any
@@ -100,8 +99,22 @@ class RCIScraper(BaseScraper):
             return False
         return True
 
+    @staticmethod
+    def _looks_like_article(url: str) -> bool:
+        """Heuristique : les URLs d'articles RCI ont 4+ segments de chemin.
+
+        Ex: /martinique/infos/Faits-divers/Mon-Article  → True
+            /martinique/infos/culture                    → False
+        """
+        path = urlparse(url).path.strip("/")
+        return len(path.split("/")) >= 4
+
     def _extract_links(self, soup: BeautifulSoup, current_url: str) -> list[str]:
-        """Extrait tous les liens internes valides depuis une page.
+        """Extrait les liens internes, articles en priorité.
+
+        Les liens qui ressemblent à des pages article (4+ segments)
+        sont placés en tête de liste pour que le crawl DFS les
+        atteigne avant les pages de navigation / catégorie.
 
         Args:
             soup: Page parsée.
@@ -111,64 +124,79 @@ class RCIScraper(BaseScraper):
             Liste d'URLs absolues, normalisées et dédupliquées.
         """
         seen: set[str] = set()
-        links: list[str] = []
+        article_links: list[str] = []
+        other_links: list[str] = []
         for a_tag in soup.find_all("a", href=True):
-            href: str = a_tag["href"]
+            href = str(a_tag["href"])
             absolute = urljoin(current_url, href)
             normalized = self._normalize_url(absolute)
             if normalized in seen or normalized in self.visited:
                 continue
             if self._is_valid_link(normalized):
                 seen.add(normalized)
-                links.append(normalized)
-        return links
+                if self._looks_like_article(normalized):
+                    article_links.append(normalized)
+                else:
+                    other_links.append(normalized)
+        # Articles first so DFS prioritises real content
+        return article_links + other_links
 
     # ------------------------------------------------------------------
-    # Parsing — extraction du contenu textuel
+    # Parsing — extraction du contenu d'un article
     # ------------------------------------------------------------------
+
+    def _is_article_page(self, soup: BeautifulSoup) -> bool:
+        """Détecte si la page est un article (vs. listing / preview)."""
+        return soup.find("h1", attrs={"itemprop": "name"}) is not None
 
     def parse(self, soup: BeautifulSoup) -> list[dict[str, Any]]:
-        """Extrait titres et paragraphes depuis une page HTML RCI.
+        """Extrait les données structurées d'un article RCI.
 
-        Recherche les balises <h1>, <h2>, <h3> pour les titres et
-        les balises <p> pour les paragraphes textuels.
+        Sélecteurs utilisés :
+            - titre  : <h1 itemprop="name">
+            - auteur : [itemprop="author"]
+            - infos  : 3ᵉ élément .info (index 2)
+            - corps  : [property="schema:text"] (texte concaténé)
 
         Args:
             soup: Page HTML parsée.
 
         Returns:
-            Liste contenant un unique dictionnaire avec les données extraites,
-            ou liste vide si aucun contenu exploitable.
+            Liste contenant un unique dictionnaire article,
+            ou liste vide si la page n'est pas un article.
         """
-        # --- Titre principal ---
-        title_tag = soup.find("h1")
+        if not self._is_article_page(soup):
+            return []
+
+        # --- Titre ---
+        title_tag = soup.find("h1", attrs={"itemprop": "name"})
         title = title_tag.get_text(strip=True) if title_tag else ""
 
-        # --- Sous-titres ---
-        subtitles: list[str] = []
-        for h in soup.find_all(["h2", "h3"]):
-            text = h.get_text(strip=True)
-            if text and len(text) > 3:
-                subtitles.append(text)
+        # --- Auteur ---
+        author_tag = soup.find(attrs={"itemprop": "author"})
+        author = author_tag.get_text(strip=True) if author_tag else ""
 
-        # --- Paragraphes ---
-        paragraphs: list[str] = []
-        for p in soup.find_all("p"):
-            text = p.get_text(separator=" ", strip=True)
-            # Nettoyer les espaces multiples
-            text = re.sub(r"\s+", " ", text)
-            # Garder uniquement les paragraphes avec du contenu réel
-            if text and len(text) > 20:
-                paragraphs.append(text)
+        # --- Image ---
+        photo_tag = soup.find("img", attrs={"itemprop": "image"})
+        photo = photo_tag.get("src") if photo_tag else ""
 
-        # Ne garder la page que si elle contient du texte significatif
-        if not title and not paragraphs:
+        # --- Infos (date / catégorie — 3ᵉ élément .info) ---
+        infos_elems = soup.find_all(attrs={"class": "info"})
+        infos = infos_elems[2].get_text(strip=True) if len(infos_elems) > 2 else ""
+
+        # --- Corps de l'article ---
+        contenu_elems = soup.find_all(attrs={"property": "schema:text"})
+        body = "".join(elem.get_text(strip=True) for elem in contenu_elems)
+
+        if not title and not body:
             return []
 
         return [{
             "title": title,
-            "subtitles": subtitles,
-            "paragraphs": paragraphs,
+            "author": author,
+            "photo": photo,
+            "infos": infos,
+            "body": body,
         }]
 
     # ------------------------------------------------------------------
@@ -201,7 +229,7 @@ class RCIScraper(BaseScraper):
         if soup is None:
             return
 
-        # Extraire le contenu
+        # Extraire le contenu (uniquement les vraies pages article)
         entries = self.parse(soup)
         for entry in entries:
             entry["url"] = normalized
@@ -259,22 +287,18 @@ class RCIScraper(BaseScraper):
         Returns:
             Dictionnaire conforme au schéma `documents`.
         """
-        content_parts: list[str] = []
-        if item.get("subtitles"):
-            content_parts.extend(item["subtitles"])
-        if item.get("paragraphs"):
-            content_parts.extend(item["paragraphs"])
-
         return {
             "source": "rci",
             "doc_type": "article",
             "title": item.get("title", ""),
-            "content": "\n\n".join(content_parts),
+            "content": item.get("body", ""),
             "url": item.get("url"),
             "published_at": None,
             "metadata": {
+                "author": item.get("author", ""),
+                "photo": item.get("photo", ""),
+                "infos": item.get("infos", ""),
                 "depth": item.get("depth", 0),
-                "subtitles": item.get("subtitles", []),
             },
         }
 
@@ -333,6 +357,7 @@ def main() -> None:
     # Sauvegarde
     output_path = Path(args.output) if args.output else _DEFAULT_OUTPUT_DIR / "rci_raw.json"
     scraper.save_to_json(output_path)
+    scraper.save_to_csv(output_path.with_suffix(".csv"))
     print(f"✓ {len(scraper.data)} articles sauvegardés → {output_path}")
 
 
