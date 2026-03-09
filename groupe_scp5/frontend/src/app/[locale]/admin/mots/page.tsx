@@ -1,15 +1,26 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { fastapi, adminApi, type Mot, type MotDetail, type DefinitionWithId } from "@/lib/api";
+import { fastapi, adminApi, type Mot, type MotDetail, type DefinitionWithId, type Traduction } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
-import { Button }             from "@/components/ui/button";
-import { Card, CardContent }  from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 const CATEGORIES = [
   "", "nom", "vèb", "adjektif", "advèb", "pwonon",
   "prépoziksyon", "konjonksyon", "entèjèksyon", "atik", "lòt",
 ];
+
+// "crm" → "krm" pour l'affichage uniquement (le code ISO reste "crm" en DB)
+const displayLang = (code: string) => code === "crm" ? "krm" : code;
+
+function getFrenchWord(traductions?: { langue_source: string; texte_source: string; texte_cible: string }[]): string {
+  if (!traductions?.length) return "—";
+  for (const tr of traductions) {
+    if (tr.langue_source === "fr") return tr.texte_source;
+    if (tr.langue_source === "crm") return tr.texte_cible;
+  }
+  return "—";
+}
 
 // ── Modal générique ────────────────────────────────────────────────────
 function Modal({ title, onClose, children }: {
@@ -84,6 +95,59 @@ function DefEditForm({
   );
 }
 
+// ── Formulaire de création d'une définition ───────────────────────────
+function DefCreateForm({
+  onSave,
+  onCancel,
+  saving,
+}: {
+  onSave:   (data: { definition: string; exemple: string | null }) => void;
+  onCancel: () => void;
+  saving:   boolean;
+}) {
+  const [definition, setDefinition] = useState("");
+  const [exemple,    setExemple]    = useState("");
+
+  return (
+    <div className="space-y-3 rounded-lg border-2 border-green-300 bg-green-50 p-3 dark:bg-green-950">
+      <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
+        Nouvelle définition
+      </p>
+      <label className="block">
+        <span className="text-xs font-medium text-zinc-600">Définition</span>
+        <textarea
+          value={definition}
+          onChange={(e) => setDefinition(e.target.value)}
+          rows={3}
+          placeholder="Saisir la définition…"
+          className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+        />
+      </label>
+      <label className="block">
+        <span className="text-xs font-medium text-zinc-600">Exemple (optionnel)</span>
+        <input
+          value={exemple}
+          onChange={(e) => setExemple(e.target.value)}
+          placeholder="ex : …"
+          className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+        />
+      </label>
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          onClick={() => onSave({ definition, exemple: exemple || null })}
+          disabled={saving || !definition.trim()}
+        >
+          {saving ? "Enregistrement…" : "Ajouter"}
+        </Button>
+        <Button size="sm" variant="outline" onClick={onCancel} disabled={saving}>
+          Annuler
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ── Composant principal ───────────────────────────────────────────────
 export default function AdminMotsPage() {
   const { token } = useAuthStore();
@@ -107,12 +171,14 @@ export default function AdminMotsPage() {
   const [saving,   setSaving]   = useState(false);
 
   // Panel définitions
-  const [defsMot,     setDefsMot]     = useState<Mot | null>(null);
-  const [defs,        setDefs]        = useState<DefinitionWithId[]>([]);
-  const [defsLoading, setDefsLoading] = useState(false);
-  const [defsError,   setDefsError]   = useState<string | null>(null);
-  const [editingDef,  setEditingDef]  = useState<DefinitionWithId | null>(null);
-  const [defSaving,   setDefSaving]   = useState(false);
+  const [defsMot,        setDefsMot]        = useState<Mot | null>(null);
+  const [defs,           setDefs]           = useState<DefinitionWithId[]>([]);
+  const [defsLoading,    setDefsLoading]    = useState(false);
+  const [defsError,      setDefsError]      = useState<string | null>(null);
+  const [editingDef,     setEditingDef]     = useState<DefinitionWithId | null>(null);
+  const [defSaving,      setDefSaving]      = useState(false);
+  const [showAddDef,     setShowAddDef]     = useState(false);
+  const [defCreateSaving, setDefCreateSaving] = useState(false);
 
   const PAGE_SIZE = 30;
 
@@ -176,6 +242,7 @@ export default function AdminMotsPage() {
     setDefsMot(mot);
     setDefs([]);
     setEditingDef(null);
+    setShowAddDef(false);
     setDefsError(null);
     setDefsLoading(true);
     try {
@@ -209,6 +276,20 @@ export default function AdminMotsPage() {
       setDefs((prev) => prev.filter((d) => d.id !== defId));
     } catch (e: unknown) {
       alert((e as Error).message);
+    }
+  }
+
+  async function addDef(data: { definition: string; exemple: string | null }) {
+    if (!tok || !defsMot) return;
+    setDefCreateSaving(true);
+    try {
+      const created = await adminApi.createDefinition(tok, defsMot.id, data);
+      setDefs((prev) => [...prev, created]);
+      setShowAddDef(false);
+    } catch (e: unknown) {
+      alert((e as Error).message);
+    } finally {
+      setDefCreateSaving(false);
     }
   }
 
@@ -249,6 +330,7 @@ export default function AdminMotsPage() {
                 <tr>
                   <th className="px-4 py-2">ID</th>
                   <th className="px-4 py-2">Mot créole</th>
+                  <th className="px-4 py-2">Mot français</th>
                   <th className="px-4 py-2">Phonétique</th>
                   <th className="px-4 py-2">Catégorie</th>
                   <th className="px-4 py-2">Valide</th>
@@ -259,12 +341,11 @@ export default function AdminMotsPage() {
                 {mots.map((mot) => (
                   <tr
                     key={mot.id}
-                    className={`bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800 ${
-                      defsMot?.id === mot.id ? "ring-1 ring-inset ring-orange-300" : ""
-                    }`}
+                    className="bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800"
                   >
                     <td className="px-4 py-2 font-mono text-xs text-zinc-400">{mot.id}</td>
                     <td className="px-4 py-2 font-medium">{mot.mot_creole}</td>
+                    <td className="px-4 py-2 text-zinc-500">{getFrenchWord(mot.traductions)}</td>
                     <td className="px-4 py-2 text-zinc-500">{mot.phonetique ?? "—"}</td>
                     <td className="px-4 py-2 text-zinc-500">{mot.categorie_gram ?? "—"}</td>
                     <td className="px-4 py-2">
@@ -278,8 +359,8 @@ export default function AdminMotsPage() {
                       </Button>
                       <Button
                         size="sm"
-                        variant={defsMot?.id === mot.id ? "default" : "outline"}
-                        onClick={() => defsMot?.id === mot.id ? setDefsMot(null) : openDefs(mot)}
+                        variant="outline"
+                        onClick={() => openDefs(mot)}
                       >
                         Définitions
                       </Button>
@@ -308,65 +389,63 @@ export default function AdminMotsPage() {
             </div>
           )}
 
-          {/* ── Panel définitions inline (sous le tableau) ── */}
+          {/* ── Modal définitions ── */}
           {defsMot && (
-            <Card className="border-orange-200">
-              <CardContent className="pt-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <h2 className="font-semibold text-zinc-900 dark:text-zinc-50">
-                    Définitions — <span className="text-orange-600">{defsMot.mot_creole}</span>
-                  </h2>
-                  <button onClick={() => { setDefsMot(null); setEditingDef(null); }} className="text-zinc-400 hover:text-zinc-700">✕</button>
-                </div>
+            <Modal
+              title={`Définitions — ${defsMot.mot_creole}`}
+              onClose={() => { setDefsMot(null); setEditingDef(null); setShowAddDef(false); }}
+            >
+              {defsLoading && <p className="text-sm text-zinc-400">Chargement…</p>}
+              {defsError   && <p className="text-sm text-red-500">{defsError}</p>}
 
-                {defsLoading && <p className="text-sm text-zinc-400">Chargement…</p>}
-                {defsError   && <p className="text-sm text-red-500">{defsError}</p>}
-
-                {!defsLoading && !defsError && (
-                  defs.length === 0 ? (
+              {!defsLoading && !defsError && (
+                <div className="space-y-3">
+                  {defs.length === 0 && !showAddDef && (
                     <p className="text-sm text-zinc-400">Aucune définition pour ce mot.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {defs.map((d) => (
-                        <div key={d.id}>
-                          {editingDef?.id === d.id ? (
-                            <DefEditForm
-                              def={d}
-                              onSave={saveDef}
-                              onCancel={() => setEditingDef(null)}
-                              saving={defSaving}
-                            />
-                          ) : (
-                            <div className="rounded-lg border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
-                              <p className="text-sm text-zinc-800 dark:text-zinc-200">{d.definition}</p>
-                              {d.exemple && (
-                                <p className="mt-1 text-xs italic text-zinc-500">ex : {d.exemple}</p>
-                              )}
-                              <div className="mt-2 flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => { setEditingDef(d); }}
-                                >
-                                  ✏️ Éditer
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => deleteDef(d.id)}
-                                >
-                                  Supprimer
-                                </Button>
-                              </div>
-                            </div>
+                  )}
+
+                  {defs.map((d) => (
+                    <div key={d.id}>
+                      {editingDef?.id === d.id ? (
+                        <DefEditForm
+                          def={d}
+                          onSave={saveDef}
+                          onCancel={() => setEditingDef(null)}
+                          saving={defSaving}
+                        />
+                      ) : (
+                        <div className="rounded-lg border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
+                          <p className="text-sm text-zinc-800 dark:text-zinc-200">{d.definition}</p>
+                          {d.exemple && (
+                            <p className="mt-1 text-xs italic text-zinc-500">ex : {d.exemple}</p>
                           )}
+                          <div className="mt-2 flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => setEditingDef(d)}>
+                              ✏️ Éditer
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => deleteDef(d.id)}>
+                              Supprimer
+                            </Button>
+                          </div>
                         </div>
-                      ))}
+                      )}
                     </div>
-                  )
-                )}
-              </CardContent>
-            </Card>
+                  ))}
+
+                  {showAddDef ? (
+                    <DefCreateForm
+                      onSave={addDef}
+                      onCancel={() => setShowAddDef(false)}
+                      saving={defCreateSaving}
+                    />
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => setShowAddDef(true)}>
+                      + Ajouter une définition
+                    </Button>
+                  )}
+                </div>
+              )}
+            </Modal>
           )}
         </>
       )}
@@ -375,6 +454,28 @@ export default function AdminMotsPage() {
       {editMot && (
         <Modal title={`Éditer « ${editMot.mot_creole} »`} onClose={() => setEditMot(null)}>
           <div className="space-y-3">
+            {/* Traductions (lecture seule) */}
+            {editMot.traductions.length > 0 && (
+              <div className="rounded-lg border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  Traductions
+                </p>
+                <div className="space-y-1">
+                  {editMot.traductions.map((tr, idx) => {
+                    const frText = tr.langue_source === "fr" ? tr.texte_source : tr.texte_cible;
+                    const direction = `${displayLang(tr.langue_source)} → ${displayLang(tr.langue_cible)}`;
+                    return (
+                      <div key={idx} className="flex gap-3 text-sm">
+                        <span className="w-20 shrink-0 font-mono text-xs text-zinc-400">
+                          {direction}
+                        </span>
+                        <span className="text-zinc-700 dark:text-zinc-300">{frText}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <label className="block">
               <span className="text-xs font-medium text-zinc-600">Mot créole</span>
               <input

@@ -25,6 +25,7 @@ def _domain(url: Optional[str]) -> Optional[str]:
 
 class TraductionBrief(BaseModel):
     langue_source: str
+    langue_cible: str
     texte_source: str
     texte_cible: str
 
@@ -60,6 +61,7 @@ class MotSearchResult(BaseModel):
             traductions=[
                 TraductionBrief(
                     langue_source=t.langue_source,
+                    langue_cible=t.langue_cible,
                     texte_source=t.texte_source,
                     texte_cible=t.texte_cible,
                 )
@@ -98,6 +100,7 @@ class MotDetail(BaseModel):
             traductions=[
                 TraductionBrief(
                     langue_source=t.langue_source,
+                    langue_cible=t.langue_cible,
                     texte_source=t.texte_source,
                     texte_cible=t.texte_cible,
                 )
@@ -146,6 +149,11 @@ class DefinitionWithId(BaseModel):
     exemple: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DefinitionCreate(BaseModel):
+    definition: str
+    exemple: Optional[str] = None
 
 
 class DefinitionUpdate(BaseModel):

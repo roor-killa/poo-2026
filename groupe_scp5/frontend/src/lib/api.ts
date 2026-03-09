@@ -29,6 +29,7 @@ export interface Mot {
   phonetique:     string | null;
   categorie_gram: string | null;
   valide:         boolean;
+  traductions?:   Traduction[];   // présent dans les réponses list/search
 }
 
 export interface MotDetail extends Mot {
@@ -296,6 +297,17 @@ export const adminApi = {
   getDefinitions: (token: string, motId: number): Promise<DefinitionWithId[]> =>
     adminFetch(`/api/admin/mots/${motId}/definitions`, {
       headers: authHeaders(token),
+    }),
+
+  createDefinition: (
+    token: string,
+    motId: number,
+    data: { definition: string; exemple?: string | null }
+  ): Promise<DefinitionWithId> =>
+    adminFetch(`/api/admin/mots/${motId}/definitions`, {
+      method:  "POST",
+      headers: authHeaders(token),
+      body:    JSON.stringify(data),
     }),
 
   updateDefinition: (

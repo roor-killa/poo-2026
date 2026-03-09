@@ -273,3 +273,81 @@ Si vous terminez en avance ou souhaitez approfondir :
 **Date de rendu :** 4 mars 2026  
 **Contact :** roor@nasdy.fr  
 **Plateforme de soumission :** GitHub / eCursus (A définir)
+
+== 02/03/2026 ==
+Voici ce qui a été créé et ce que vous donnez à chaque groupe.
+
+  Ce qui existe maintenant
+
+  scraper/src/
+  ├── base_scraper.py          ← modifié : +to_document() +save_to_db()
+  ├── db_loader.py             ← nouveau : DocumentLoader + get_connection()
+  └── scrapers/
+      ├── bizouk_scraper.py    ← template groupe Bizouk
+      ├── kiprix_scraper.py    ← template groupe Kiprix
+      ├── madiana_scraper.py   ← template groupe Madiana
+      ├── rci_scraper.py       ← template groupe RCI
+      └── kreyol_scraper.py    ← template groupe Kreyol
+
+  ---
+  Chaque groupe :
+
+  1 fichier template correspondant à son scraper. Le contrat est simple : ils n'ont que 2 choses à faire.
+
+  Ce que vous devez implémenter
+
+  parse()         → extrait les données brutes du HTML (ils le font déjà)
+  to_document()   → mappe LEURS champs vers le schéma commun
+
+  Ce que vous recevez
+
+  save_to_db()    → hérité de BaseScraper, appelle to_document() + UPSERT
+
+  Utilisation finale (identique pour tous les groupes)
+
+  from dotenv import load_dotenv
+  from src.db_loader import get_connection
+  from src.scrapers.bizouk_scraper import BizoukScraper  # ou kiprix, madiana…
+
+  load_dotenv()
+  scraper = BizoukScraper()
+  scraper.scrape(max_pages=3)
+  scraper.save_to_json("data/raw/bizouk_raw.json")  # conserve le JSON brut
+
+  conn = get_connection()
+  n = scraper.save_to_db(conn)                       # upsert dans documents
+  conn.close()
+  print(f"{n} documents chargés dans la base RAG")
+
+  ---
+  Ce que to_document() doit retourner — le contrat
+
+  ┌──────────────┬─────────────┬──────────────────────┬────────────────────┬───────────────────────┬──────────────┬───────────────────────────┐
+  │    Champ     │ Obligatoire │        Bizouk        │       Kiprix       │        Madiana        │     RCI      │          Kreyol           │
+  ├──────────────┼─────────────┼──────────────────────┼────────────────────┼───────────────────────┼──────────────┼───────────────────────────┤
+  │ source       │ oui         │ "bizouk"             │ "kiprix"           │ "madiana"             │ "rci"        │ "kreyol"                  │
+  ├──────────────┼─────────────┼──────────────────────┼────────────────────┼───────────────────────┼──────────────┼───────────────────────────┤
+  │ doc_type     │ oui         │ "annonce"            │ "produit"          │ "film"                │ "actualite"  │ "mot"                     │
+  ├──────────────┼─────────────┼──────────────────────┼────────────────────┼───────────────────────┼──────────────┼───────────────────────────┤
+  │ title        │ oui         │ titre annonce        │ nom produit        │ titre film            │ titre        │ mot créole                │
+  │              │             │                      │                    │                       │ article      │                           │
+  ├──────────────┼─────────────┼──────────────────────┼────────────────────┼───────────────────────┼──────────────┼───────────────────────────┤
+  │ content      │ oui         │ description          │ nom+magasin+prix   │ synopsis+séances      │ résumé+corps │ définition+traduction     │
+  ├──────────────┼─────────────┼──────────────────────┼────────────────────┼───────────────────────┼──────────────┼───────────────────────────┤
+  │ url          │ non         │ url annonce          │ url produit        │ url film              │ url article  │ url entrée                │
+  ├──────────────┼─────────────┼──────────────────────┼────────────────────┼───────────────────────┼──────────────┼───────────────────────────┤
+  │ published_at │ non         │ date annonce         │ None               │ None                  │ date article │ None                      │
+  ├──────────────┼─────────────┼──────────────────────┼────────────────────┼───────────────────────┼──────────────┼───────────────────────────┤
+  │ metadata     │ non         │ {prix, catégorie,    │ {prix, magasin,    │ {genre, séances,      │ {catégorie}  │ {traduction_fr,           │
+  │              │             │ localisation}        │ dispo}             │ prix_place}           │              │ catégorie_gram}           │
+  └──────────────┴─────────────┴──────────────────────┴────────────────────┴───────────────────────┴──────────────┴───────────────────────────┘
+
+  Le seul point de vigilance : content doit être une phrase lisible, pas une concaténation brute de champs — c'est ce texte qui sera embedé et lu
+  par le LLM.
+
+    À récupérer par groupe                    Rôle
+  ─────────────────────────   ──────────────────────────────────────
+  src/base_scraper.py         Contient to_document() + save_to_db() (hérités)
+  src/db_loader.py            Gère la connexion + le UPSERT
+  src/scrapers/xxx_scraper.py Leur template (les TODO sont leur travail)
+  tests/test_documents.py     Les tests unitaires DÉJÀ ÉCRITS

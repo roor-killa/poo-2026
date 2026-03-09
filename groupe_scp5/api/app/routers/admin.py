@@ -15,6 +15,7 @@ from ..models.models import Corpus, Definition, Expression, Mot
 from ..schemas.schemas import (
     CorpusOut,
     CorpusUpdate,
+    DefinitionCreate,
     DefinitionUpdate,
     DefinitionWithId,
     ExpressionOut,
@@ -72,6 +73,24 @@ def delete_mot(mot_id: int, db: Session = Depends(get_db)) -> None:
 # ===========================================================================
 # Définitions
 # ===========================================================================
+
+@router.post(
+    "/mots/{mot_id}/definitions",
+    response_model=DefinitionWithId,
+    status_code=201,
+    summary="Ajouter une définition à un mot 🔒",
+)
+def create_definition(
+    mot_id: int, body: DefinitionCreate, db: Session = Depends(get_db)
+) -> DefinitionWithId:
+    if not db.get(Mot, mot_id):
+        raise HTTPException(status_code=404, detail=f"Mot introuvable (id={mot_id})")
+    d = Definition(mot_id=mot_id, definition=body.definition, exemple=body.exemple)
+    db.add(d)
+    db.commit()
+    db.refresh(d)
+    return DefinitionWithId(id=d.id, definition=d.definition, exemple=d.exemple)
+
 
 @router.get(
     "/mots/{mot_id}/definitions",
