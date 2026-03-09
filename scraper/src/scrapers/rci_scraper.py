@@ -176,6 +176,10 @@ class RCIScraper(BaseScraper):
         author_tag = soup.find(attrs={"itemprop": "author"})
         author = author_tag.get_text(strip=True) if author_tag else ""
 
+        # --- Image ---
+        photo_tag = soup.find("img", attrs={"itemprop": "image"})
+        photo = photo_tag.get("src") if photo_tag else ""
+
         # --- Infos (date / catégorie — 3ᵉ élément .info) ---
         infos_elems = soup.find_all(attrs={"class": "info"})
         infos = infos_elems[2].get_text(strip=True) if len(infos_elems) > 2 else ""
@@ -190,6 +194,7 @@ class RCIScraper(BaseScraper):
         return [{
             "title": title,
             "author": author,
+            "photo": photo,
             "infos": infos,
             "body": body,
         }]
@@ -291,6 +296,7 @@ class RCIScraper(BaseScraper):
             "published_at": None,
             "metadata": {
                 "author": item.get("author", ""),
+                "photo": item.get("photo", ""),
                 "infos": item.get("infos", ""),
                 "depth": item.get("depth", 0),
             },
@@ -351,7 +357,7 @@ def main() -> None:
     # Sauvegarde
     output_path = Path(args.output) if args.output else _DEFAULT_OUTPUT_DIR / "rci_raw.json"
     scraper.save_to_json(output_path)
-    scraper.save_to_csv(output_path)
+    scraper.save_to_csv(output_path.with_suffix(".csv"))
     print(f"✓ {len(scraper.data)} articles sauvegardés → {output_path}")
 
 
