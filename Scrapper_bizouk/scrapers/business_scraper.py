@@ -1,129 +1,196 @@
-# import de la classe de base
 from .base_scraper import BaseScraper
-
-# typage pour rendre le code plus lisible
 from typing import List, Dict, Optional
-
-# regex pour nettoyer téléphone et extraire email
+from bs4 import BeautifulSoup
 import re
 
-# parser html
-from bs4 import BeautifulSoup
 
-
-# classe spécialisée pour scraper des entreprises
 class BusinessScraper(BaseScraper):
 
     def __init__(self):
         # initialise le scraper avec lurl du site
         super().__init__(base_url="https://www.bizouk.com", delay=2)
 
-    # nettoie un numéro de téléphone
     def clean_phone(self, phone: str) -> str:
+        # garde uniquement les chiffres et le signe plus
+        phone = phone.strip()
+        digits = re.sub(r"[^\d+]", "", phone)
+        return digits if digits else phone
 
-        # garde uniquement les chiffres
-        digits = re.sub(r"\D", "", phone)
-
-        # enlève lindicatif international si présent
-        if digits.startswith("596"):
-            digits = digits[3:]
-
-        # reformate si le numéro semble valide
-        if len(digits) == 9:
-            return f"0596 {digits[1:3]} {digits[3:5]} {digits[5:7]}"
-
-        # sinon retourne le téléphone nettoyé
-        return phone.strip()
-
-    # cherche un email dans un texte
     def extract_email(self, text: str) -> Optional[str]:
-
+        # cherche une adresse email dans un texte
         match = re.search(
             r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
             text
         )
-
         return match.group(0) if match else None
 
-    # parse une carte entreprise
-    def parse_business(self, business_soup: BeautifulSoup) -> Dict:
+    def extract_phone(self, text: str) -> Optional[str]:
+        # cherche un téléphone dans le texte
+        match = re.search(
+            r"(\+596|\+590|0596|0590|0696|0690)[\s\-\.]?\d{2}[\s\-\.]?\d{2}[\s\-\.]?\d{2}[\s\-\.]?\d{2}",
+            text
+        )
+        return self.clean_phone(match.group(0)) if match else None
 
-        # récupère le nom
-        name_tag = business_soup.select_one("h2")
-        name = name_tag.get_text(strip=True) if name_tag else None
+    def get_restaurant_links(self, soup: BeautifulSoup) -> List[str]:
+        # récupère les liens vers les fiches restaurants
+        links = []
+        seen = set()
 
-        # récupère ladresse
-        address_tag = business_soup.select_one(".address")
-        address = address_tag.get_text(strip=True) if address_tag else None
+        for a in soup.select("a[href]"):
+            href = a.get("href", "").strip()
 
-        # récupère le téléphone
-        phone_tag = business_soup.select_one(".phone")
-        phone = self.clean_phone(phone_tag.get_text()) if phone_tag else None
+            # garde uniquement les liens détail restaurant
+            if "/restaurants/details/" in href:
+                if href.startswith("/"):
+                    full_url = f"{self.base_url}{href}"
+                elif href.startswith("http"):
+                    full_url = href
+                else:
+                    full_url = f"{self.base_url}/{href}"
 
-        # récupère tout le texte pour chercher un email
-        text_blob = business_soup.get_text(" ")
+                if full_url not in seen:
+                    seen.add(full_url)
+                    links.append(full_url)
+
+        return links
+
+    def parse_business_detail(self, soup: BeautifulSoup, url: str) -> Dict:
+        # récupère le nom principal
+        name = None
+        title_tag = soup.select_one("h1")
+        if title_tag:
+            name = title_tag.get_text(strip=True)
+
+        # récupère ladresse juste après le titre
+        address = None
+        if title_tag:
+            current = title_tag.find_next(string=True)
+
+            while current:
+                text = current.strip()
+
+                # garde une vraie ligne de texte utile
+                if (
+                    text
+                    and text != name
+                    and "voir le plan d'accès" not in text.lower()
+                    and "contacter la boutique" not in text.lower()
+                ):
+                    # cherche une adresse avec code postal
+                    if re.search(r"\b\d{5}\b", text):
+                        address = text
+                        break
+
+                current = current.find_next(string=True)
+
+        # récupère tout le texte de la page
+        text_blob = soup.get_text(" ", strip=True)
+
+        # cherche un email et un téléphone
         email = self.extract_email(text_blob)
+        phone = self.extract_phone(text_blob)
 
-        # récupère la description
-        desc_tag = business_soup.select_one(".description")
-        description = desc_tag.get_text(strip=True) if desc_tag else ""
+        # récupère la description après le bloc description
+        description = ""
+        desc_title = soup.find(
+            ["h2", "h3", "strong"],
+            string=re.compile(r"description", re.IGNORECASE)
+        )
 
-        # retourne les données sous forme de dictionnaire
+        if desc_title:
+            parts = []
+            current = desc_title.find_next(string=True)
+
+            while current:
+                text = current.strip()
+
+                # arrête la lecture si on entre dans une autre section
+                if text.lower() in [
+                    "partager cet évènement",
+                    "copier ce lien",
+                    "votre panier",
+                    "vos articles",
+                    "contacter la boutique"
+                ]:
+                    break
+
+                if text:
+                    parts.append(text)
+
+                current = current.find_next(string=True)
+
+            description = " ".join(parts).strip()
+
         return {
             "name": name,
             "address": address,
             "phone": phone,
             "email": email,
             "description": description,
+            "url": url
         }
 
-    # méthode demandée par BaseScraper
-    # parse une page complète
     def parse(self, soup: BeautifulSoup) -> List[Dict]:
+        # parse la page liste et retourne les urls détail
+        links = self.get_restaurant_links(soup)
 
         results = []
-
-        # sélectionne toutes les cartes entreprise
-        cards = soup.select(".business-card")
-
-        # parcourt les cartes
-        for card in cards:
-            results.append(self.parse_business(card))
+        for link in links:
+            results.append({"url": link})
 
         return results
 
-    # scrape une catégorie complète
-    def scrape_category(self, category: str, max_results: int = 50) -> List[Dict]:
-
+    def scrape_category(self, category: str, max_results: int = 20) -> List[Dict]:
+        # récupère les fiches détail depuis la page liste
         results = []
         page = 1
+        seen_links = set()
 
         while len(results) < max_results:
-
             # construit lurl de la page
             url = f"{self.base_url}/{category}?page={page}"
 
             # récupère la page
             soup = self.fetch_page(url)
-
             if not soup:
                 break
 
-            # parse la page
-            businesses = self.parse(soup)
+            # récupère les urls trouvées sur la page
+            page_links = self.parse(soup)
 
-            for b in businesses:
-                results.append(b)
+            # compte les nouveaux liens trouvés
+            new_count = 0
+
+            for item in page_links:
+                detail_url = item["url"]
+
+                if detail_url in seen_links:
+                    continue
+
+                seen_links.add(detail_url)
+                new_count += 1
+
+                # ouvre la fiche détail
+                detail_soup = self.fetch_page(detail_url)
+                if not detail_soup:
+                    continue
+
+                # parse la fiche détail
+                business_data = self.parse_business_detail(detail_soup, detail_url)
+                results.append(business_data)
 
                 if len(results) >= max_results:
                     break
+
+            # arrête la boucle si aucune nouvelle fiche na été trouvée
+            if new_count == 0:
+                break
 
             page += 1
 
         return results
 
-    # méthode principale demandée par BaseScraper
     def scrape(self) -> List[Dict]:
-
         # scrape par défaut la catégorie restaurants
-        return self.scrape_category("restaurants")
+        return self.scrape_category("restaurants", max_results=20)
