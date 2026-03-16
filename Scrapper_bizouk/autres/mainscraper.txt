@@ -1,0 +1,16 @@
+# main.py
+
+from example scraper import Examplescraper
+
+def main():
+    scraper = ExampleScraper(
+        base_url="https://example.com",
+        delay=1
+    )
+
+    data = scraper.scrape()
+    scraper.save_to_json(data, "data/results.json")
+    scraper.close()
+
+if __name__ == "__main__":
+    main()pip install requests beautifulsoup4 lxml pandas python-dotenv
