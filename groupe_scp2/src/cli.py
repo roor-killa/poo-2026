@@ -40,7 +40,7 @@ def cli(verbose: bool) -> None:
 @click.option('--territory', '-t', default='gp', show_default=True,
               help='Territoire DOM : gp, mq, re, gf')
 @click.option('--format', '-f', 'output_format',
-              type=click.Choice(['json', 'csv', 'both']), default='json',
+              type=click.Choice(['json', 'csv', 'both', 'db', 'all']), default='db',
               help='Format de sauvegarde')
 def scrape(pages: int, territory: str, output_format: str) -> None:
     """Scrape les produits depuis Kiprix.com."""
@@ -61,11 +61,21 @@ def scrape(pages: int, territory: str, output_format: str) -> None:
 
     base_name = f"kiprix_{territory}"
 
-    if output_format in ('json', 'both'):
+    if output_format in ('json', 'both', 'all'):
         scraper.save_to_json(f"{base_name}.json")
 
-    if output_format in ('csv', 'both'):
+    if output_format in ('csv', 'both', 'all'):
         scraper.save_to_csv(f"{base_name}.csv")
+
+    if output_format in ('db', 'all'):
+        try:
+            from .db_manager import DBManager
+            db = DBManager()
+            db.init_db()
+            db.save_products(data)
+            click.echo(click.style(f"✓ Données insérées dans PostgreSQL.", fg='green'))
+        except Exception as e:
+            click.echo(click.style(f"✗ Erreur lors de la sauvegarde en base : {e}", fg='red'))
 
     click.echo(click.style(f"✓ {len(data)} produits scrapés.", fg='green'))
 

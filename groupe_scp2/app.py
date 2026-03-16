@@ -32,23 +32,21 @@ TERRITORIES = {
 }
 
 def load_all_data():
-    """Charge tous les fichiers JSON existants dans data/raw/"""
-    data_dir = Path("data/raw")
-    all_data = []
+    """Charge toutes les données existantes depuis PostgreSQL."""
+    from src.db_manager import DBManager
+    import pandas as pd
     
-    if data_dir.exists():
-        for file in data_dir.glob("kiprix_*.json"):
-            try:
-                with open(file, 'r', encoding='utf-8') as f:
-                    content = json.load(f)
-                    if isinstance(content, list):
-                        all_data.extend(content)
-            except Exception as e:
-                st.error(f"Erreur de lecture {file.name}: {e}")
-                
-    if all_data:
-        return pd.DataFrame(all_data)
-    return pd.DataFrame()
+    try:
+        db = DBManager()
+        with db.get_connection() as conn:
+            query = "SELECT * FROM produits;"
+            df = pd.read_sql_query(query, conn)
+            # Remplacer les valeurs potentiellement manquantes ou de type None
+            return df
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des données depuis PostgreSQL : {e}")
+        return pd.DataFrame()
+
 
 
 if menu == "Analyse des données existantes":
@@ -150,8 +148,11 @@ elif menu == "Lancer un nouveau Scraping":
                 data = scraper.scrape(max_pages=pages_to_scrape)
                 
                 if data:
-                    scraper.save_to_json(f"kiprix_{selected_territory}.json")
-                    st.success(f"✅ Scraping terminé avec succès ! {len(data)} produits récupérés.")
+                    from src.db_manager import DBManager
+                    db = DBManager()
+                    db.init_db()  # S'assurer que la table existe
+                    db.save_products(data)
+                    st.success(f"✅ Scraping terminé avec succès ! {len(data)} produits enregistrés en base de données.")
                     st.balloons()
                 else:
                     st.warning("⚠️ Cloudflare a bloqué la requête ou aucune donnée trouvée.")
