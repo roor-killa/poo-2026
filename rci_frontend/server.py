@@ -164,6 +164,21 @@ def api_results():
         return jsonify({"articles": _job["data"], "error": _job["error"]})
 
 
+@app.route("/api/raw-data")
+def api_raw_data():
+    """Serve the raw scraped JSON data from scraper/data/raw/rci_raw.json"""
+    import json
+    raw_data_path = _SCRAPER_DIR / "data" / "raw" / "rci_raw.json"
+    try:
+        with open(raw_data_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return jsonify(data)
+    except FileNotFoundError:
+        return jsonify({"error": "Fichier rci_raw.json non trouvé"}), 404
+    except json.JSONDecodeError:
+        return jsonify({"error": "Fichier JSON invalide"}), 400
+
+
 # ------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------

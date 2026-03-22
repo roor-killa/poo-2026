@@ -12,9 +12,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const candidatePaths = [
-        "./rci.json",
-        "../scraper/data/raw/rci_raw.json",
-        "../data/processed/rci.json",
+        "/api/raw-data",     // Raw data from scraper
     ];
 
     let articles = [];
@@ -64,6 +62,15 @@ async function loadFirstAvailableJson(paths) {
                 throw new Error(`HTTP ${response.status}`);
             }
             const data = await response.json();
+            
+            // Handle different response formats
+            if (path === "/api/results" && data.articles) {
+                return { data: data.articles, sourcePath: path };
+            }
+            if (path === "/api/raw-data") {
+                // Raw data from scraper - convert to array format if needed
+                return { data: Array.isArray(data) ? data : Object.values(data), sourcePath: path };
+            }
             return { data, sourcePath: path };
         } catch (error) {
             errors.push(`${path}: ${error.message}`);
