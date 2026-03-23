@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { fastapi, adminApi, type Mot, type MotDetail, type DefinitionWithId, type Traduction } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { Pencil, BookOpen, Trash2 } from "lucide-react";
 
 const CATEGORIES = [
   "", "nom", "vèb", "adjektif", "advèb", "pwonon",
@@ -13,13 +14,15 @@ const CATEGORIES = [
 // "crm" → "krm" pour l'affichage uniquement (le code ISO reste "crm" en DB)
 const displayLang = (code: string) => code === "crm" ? "krm" : code;
 
-function getFrenchWord(traductions?: { langue_source: string; texte_source: string; texte_cible: string }[]): string {
-  if (!traductions?.length) return "—";
-  for (const tr of traductions) {
+function getFrenchWord(
+  traductions?: { langue_source: string; texte_source: string; texte_cible: string }[],
+  definitions?: { definition: string }[],
+): string {
+  for (const tr of traductions ?? []) {
     if (tr.langue_source === "fr") return tr.texte_source;
     if (tr.langue_source === "crm") return tr.texte_cible;
   }
-  return "—";
+  return definitions?.[0]?.definition ?? "—";
 }
 
 // ── Modal générique ────────────────────────────────────────────────────
@@ -166,9 +169,10 @@ export default function AdminMotsPage() {
   const [error,   setError]   = useState<string | null>(null);
 
   // Édition mot
-  const [editMot,  setEditMot]  = useState<MotDetail | null>(null);
-  const [editForm, setEditForm] = useState({ mot_creole: "", phonetique: "", categorie_gram: "", valide: true });
-  const [saving,   setSaving]   = useState(false);
+  const [editMot,   setEditMot]   = useState<MotDetail | null>(null);
+  const [editForm,  setEditForm]  = useState({ mot_creole: "", phonetique: "", categorie_gram: "", valide: true });
+  const [tradForms, setTradForms] = useState<{ id: number; texte_source: string; texte_cible: string }[]>([]);
+  const [saving,    setSaving]    = useState(false);
 
   // Panel définitions
   const [defsMot,        setDefsMot]        = useState<Mot | null>(null);
@@ -201,25 +205,38 @@ export default function AdminMotsPage() {
     const detail = await fastapi.getWord(mot.id).catch(() => null);
     if (!detail) return;
     setEditMot(detail);
-    setDefsMot(null); // ferme le panel defs si ouvert
+    setDefsMot(null);
     setEditForm({
       mot_creole:     detail.mot_creole,
       phonetique:     detail.phonetique     ?? "",
       categorie_gram: detail.categorie_gram ?? "",
       valide:         detail.valide,
     });
+    setTradForms(
+      (detail.traductions ?? [])
+        .filter((t) => t.id != null)
+        .map((t) => ({ id: t.id!, texte_source: t.texte_source, texte_cible: t.texte_cible }))
+    );
   }
 
   async function saveMot() {
     if (!editMot || !tok) return;
     setSaving(true);
     try {
-      await adminApi.updateMot(tok, editMot.id, {
-        mot_creole:     editForm.mot_creole     || undefined,
-        phonetique:     editForm.phonetique     || null,
-        categorie_gram: editForm.categorie_gram || null,
-        valide:         editForm.valide,
-      });
+      await Promise.all([
+        adminApi.updateMot(tok, editMot.id, {
+          mot_creole:     editForm.mot_creole     || undefined,
+          phonetique:     editForm.phonetique     || null,
+          categorie_gram: editForm.categorie_gram || null,
+          valide:         editForm.valide,
+        }),
+        ...tradForms.map((tf) =>
+          adminApi.updateTraduction(tok, tf.id, {
+            texte_source: tf.texte_source,
+            texte_cible:  tf.texte_cible,
+          })
+        ),
+      ]);
       setEditMot(null);
       loadMots();
     } catch (e: unknown) {
@@ -331,8 +348,7 @@ export default function AdminMotsPage() {
                   <th className="px-4 py-2">ID</th>
                   <th className="px-4 py-2">Mot créole</th>
                   <th className="px-4 py-2">Mot français</th>
-                  <th className="px-4 py-2">Phonétique</th>
-                  <th className="px-4 py-2">Catégorie</th>
+                  <th className="px-4 py-2">Définition</th>
                   <th className="px-4 py-2">Valide</th>
                   <th className="px-4 py-2">Actions</th>
                 </tr>
@@ -343,30 +359,27 @@ export default function AdminMotsPage() {
                     key={mot.id}
                     className="bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800"
                   >
-                    <td className="px-4 py-2 font-mono text-xs text-zinc-400">{mot.id}</td>
-                    <td className="px-4 py-2 font-medium">{mot.mot_creole}</td>
-                    <td className="px-4 py-2 text-zinc-500">{getFrenchWord(mot.traductions)}</td>
-                    <td className="px-4 py-2 text-zinc-500">{mot.phonetique ?? "—"}</td>
-                    <td className="px-4 py-2 text-zinc-500">{mot.categorie_gram ?? "—"}</td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-1 font-mono text-xs text-zinc-400">{mot.id}</td>
+                    <td className="px-4 py-1 font-medium">{mot.mot_creole}</td>
+                    <td className="px-4 py-1 text-zinc-500">{getFrenchWord(mot.traductions, mot.definitions)}</td>
+                    <td className="px-4 py-1 text-zinc-500 max-w-xs truncate">{mot.definitions?.[0]?.definition ?? "—"}</td>
+                    <td className="px-4 py-1">
                       <span className={`rounded-full px-2 py-0.5 text-xs ${mot.valide ? "bg-green-100 text-green-700" : "bg-zinc-100 text-zinc-500"}`}>
                         {mot.valide ? "oui" : "non"}
                       </span>
                     </td>
-                    <td className="space-x-1 px-4 py-2">
-                      <Button size="sm" variant="outline" onClick={() => openEditMot(mot)}>
-                        Éditer
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openDefs(mot)}
-                      >
-                        Définitions
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => deleteMot(mot.id)}>
-                        Supprimer
-                      </Button>
+                    <td className="px-4 py-1">
+                      <div className="flex items-center gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" title="Éditer" onClick={() => openEditMot(mot)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" title="Définitions" onClick={() => openDefs(mot)}>
+                          <BookOpen className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50" title="Supprimer" onClick={() => deleteMot(mot.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -454,22 +467,37 @@ export default function AdminMotsPage() {
       {editMot && (
         <Modal title={`Éditer « ${editMot.mot_creole} »`} onClose={() => setEditMot(null)}>
           <div className="space-y-3">
-            {/* Traductions (lecture seule) */}
-            {editMot.traductions.length > 0 && (
+            {/* Traductions éditables */}
+            {tradForms.length > 0 && (
               <div className="rounded-lg border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
                   Traductions
                 </p>
-                <div className="space-y-1">
-                  {editMot.traductions.map((tr, idx) => {
-                    const frText = tr.langue_source === "fr" ? tr.texte_source : tr.texte_cible;
-                    const direction = `${displayLang(tr.langue_source)} → ${displayLang(tr.langue_cible)}`;
+                <div className="space-y-3">
+                  {tradForms.map((tf, idx) => {
+                    const tr = editMot.traductions.find((t) => t.id === tf.id);
+                    const direction = tr ? `${displayLang(tr.langue_source)} → ${displayLang(tr.langue_cible)}` : "";
                     return (
-                      <div key={idx} className="flex gap-3 text-sm">
-                        <span className="w-20 shrink-0 font-mono text-xs text-zinc-400">
-                          {direction}
-                        </span>
-                        <span className="text-zinc-700 dark:text-zinc-300">{frText}</span>
+                      <div key={tf.id} className="space-y-1">
+                        <p className="font-mono text-xs text-zinc-400">{direction}</p>
+                        <div className="flex gap-2">
+                          <label className="flex-1">
+                            <span className="text-xs text-zinc-500">Source</span>
+                            <input
+                              value={tf.texte_source}
+                              onChange={(e) => setTradForms((prev) => prev.map((f, i) => i === idx ? { ...f, texte_source: e.target.value } : f))}
+                              className="mt-0.5 w-full rounded border border-zinc-200 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                            />
+                          </label>
+                          <label className="flex-1">
+                            <span className="text-xs text-zinc-500">Cible</span>
+                            <input
+                              value={tf.texte_cible}
+                              onChange={(e) => setTradForms((prev) => prev.map((f, i) => i === idx ? { ...f, texte_cible: e.target.value } : f))}
+                              className="mt-0.5 w-full rounded border border-zinc-200 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                            />
+                          </label>
+                        </div>
                       </div>
                     );
                   })}

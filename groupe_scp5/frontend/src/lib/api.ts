@@ -30,6 +30,7 @@ export interface Mot {
   categorie_gram: string | null;
   valide:         boolean;
   traductions?:   Traduction[];   // présent dans les réponses list/search
+  definitions?:   Definition[];   // présent dans les réponses list/search
 }
 
 export interface MotDetail extends Mot {
@@ -41,6 +42,7 @@ export interface MotDetail extends Mot {
 }
 
 export interface Traduction {
+  id?:           number;
   langue_source: string;
   langue_cible:  string;
   texte_source:  string;
@@ -155,9 +157,12 @@ export const fastapi = {
     apiFetch(`${FASTAPI}/dictionary/random`),
 
   /** Recherche de mots — retourne directement le tableau de résultats */
-  searchWords: (q: string, limit = 20): Promise<Mot[]> =>
-    apiFetch<ApiListResponse<Mot>>(`${FASTAPI}/dictionary/search?q=${encodeURIComponent(q)}&limit=${limit}`)
-      .then((r) => r.results),
+  searchWords: (q: string, limit = 20, lang?: string): Promise<Mot[]> => {
+    const params = new URLSearchParams({ q, limit: String(limit) });
+    if (lang) params.set("lang", lang);
+    return apiFetch<ApiListResponse<Mot>>(`${FASTAPI}/dictionary/search?${params}`)
+      .then((r) => r.results);
+  },
 
   /** Détail d'un mot */
   getWord: (id: number): Promise<MotDetail> =>
@@ -291,6 +296,18 @@ export const adminApi = {
     adminFetch(`/api/admin/mots/${id}`, {
       method:  "DELETE",
       headers: authHeaders(token),
+    }),
+
+  // --- Traductions ---
+  updateTraduction: (
+    token: string,
+    tradId: number,
+    data: { texte_source?: string; texte_cible?: string }
+  ): Promise<Traduction> =>
+    adminFetch(`/api/admin/traductions/${tradId}`, {
+      method:  "PUT",
+      headers: authHeaders(token),
+      body:    JSON.stringify(data),
     }),
 
   // --- Définitions ---

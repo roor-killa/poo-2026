@@ -9,7 +9,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from ..database import get_db
 from ..dependencies import PaginationParams, require_api_key
@@ -41,11 +41,11 @@ def list_dictionary(
     query = (
         db.query(Mot)
         .options(
-            joinedload(Mot.traductions),
-            joinedload(Mot.definitions),
+            selectinload(Mot.traductions),
+            selectinload(Mot.definitions),
             joinedload(Mot.source),
         )
-        .order_by(Mot.mot_creole)
+        .order_by(func.lower(Mot.mot_creole))
     )
     total = query.count()
     items = query.offset(pagination.offset).limit(pagination.limit).all()
@@ -96,8 +96,8 @@ def search_dictionary(
     query = (
         db.query(Mot)
         .options(
-            joinedload(Mot.traductions),
-            joinedload(Mot.definitions),
+            selectinload(Mot.traductions),
+            selectinload(Mot.definitions),
             joinedload(Mot.source),
         )
         .filter(similarity > 0.1)
@@ -110,8 +110,8 @@ def search_dictionary(
         query = (
             db.query(Mot)
             .options(
-                joinedload(Mot.traductions),
-                joinedload(Mot.definitions),
+                selectinload(Mot.traductions),
+                selectinload(Mot.definitions),
                 joinedload(Mot.source),
             )
             .join(Mot.traductions)

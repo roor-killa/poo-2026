@@ -119,7 +119,7 @@ contes = load_dataset("groupe_scp5/lang-matinitje", "contes_poemes")
 ```bibtex
 @dataset{lang_matinitje_2026,
   title     = {Lang Matinitjé — Kréyol Matinitjé Dataset},
-  author    = {Groupe SCP5, Université des Antilles},
+  author    = {Groupe SCP5, Université des Antilles, Martinique Digitale, NASDY},
   year      = {2026},
   url       = {https://huggingface.co/datasets/groupe_scp5/lang-matinitje},
   license   = {CC BY-SA 4.0},

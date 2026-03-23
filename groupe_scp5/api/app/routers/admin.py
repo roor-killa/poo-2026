@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..database import get_db
 from ..dependencies import require_api_key
-from ..models.models import Corpus, Definition, Expression, Mot
+from ..models.models import Corpus, Definition, Expression, Mot, Traduction
 from ..schemas.schemas import (
     CorpusOut,
     CorpusUpdate,
@@ -22,6 +22,8 @@ from ..schemas.schemas import (
     ExpressionUpdate,
     MotDetail,
     MotUpdate,
+    TraductionUpdate,
+    TraductionWithId,
 )
 
 router = APIRouter(
@@ -68,6 +70,32 @@ def delete_mot(mot_id: int, db: Session = Depends(get_db)) -> None:
         raise HTTPException(status_code=404, detail=f"Mot introuvable (id={mot_id})")
     db.delete(mot)
     db.commit()
+
+
+# ===========================================================================
+# Traductions
+# ===========================================================================
+
+@router.put(
+    "/traductions/{trad_id}",
+    response_model=TraductionWithId,
+    summary="Modifier une traduction 🔒",
+)
+def update_traduction(trad_id: int, body: TraductionUpdate, db: Session = Depends(get_db)) -> TraductionWithId:
+    t = db.get(Traduction, trad_id)
+    if not t:
+        raise HTTPException(status_code=404, detail=f"Traduction introuvable (id={trad_id})")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(t, field, value)
+    db.commit()
+    db.refresh(t)
+    return TraductionWithId(
+        id=t.id,
+        langue_source=t.langue_source,
+        langue_cible=t.langue_cible,
+        texte_source=t.texte_source,
+        texte_cible=t.texte_cible,
+    )
 
 
 # ===========================================================================

@@ -32,6 +32,15 @@ class TraductionBrief(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TraductionWithId(TraductionBrief):
+    id: int
+
+
+class TraductionUpdate(BaseModel):
+    texte_source: Optional[str] = None
+    texte_cible: Optional[str] = None
+
+
 class DefinitionBrief(BaseModel):
     definition: str
     exemple: Optional[str] = None
@@ -81,7 +90,7 @@ class MotDetail(BaseModel):
     mot_creole: str
     phonetique: Optional[str] = None
     categorie_gram: Optional[str] = None
-    traductions: List[TraductionBrief] = []
+    traductions: List[TraductionWithId] = []
     definitions: List[DefinitionBrief] = []
     expressions: List[dict] = []
     source_id: Optional[int] = None
@@ -98,7 +107,8 @@ class MotDetail(BaseModel):
             phonetique=mot.phonetique,
             categorie_gram=mot.categorie_gram,
             traductions=[
-                TraductionBrief(
+                TraductionWithId(
+                    id=t.id,
                     langue_source=t.langue_source,
                     langue_cible=t.langue_cible,
                     texte_source=t.texte_source,
