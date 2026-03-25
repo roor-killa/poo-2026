@@ -120,3 +120,6 @@ def cache_clear(clear_all: bool) -> None:
     else:
         deleted = cache.clear_old_cache()
         click.echo(f"✓ {deleted} entrées expirées supprimées.")
+
+from .rag.rag_cli import rag
+cli.add_command(rag)
