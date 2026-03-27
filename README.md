@@ -8,3 +8,4 @@ Lancer server.py -> python ./rci_frontend/server.py
 
 
 FAIRE UN RAG DB
+Expliquer chunk_rci_to_rag
