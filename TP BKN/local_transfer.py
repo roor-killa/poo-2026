@@ -18,7 +18,6 @@ def afficher_wallets(w1: Wallet, w2: Wallet) -> None:
     """Affiche les informations des deux wallets."""
     w1.display_info()
     w2.display_info()
-    pass
 
 
 def effectuer_transfert(expediteur: Wallet, destinataire: Wallet) -> None:
@@ -48,13 +47,6 @@ def effectuer_transfert(expediteur: Wallet, destinataire: Wallet) -> None:
         print(f"Erreur: {e}")
     except InsufficientFundsError as e:
         print(f"Erreur: {e}")
-
-    # TODO : Demander le montant avec input() v
-    # TODO : Convertir en float et gérer ValueError v
-    # TODO : Appeler expediteur.send(montant, destinataire) v
-    # TODO : Afficher le résultat (tx_id, nouveaux soldes) v
-    # TODO : Capturer InsufficientFundsError et InvalidAmountError v
-    pass
 
 
 def afficher_menu() -> None:
@@ -89,26 +81,25 @@ def main() -> None:
         elif choix == "2":
             # TODO : Appeler effectuer_transfert(wallet1, wallet2)
             effectuer_transfert(wallet1,wallet2)
-            pass
 
         elif choix == "3":
             # TODO : Appeler effectuer_transfert(wallet2, wallet1)
-            effectuer_transfert(wallet1,wallet2)
-            pass
+            effectuer_transfert(wallet2,wallet1)
 
         elif choix == "4":
             # TODO : Afficher l'historique de wallet1
             wallet1.get_history()
-            pass
+            wallet1.display_history()
 
         elif choix == "5":
             # TODO : Afficher l'historique de wallet2
             wallet2.get_history()
-            pass
+            wallet2.display_history()
 
         elif choix == "0":
             print("\n👋 Au revoir !")
             break
+
 
         else:
             print("❌ Choix invalide, réessayez.")
