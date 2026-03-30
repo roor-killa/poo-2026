@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RCI Scraper — Actualités Martinique</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>RCI Scraper</h1>
+        <p id="current-date"></p>
+        <div class="header-nav">
+            <h1>Portail d'Information</h1>
+            <nav class="nav-tabs">
+                <a href="./index.html" class="nav-tab active">Scraping</a>
+                <a href="./showdata.html" class="nav-tab">Données</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Control panel -->
+    <section id="controls">
+        <h2>Paramètres du scraping</h2>
+        <form id="scrape-form">
+            <div class="form-grid">
+                <label>
+                    Profondeur max
+                    <input type="number" id="max-depth" value="1" min="0" max="3">
+                    <span class="hint">0 = page de départ seule, max 3</span>
+                </label>
+                <label>
+                    Pages max
+                    <input type="number" id="max-pages" value="10" min="1" max="100">
+                    <span class="hint">Nombre total de pages visitées (1-100)</span>
+                </label>
+                <label>
+                    Délai (s)
+                    <input type="number" id="delay" value="1.5" min="0.5" max="10" step="0.5">
+                    <span class="hint">Pause entre requêtes (0.5-10s)</span>
+                </label>
+            </div>
+            <button type="submit" id="btn-scrape">Lancer le scraping</button>
+        </form>
+
+        <!-- Status bar -->
+        <div id="status-bar" class="hidden">
+            <div id="spinner" class="spinner"></div>
+            <span id="status-text">En attente…</span>
+        </div>
+    </section>
+
+    <!-- Search (visible once results are loaded) -->
+    <section id="search-section" class="hidden">
+        <input type="text" id="search-bar" placeholder="Filtrer les articles…">
+    </section>
+
+    <!-- Article list -->
+    <main id="news-container"></main>
+
+    <!-- Article detail overlay -->
+    <div id="article-overlay" class="hidden">
+        <div id="article-detail">
+            <button id="btn-close">&times;</button>
+            <div id="article-detail-content"></div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 — Interface de scraping RCI</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
