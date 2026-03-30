@@ -132,6 +132,13 @@ def action_transfer(local_wallet: Wallet, host: str, port: int) -> None:
             réponsesendrec = send_request(host, port, {"action": "receive", "amount": amount, "from_address": local_wallet.address})
             if réponsesendrec["status"] == "success":
                 local_wallet.balance -= amount
+                local_wallet._record_transaction(
+                    tx_id=réponsesendrec.get('tx_id', ''),
+                    kind="DEBIT",
+                    amount=amount,
+                    counterpart=walletdistant['address']
+                )
+                
                 print(f"Success! ID transaction: {réponsesendrec.get('tx_id')}")
                 print(f"Votre nouveau solde est de: {local_wallet.balance:.2f} BKN")
             else:

@@ -96,17 +96,31 @@ def start_server(wallet: Wallet, host: str, port: int) -> None:
     # TODO : bind((host, port))
     # TODO : listen()
     # TODO : Boucle accept() → Thread(target=handle_client, ..., daemon=True).start()
-    sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-    sock.bind((host,port))
-    sock.listen()
-    print(f"🌐 Serveur BKN démarré sur {host}:{port}")
-    print(f"🏦 Wallet : {wallet.owner}")
-    print(f"💰 Solde initial : {wallet.balance:.2f} BKN")
-    print("En attente de connexions...\n")
-    while True:
-        conn,addr = sock.accept()
-        thread=threading.Thread(target=handle_client,args=(conn, addr, wallet),daemon=True).start()
+    
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((host, port))
+        sock.listen()
+
+        print(f"🌐 Serveur BKN démarré sur {host}:{port}")
+        print(f"🏦 Wallet : {wallet.owner}")
+        print(f"💰 Solde initial : {wallet.balance:.2f} BKN")
+        print("En attente de connexions...\n")
+
+        while True:
+            conn, addr = sock.accept()
+            threading.Thread(
+                target=handle_client, args=(conn, addr, wallet), daemon=True
+            ).start()
+    except OSError as e:
+        # Port already in use: 10048 on Windows, 48 on Unix/macOS.
+        if e.errno == 10048 or e.errno == 48:
+            print(f"Erreur: Le port {port} est déjà utilisé.")
+            print("Veuillez fermer l'autre serveur ou choisir un autre port.")
+            return
+        raise
+    
     
     
 
