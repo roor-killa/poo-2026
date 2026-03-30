@@ -63,7 +63,23 @@ def action_get_info(host: str, port: int) -> None:
     """
     print(f"\n🔍 Récupération des infos du wallet distant ({host}:{port})...")
     # TODO : Appeler send_request et afficher wallet["owner"], wallet["address"], wallet["balance"]
-    pass
+    try:
+        response = send_request(host, port, {"action": "get_info"})
+        if response.get("status") != "success":
+            print(f"❌ Erreur serveur: {response.get('message', 'Réponse invalide')}")
+            return
+
+        wallet = response.get("wallet", {})
+        print("✅ Wallet distant trouvé:")
+        print(f"   Propriétaire : {wallet.get('owner', 'N/A')}")
+        print(f"   Adresse      : {wallet.get('address', 'N/A')}")
+        print(f"   Solde        : {float(wallet.get('balance', 0.0)):.2f} BKN")
+    except ConnectionRefusedError:
+        print("❌ Connexion refusée: le serveur n'est pas démarré ou le port est incorrect.")
+    except TimeoutError:
+        print("❌ Timeout: le serveur n'a pas répondu à temps.")
+    except json.JSONDecodeError:
+        print("❌ Réponse invalide: le serveur a renvoyé un JSON incorrect.")
 
 
 def action_transfer(local_wallet: Wallet, host: str, port: int) -> None:
@@ -107,7 +123,53 @@ def action_transfer(local_wallet: Wallet, host: str, port: int) -> None:
     # TODO : Étape 4 — Si réponse "success", débiter local_wallet
     #                  (utiliser wallet.balance -= amount directement OU créer une méthode dédiée)
     # TODO : Afficher transaction_id et nouveaux soldes
-    pass
+    try:
+        info_resp = send_request(host, port, {"action": "get_info"})
+        if info_resp.get("status") != "success":
+            print(f"❌ Erreur serveur: {info_resp.get('message', 'Réponse invalide')}")
+            return
+
+        distant_wallet = info_resp.get("wallet", {})
+        distant_address = distant_wallet.get("address", "UNKNOWN")
+        print(f"   Adresse distante : {distant_address}")
+
+        if amount <= 0:
+            raise InvalidAmountError("Le montant doit être strictement positif.")
+        if amount > local_wallet.balance:
+            raise InsufficientFundsError(
+                f"Solde insuffisant: {local_wallet.balance:.2f} BKN disponibles."
+            )
+
+        transfer_resp = send_request(
+            host,
+            port,
+            {
+                "action": "receive",
+                "amount": amount,
+                "from_address": local_wallet.address,
+            },
+        )
+
+        if transfer_resp.get("status") != "success":
+            print(f"❌ Transfert refusé par le serveur: {transfer_resp.get('message', 'Erreur inconnue')}")
+            return
+
+        local_wallet.balance -= amount
+
+        tx_id = transfer_resp.get("transaction_id", "N/A")
+        distant_balance = float(transfer_resp.get("new_balance", 0.0))
+        print("✅ Transfert effectué")
+        print(f"   Transaction : {tx_id}")
+        print(f"   Votre nouveau solde : {local_wallet.balance:.2f} BKN")
+        print(f"   Solde distant       : {distant_balance:.2f} BKN")
+    except (InvalidAmountError, InsufficientFundsError) as exc:
+        print(f"❌ {exc}")
+    except ConnectionRefusedError:
+        print("❌ Connexion refusée: le serveur n'est pas démarré ou le port est incorrect.")
+    except TimeoutError:
+        print("❌ Timeout: le serveur n'a pas répondu à temps.")
+    except json.JSONDecodeError:
+        print("❌ Réponse invalide: le serveur a renvoyé un JSON incorrect.")
 
 
 def afficher_menu() -> None:
@@ -117,6 +179,7 @@ def afficher_menu() -> None:
     print("3. Obtenir infos d'un wallet distant")
     print("4. Transférer des BKN à un wallet distant")
     print("0. Quitter")
+
 
 
 def main() -> None:
@@ -151,9 +214,15 @@ def main() -> None:
 
         elif choix == "3":
             # TODO : Demander host/port et appeler action_get_info()
-            host = str(input('Entrer le host : '))
-            port = str(input('Entrer le port : '))
-            action_get_info(host,port)
+            host_input = input(f"Host (Entrée = {default_host}) : ").strip()
+            host = host_input or default_host
+            try:
+                port_input = input(f"Port (Entrée = {default_port}) : ").strip()
+                port = int(port_input) if port_input else default_port
+            except ValueError:
+                print("Port invalide, utilisation du port par défaut.")
+                port = default_port
+            action_get_info(host, port)
 
         elif choix == "4":
             # TODO : Appeler action_transfer(wallet, default_host, default_port)

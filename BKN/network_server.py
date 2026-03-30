@@ -42,7 +42,7 @@ def handle_client(conn: socket.socket, addr: tuple, wallet: Wallet) -> None:
             return
 
         # TODO : Désérialiser `data` en dictionnaire Python avec json.loads()
-        request = {}  # À remplacer
+        request = json.loads(data)  # À remplacer
 
         action = request.get("action")
 
@@ -53,14 +53,29 @@ def handle_client(conn: socket.socket, addr: tuple, wallet: Wallet) -> None:
             #   "status": "success",
             #   "wallet": wallet.to_dict()
             # }
-            response = {"status": "error", "message": "Non implémenté"}
+            response = {
+                "status": "success",
+                "wallet": wallet.to_dict(),
+            }
 
         elif action == "receive":
             # TODO : Récupérer "amount" et "from_address" depuis la requête
             # TODO : Appeler wallet.receive(amount, from_address)
             # TODO : Construire la réponse avec le tx_id et le nouveau solde
             # Gérer InvalidAmountError
-            response = {"status": "error", "message": "Non implémenté"}
+            amount = request.get("amount")
+            from_address = request.get("from_address", "UNKNOWN")
+            try:
+                tx_id = wallet.receive(amount, from_address=from_address)
+                response = {
+                    "status": "success",
+                    "message": "Montant crédité avec succès",
+                    "transaction_id": tx_id,
+                    "new_balance": wallet.balance,
+                }
+            except InvalidAmountError as exc:
+                response = {"status": "error", "message": str(exc)}
+
 
         else:
             response = {"status": "error", "message": f"Action inconnue : {action}"}
@@ -96,7 +111,21 @@ def start_server(wallet: Wallet, host: str, port: int) -> None:
     print("En attente de connexions...\n")
 
     # --- À compléter ---
-    pass
+    server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_sock.bind((host, port))
+    server_sock.listen()
+
+    try:
+        while True:
+            conn, addr = server_sock.accept()
+            threading.Thread(
+                target=handle_client,
+                args=(conn, addr, wallet),
+                daemon=True
+            ).start()
+    finally:
+        server_sock.close()
 
 
 def commandes_locales(wallet: Wallet) -> None:
@@ -120,6 +149,7 @@ def commandes_locales(wallet: Wallet) -> None:
             break
         else:
             print("Commandes disponibles : info | hist | quit")
+
 
 
 def main() -> None:
