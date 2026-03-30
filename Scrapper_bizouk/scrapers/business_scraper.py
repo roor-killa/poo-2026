@@ -111,7 +111,8 @@ class BusinessScraper(BaseScraper):
                     "copier ce lien",
                     "votre panier",
                     "vos articles",
-                    "contacter la boutique"
+                    "contacter la boutique" 
+                    ""
                 ]:
                     break
 
