@@ -45,13 +45,6 @@ class Wallet:
 
         self.history.append(tx)
 
-    def debit(self, amount):
-        if amount <= 0:
-            raise ValueError("Montant invalide")
-        if amount > self.balance:
-            raise ValueError("Solde insuffisant")
-        self.balance -= amount
-
     def _generate_tx_id(self):  #code de transaction
         return f"TXN-BKN-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}-{str(uuid.uuid4())[:4]}"
 

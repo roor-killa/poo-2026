@@ -54,7 +54,10 @@ def main():
                 port = int(input("Port: ") or 5555)
                 amount = float(input("Montant: "))
 
-                wallet.debit(amount)
+                if amount <= 0:
+                    raise ValueError("Montant invalide")
+                if amount > balance:
+                    raise ValueError("Solde insuffisant")
 
                 res = request(host, port, {
                     "action": "receive",
@@ -63,6 +66,7 @@ def main():
                 })
 
                 if res["status"] == "success":
+                    balance -= amount
                     print("✅ Transfert OK")
                     print(res)
                 else:

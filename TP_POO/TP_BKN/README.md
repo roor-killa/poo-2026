@@ -5,14 +5,9 @@ Ce projet implémente un système de transfert de tokens BKN :
 - Mode réseau (client ↔ serveur via sockets TCP)
 
 
-Lancement :
-
-1. Mode local
-python local_transfert.py
+Lancement du code :
+1. Mode local avec      python local_transfert.py     directement dans la console
 
 2. Mode Réseau
-Terminal 1 (Serveur)
-python network_server.py
-
-Terminal 2 (Client)
-python network_client.py
+Terminal 1 (Serveur)      python network_server.py    dans la console.
+Terminal 2 (Client)       python network_client.py    dans la console.
