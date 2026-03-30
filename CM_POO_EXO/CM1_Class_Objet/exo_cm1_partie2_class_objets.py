@@ -28,4 +28,8 @@ class Livre:
 
 ## QUESTIONS ##
 # - Différence entre `Livre.nombre_total` et `self.titre`
+#        Livre.nombre_total est un attribute de class (elle appartiens a tous les instances et est trouvée dans la memoire une seule fois)
+#        self.titre est un attribut de instance (elle est unique a chaque instance)
 # - Quand utiliser des méthodes vs des attributs ?
+#        les methodes sont des instruction en forme de fonction qui appartien a une class
+#        alors que les attributes sont des variables reutilisable par de different instances.

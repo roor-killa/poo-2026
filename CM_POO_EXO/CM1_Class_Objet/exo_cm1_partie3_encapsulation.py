@@ -23,6 +23,10 @@ class Livre:
 
 ## QUESTIONS ##
 # - Montrer du code généré par IA qui n'encapsule pas correctement
+#       les attributes self.auteur et self.disponible ne sont pas encapsuler par rapport a self.titre et self.isbn
+#       car ils sont pas dans leur propre @property qui leurs rend exclusives a la class.
 # - Pourquoi l'encapsulation est cruciale dans de gros projets
+#       pour evité l'utilisation de mauvaise variables liée a des class inattendue
 # - Pourquoi isbn est pivé ?
+#       isbn est privée car elle se trouve sous un @property qui la rend privée et exclusive a la class livre.
 # - Comment je teste ma fonction titre ?
