@@ -1,9 +1,7 @@
 """
 local_transfer.py — Transferts locaux BKN (Partie 1)
 
-TODO : Complétez les sections marquées TODO pour rendre le programme fonctionnel.
-
-Fonctionnalités attendues :
+Fonctionnalités :
   1. Créer deux wallets avec des soldes initiaux
   2. Afficher un menu interactif
   3. Transférer des BKN dans les deux sens
@@ -16,28 +14,36 @@ from wallet import Wallet, InsufficientFundsError, InvalidAmountError
 
 def afficher_wallets(w1: Wallet, w2: Wallet) -> None:
     """Affiche les informations des deux wallets."""
-    # TODO : Appeler display_info() sur chaque wallet
-    pass
+    w1.display_info()
+    w2.display_info()
 
 
 def effectuer_transfert(expediteur: Wallet, destinataire: Wallet) -> None:
     """
     Demande un montant à l'utilisateur et effectue le transfert
     de `expediteur` vers `destinataire`.
-
-    Gérez les cas d'erreur :
-      - montant invalide (texte saisi, valeur <= 0)
-      - solde insuffisant
     """
     print(f"\n💸 Transfert : {expediteur.owner} → {destinataire.owner}")
     print(f"   Solde disponible : {expediteur.balance:.2f} BKN")
 
-    # TODO : Demander le montant avec input()
-    # TODO : Convertir en float et gérer ValueError
-    # TODO : Appeler expediteur.send(montant, destinataire)
-    # TODO : Afficher le résultat (tx_id, nouveaux soldes)
-    # TODO : Capturer InsufficientFundsError et InvalidAmountError
-    pass
+    try:
+        montant_str = input("   Montant à transférer : ").strip()
+        montant = float(montant_str)
+    except ValueError:
+        print("❌ Montant invalide : veuillez saisir un nombre.")
+        return
+
+    try:
+        tx_id = expediteur.send(montant, destinataire)
+        print(f"\n✅ Transfert de {montant:.2f} BKN réussi")
+        print(f"   Transaction : {tx_id}")
+        print(f"\n📊 Nouveaux soldes :")
+        print(f"   {expediteur.owner}  : {expediteur.balance:.2f} BKN")
+        print(f"   {destinataire.owner} : {destinataire.balance:.2f} BKN")
+    except InsufficientFundsError as e:
+        print(f"❌ Solde insuffisant : {e}")
+    except InvalidAmountError as e:
+        print(f"❌ Montant invalide : {e}")
 
 
 def afficher_menu() -> None:
@@ -51,13 +57,8 @@ def afficher_menu() -> None:
 
 
 def main() -> None:
-    # ------------------------------------------------------------------ #
-    # TODO : Créer les deux wallets                                       #
-    #   - wallet1 : propriétaire "Alice", solde initial 1000, prefix "LOCAL"
-    #   - wallet2 : propriétaire "Bob",   solde initial 500,  prefix "LOCAL"
-    # ------------------------------------------------------------------ #
-    wallet1 = None  # À remplacer
-    wallet2 = None  # À remplacer
+    wallet1 = Wallet(owner="Alice", initial_balance=1000, prefix="LOCAL")
+    wallet2 = Wallet(owner="Bob",   initial_balance=500,  prefix="LOCAL")
 
     print("\n✅ Wallets créés avec succès !")
     afficher_wallets(wallet1, wallet2)
@@ -70,20 +71,16 @@ def main() -> None:
             afficher_wallets(wallet1, wallet2)
 
         elif choix == "2":
-            # TODO : Appeler effectuer_transfert(wallet1, wallet2)
-            pass
+            effectuer_transfert(wallet1, wallet2)
 
         elif choix == "3":
-            # TODO : Appeler effectuer_transfert(wallet2, wallet1)
-            pass
+            effectuer_transfert(wallet2, wallet1)
 
         elif choix == "4":
-            # TODO : Afficher l'historique de wallet1
-            pass
+            wallet1.display_history()
 
         elif choix == "5":
-            # TODO : Afficher l'historique de wallet2
-            pass
+            wallet2.display_history()
 
         elif choix == "0":
             print("\n👋 Au revoir !")
