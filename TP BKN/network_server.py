@@ -64,7 +64,7 @@ def handle_client(conn: socket.socket, addr: tuple, wallet: Wallet) -> None:
                 amount =request.get("amount")
                 from_address=request.get("from_address")
                 tx_id=wallet.receive(amount,from_address)
-                response = {"status": "success", "message": f"Réception de {amount} BKN confirmée","tx_id": tx_id,"new_balance": wallet.balance}
+                response = {f"status": "success", "message": f"Réception de {amount} BKN confirmée","tx_id": tx_id,"new_balance": wallet.balance}
             except InvalidAmountError as err:
                 response={"status":"error","message":str(err)}
 

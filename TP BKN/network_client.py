@@ -43,7 +43,18 @@ def send_request(host: str, port: int, payload: dict) -> dict:
     # TODO : Recevoir la réponse avec sock.recv(4096).decode("utf-8")
     # TODO : Désérialiser et retourner
     # TODO : Fermer le socket dans un bloc finally
-    pass  # À remplacer par votre implémentation
+
+    sock=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.settimeout(TIMEOUT)
+        sock.connect((host,port))
+        sock.sendall(json.dumps(payload).encode("utf-8"))
+        data= sock.recv(4096).decode("utf-8")
+        response=json.loads(data)
+        return response
+    finally:
+        sock.close()
+
 
 
 def action_get_info(host: str, port: int) -> None:
@@ -55,8 +66,20 @@ def action_get_info(host: str, port: int) -> None:
     """
     print(f"\n🔍 Récupération des infos du wallet distant ({host}:{port})...")
     # TODO : Appeler send_request et afficher wallet["owner"], wallet["address"], wallet["balance"]
-    pass
-
+    try:
+        response = send_request(host, port, {"action": "get_info"})
+        if response.get("status") == "success":
+            wallet = response["wallet"]
+            print(f"\n Wallet")
+            print(f"Nom : {wallet['owner']}")
+            print(f"Adresse : {wallet['address']}")
+            print(f"Solde : {wallet['balance']:.2f}BKN")
+        else:
+            print(f"Erreur:{response.get('message')}")
+    except ConnectionRefusedError:
+        print("Connexion refusée.")
+    except Exception as e:
+        print(f"Erreur: {e}")
 
 def action_transfer(local_wallet: Wallet, host: str, port: int) -> None:
     """
@@ -99,8 +122,26 @@ def action_transfer(local_wallet: Wallet, host: str, port: int) -> None:
     # TODO : Étape 4 — Si réponse "success", débiter local_wallet
     #                  (utiliser wallet.balance -= amount directement OU créer une méthode dédiée)
     # TODO : Afficher transaction_id et nouveaux soldes
-    pass
-
+    try:
+        response = send_request(host, port, {"action": "get_info"})
+        if response.get("status") == "success":
+            walletdistant = response["wallet"]
+            print(f"Adresse distante : {walletdistant['address']}")
+        
+        if amount > 0 and amount <= local_wallet.balance:
+            réponsesendrec = send_request(host, port, {"action": "receive", "amount": amount, "from_address": local_wallet.address})
+            if réponsesendrec["status"] == "success":
+                local_wallet.balance -= amount
+                print(f"Success! ID transaction: {réponsesendrec.get('tx_id')}")
+                print(f"Votre nouveau solde est de: {local_wallet.balance:.2f} BKN")
+            else:
+                print(f"Erreur: {réponsesendrec.get('message')}")
+        else:
+            print("Montant invalide ou solde insuffisant.")
+    except ConnectionRefusedError:
+        print("Connexion refusée.")
+    except Exception as e:
+        print(f"Erreur: {e}")
 
 def afficher_menu() -> None:
     print("\n💎 CLIENT WALLET BKN")
@@ -143,11 +184,12 @@ def main() -> None:
 
         elif choix == "3":
             # TODO : Demander host/port et appeler action_get_info()
-            pass
-
+            host=input("Entrez le host")
+            port=int(input("Entrez le port:"))
+            action_get_info(host,port)
         elif choix == "4":
             # TODO : Appeler action_transfer(wallet, default_host, default_port)
-            pass
+            action_transfer(wallet,default_host,default_port)
 
         elif choix == "0":
             print("\n👋 Au revoir !")
