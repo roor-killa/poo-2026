@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(du:*)",
+      "WebFetch(domain:pawolotek.com)",
+      "Bash(tail:*)",
+      "Bash(.venv/bin/python:*)",
+      "WebFetch(domain:www.potomitan.info)",
+      "Bash(chmod +x:*)",
+      "Bash(cd:*)",
+      "Bash(git:*)",
+      "Bash(cd /Users/roor/Documents/dev/cours/L2_poo/poo-2026/groupe_scp5/scraper && source .venv/bin/activate && python -m src.pipeline_pdf --no-download --no-db 2>&1)",
+      "Bash(cd /Users/roor/Documents/dev/cours/L2_poo/poo-2026/groupe_scp5/scraper && \\\\\n  source .venv/bin/activate && \\\\\n  POSTGRES_HOST=localhost POSTGRES_PORT=5433 POSTGRES_DB=langmatinitje \\\\\n  POSTGRES_USER=creole POSTGRES_PASSWORD='creole11!' \\\\\n  python -m src.pipeline_pdf --no-download 2>&1)",
+      "Bash(docker exec:*)",
+      "Bash(docker cp:*)",
+      "Bash(find:*)",
+      "Bash(docker compose:*)",
+      "Bash(python3:*)",
+      "Bash(source:*)"
+    ]
+  }
+}
