@@ -24,7 +24,7 @@ class BaseScraper(ABC):
 
         # ajoute un user agent pour identifier le scraper
         self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 Educational Purpose Université des Antilles"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
         })
 
         # garde la trace du moment de la dernière requête
@@ -44,7 +44,7 @@ class BaseScraper(ABC):
             self._respect_delay()
 
             # envoie la requête au site
-            response = self.session.get(url, timeout=10)
+            response = self.session.get(url, timeout=30)
 
             # met à jour le moment de la dernière requête
             self.last_request_time = time.time()

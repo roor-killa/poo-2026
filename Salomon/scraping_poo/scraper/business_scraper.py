@@ -16,7 +16,7 @@ class BusinessScraper(BaseScraper):
 
     def __init__(self):
         # initialise le scraper avec lurl du site
-        super().__init__(base_url="https://www.bizouk.com", delay=2)
+        super().__init__(base_url="https://www.bizouk.com", delay=5)
 
     # nettoie un numéro de téléphone
     def clean_phone(self, phone: str) -> str:
