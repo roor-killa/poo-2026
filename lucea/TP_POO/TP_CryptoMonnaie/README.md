@@ -26,20 +26,18 @@ Il permet de créer des wallets, effectuer des transferts, consulter l’histori
 2️⃣ Serveur réseau
 
 1. Ouvrir un terminal dans le dossier contenant network_server.py
-2. Lancer :
-   - python network_server.py
+2. Lancer le programme (python network_server.py)
 3. Entrer le nom du wallet, le solde initial, le host (Enter = localhost) et le port (Enter = 5555)
 4. Le serveur reste actif et accepte les connexions clients.
-Les commandes locales du serveur :
-- info → afficher l’état du wallet
-- hist → afficher l’historique des transactions
-- quit → arrêter le serveur
+5. Les commandes locales du serveur :
+   - info → afficher l’état du wallet
+   - hist → afficher l’historique des transactions
+   - quit → arrêter le serveur
 
 3️⃣ Client réseau
 
 1. Ouvrir un autre terminal dans le dossier contenant network_client.py
-2. Lancer :
-   - python network_client.py
+2. Lancer le programme (python network_client.py)
 3. Entrer le nom du wallet et le solde initial
 Suivre le menu pour :
 - Afficher son wallet (1)

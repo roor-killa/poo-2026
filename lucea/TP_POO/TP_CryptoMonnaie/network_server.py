@@ -55,8 +55,14 @@ def handle_client(client_socket, adresse_client):
                 "status": "success",
                 "message": "Transaction reçue"
             }
-
-            client_socket.send(json.dumps(reponse).encode())
+        
+        elif requete["type"] == "info":
+            reponse = {
+                "adresse": wallet.adresse,
+                "nom": wallet.nom_proprietaire,
+                "solde": wallet.solde
+                }
+        client_socket.send(json.dumps(reponse).encode())      
 
     except Exception as e:
         print("Erreur :", e)

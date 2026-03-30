@@ -47,6 +47,44 @@ while True:
             print(t)
 
 
+    elif choix == "3":
+        print("\n🌐 Obtenir infos d'un wallet distant")
+
+        host = input("Host du serveur destinataire (Enter = localhost): ")
+        if host == "":
+            host = "localhost"
+
+        port_input = input("Port (Enter = 5555): ")
+        if port_input == "":
+            port = 5555
+        else:
+            port = int(port_input)
+
+        try:
+            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client.connect((host, port))
+            print("✅ Connecté!")
+
+            requete = {
+                "type": "info"
+            }
+
+            client.send(json.dumps(requete).encode())
+
+            reponse = client.recv(1024)
+            data = json.loads(reponse.decode())
+
+            print("\n🏦 Infos du wallet distant:")
+            print(f"Adresse: {data['adresse']}")
+            print(f"Nom: {data['nom']}")
+            print(f"Solde: {data['solde']:.2f} BKN")
+
+            client.close()
+
+        except Exception as e:
+            print("❌ Erreur de connexion :", e)
+
+
     elif choix == "4":
 
         print("\n💸 Transfert de BKN vers un wallet distant")
