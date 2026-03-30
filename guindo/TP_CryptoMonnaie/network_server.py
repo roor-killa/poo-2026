@@ -1,8 +1,6 @@
 """
 network_server.py — Serveur de wallet BKN (Partie 2)
 
-TODO : Complétez les sections marquées TODO.
-
 Architecture :
   - Un thread écoute les connexions réseau entrantes
   - Le thread principal gère les commandes locales (info, hist, quit)
@@ -25,47 +23,43 @@ from wallet import Wallet, InvalidAmountError
 def handle_client(conn: socket.socket, addr: tuple, wallet: Wallet) -> None:
     """
     Gère une connexion client entrante.
-
     Reçoit une requête JSON, traite l'action, renvoie une réponse JSON.
-
-    Actions supportées :
-      - "get_info"  : retourne les infos du wallet
-      - "receive"   : crédite le wallet et confirme
-
-    TODO : Implémenter le traitement des deux actions.
     """
     print(f"\n🔗 Connexion de {addr}")
     try:
-        # Réception des données brutes
         data = conn.recv(4096).decode("utf-8")
         if not data:
             return
 
-        # TODO : Désérialiser `data` en dictionnaire Python avec json.loads()
-        request = {}  # À remplacer
-
+        request = json.loads(data)
         action = request.get("action")
 
         if action == "get_info":
-            # TODO : Construire et envoyer la réponse avec les infos du wallet
-            # Réponse attendue :
-            # {
-            #   "status": "success",
-            #   "wallet": wallet.to_dict()
-            # }
-            response = {"status": "error", "message": "Non implémenté"}
+            response = {
+                "status": "success",
+                "wallet": wallet.to_dict()
+            }
 
         elif action == "receive":
-            # TODO : Récupérer "amount" et "from_address" depuis la requête
-            # TODO : Appeler wallet.receive(amount, from_address)
-            # TODO : Construire la réponse avec le tx_id et le nouveau solde
-            # Gérer InvalidAmountError
-            response = {"status": "error", "message": "Non implémenté"}
+            amount = request.get("amount")
+            from_address = request.get("from_address", "UNKNOWN")
+
+            try:
+                tx_id = wallet.receive(float(amount), from_address=from_address)
+                print(f"💰 Réception de {amount} BKN depuis {from_address}")
+                print(f"   Nouveau solde : {wallet.balance:.2f} BKN")
+                response = {
+                    "status": "success",
+                    "message": f"Réception de {amount} BKN confirmée",
+                    "transaction_id": tx_id,
+                    "new_balance": wallet.balance
+                }
+            except InvalidAmountError as e:
+                response = {"status": "error", "message": str(e)}
 
         else:
             response = {"status": "error", "message": f"Action inconnue : {action}"}
 
-        # TODO : Sérialiser `response` en JSON et l'envoyer via conn.sendall()
         conn.sendall(json.dumps(response).encode("utf-8"))
 
     except json.JSONDecodeError:
@@ -80,23 +74,29 @@ def handle_client(conn: socket.socket, addr: tuple, wallet: Wallet) -> None:
 def start_server(wallet: Wallet, host: str, port: int) -> None:
     """
     Lance le serveur TCP et traite les connexions dans des threads séparés.
-
-    TODO : Créer le socket, le configurer (SO_REUSEADDR), le binder,
-           l'écouter, et accepter les connexions en boucle.
-           Chaque connexion doit être traitée dans un thread daemon.
     """
-    # TODO : Créer socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # TODO : setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    # TODO : bind((host, port))
-    # TODO : listen()
-    # TODO : Boucle accept() → Thread(target=handle_client, ..., daemon=True).start()
+    server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_sock.bind((host, port))
+    server_sock.listen()
+
     print(f"🌐 Serveur BKN démarré sur {host}:{port}")
     print(f"🏦 Wallet : {wallet.owner}")
     print(f"💰 Solde initial : {wallet.balance:.2f} BKN")
     print("En attente de connexions...\n")
 
-    # --- À compléter ---
-    pass
+    while True:
+        try:
+            conn, addr = server_sock.accept()
+            t = threading.Thread(
+                target=handle_client,
+                args=(conn, addr, wallet),
+                daemon=True
+            )
+            t.start()
+        except OSError:
+            # Socket fermé proprement lors d'un arrêt
+            break
 
 
 def commandes_locales(wallet: Wallet) -> None:
