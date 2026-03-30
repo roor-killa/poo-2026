@@ -1,12 +1,13 @@
-from utils.file_handler import FileHandler
+from scraper.business_scraper import BusinessScraper
 
-data = [
-    {"title": "News 1", "category": "tech", "author": "John"},
-    {"title": "News 2", "category": "business", "author": "Anna"},
-]
+# crée le scraper
+scraper = BusinessScraper()
 
-handler = FileHandler("data/processed")
+# lance le scraping
+data = scraper.scrape()
 
-handler.save_json(data, "news.json")
-handler.save_csv(data, "news.csv")
-handler.export_excel(data, "news.xlsx")
+# sauvegarde les données
+scraper.save_to_json(data, "data/business.json")
+
+# ferme la session
+scraper.close()

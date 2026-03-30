@@ -9,77 +9,80 @@ import os
 
 class BaseScraper(ABC):
     """
-    Classe de base abstraite pour tous les scrapers.
-    Implémente les fonctionnalités communes.
+    classe de base abstraite pour tous les scrapers
     """
 
     def __init__(self, base_url: str, delay: float = 1.0):
-        """
-        Args:
-            base_url: URL de base du site à scraper
-            delay: Délai entre les requêtes (en secondes)
-        """
+        # stocke lurl de base du site
         self.base_url = base_url
+
+        # stocke le délai entre deux requêtes
         self.delay = delay
+
+        # crée une session réutilisable pour les requêtes http
         self.session = requests.Session()
+
+        # ajoute un user agent pour identifier le scraper
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Educational Purpose) Université des Antilles'
+            "User-Agent": "Mozilla/5.0 Educational Purpose Université des Antilles"
         })
+
+        # garde la trace du moment de la dernière requête
         self.last_request_time: Optional[float] = None
 
     def _respect_delay(self):
-        """Respecte le délai entre les requêtes"""
+        # attend si la dernière requête est trop récente
         if self.last_request_time is not None:
             elapsed = time.time() - self.last_request_time
             if elapsed < self.delay:
                 time.sleep(self.delay - elapsed)
 
     def fetch_page(self, url: str) -> Optional[BeautifulSoup]:
-        """
-        Récupère et parse une page web
-
-        Returns:
-            BeautifulSoup object ou None si erreur
-        """
+        # récupère une page puis la transforme en objet beautifulsoup
         try:
+            # respecte le délai avant la requête
             self._respect_delay()
 
+            # envoie la requête au site
             response = self.session.get(url, timeout=10)
+
+            # met à jour le moment de la dernière requête
             self.last_request_time = time.time()
 
+            # vérifie que la réponse est valide
             response.raise_for_status()
 
-            return BeautifulSoup(response.text, 'html.parser')
+            # retourne le html parsé
+            return BeautifulSoup(response.text, "html.parser")
 
         except requests.RequestException as e:
-            print(f"[ERREUR] Impossible de récupérer {url} : {e}")
+            print(f"[ERREUR] impossible de récupérer {url} : {e}")
             return None
 
     @abstractmethod
     def parse(self, soup: BeautifulSoup) -> List[Dict]:
-        """
-        Méthode abstraite à implémenter dans les classes enfants.
-        Parse le contenu HTML et extrait les données.
-        """
+        # devra être définie dans la classe enfant
         pass
 
     @abstractmethod
     def scrape(self) -> List[Dict]:
-        """
-        Méthode principale de scraping.
-        À implémenter dans les classes enfants.
-        """
+        # devra être définie dans la classe enfant
         pass
 
     def save_to_json(self, data: List[Dict], filename: str):
-        """Sauvegarde les données en JSON"""
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        # récupère le dossier du fichier si il existe
+        folder = os.path.dirname(filename)
 
-        with open(filename, 'w', encoding='utf-8') as f:
+        # crée le dossier seulement si nécessaire
+        if folder:
+            os.makedirs(folder, exist_ok=True)
+
+        # sauvegarde les données dans un fichier json
+        with open(filename, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
-        print(f"[OK] Données sauvegardées dans {filename}")
+        print(f"[OK] données sauvegardées dans {filename}")
 
     def close(self):
-        """Ferme la session"""
+        # ferme la session http
         self.session.close()
