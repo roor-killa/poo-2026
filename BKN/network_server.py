@@ -18,8 +18,49 @@ Protocole JSON attendu du client :
 import socket
 import threading
 import json
+from datetime import datetime
 
-from wallet import Wallet, InvalidAmountError
+from wallet import Wallet, InvalidAmountError, InsufficientFundsError
+
+
+# Boite aux lettres des virements en attente:
+# {"BKN-CLIENT-...": [{"amount": 10.0, "from_address": "...", "tx_id": "..."}, ...]}
+pending_transfers: dict[str, list[dict]] = {}
+pending_lock = threading.Lock()
+
+
+def queue_transfer(wallet: Wallet, to_address: str, amount: float) -> str:
+    """Débite le wallet serveur et stocke un virement en attente pour `to_address`."""
+    if not to_address:
+        raise ValueError("Adresse destinataire vide.")
+    if amount <= 0:
+        raise InvalidAmountError("Le montant doit être strictement positif.")
+    if amount > wallet.balance:
+        raise InsufficientFundsError(
+            f"Solde insuffisant : {wallet.balance:.2f} BKN disponibles, {amount:.2f} BKN requis."
+        )
+
+    tx_id = f"TXN-BKN-{datetime.now().strftime('%Y%m%d%H%M%S')}-{to_address[-3:]}"
+    wallet.balance -= amount
+    wallet.transactions.append(
+        {
+            "tx_id": tx_id,
+            "kind": "DEBIT",
+            "amount": amount,
+            "counterpart": to_address,
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+    )
+
+    with pending_lock:
+        pending_transfers.setdefault(to_address, []).append(
+            {
+                "amount": amount,
+                "from_address": wallet.address,
+                "tx_id": tx_id,
+            }
+        )
+    return tx_id
 
 
 def handle_client(conn: socket.socket, addr: tuple, wallet: Wallet) -> None:
@@ -31,6 +72,7 @@ def handle_client(conn: socket.socket, addr: tuple, wallet: Wallet) -> None:
     Actions supportées :
       - "get_info"  : retourne les infos du wallet
       - "receive"   : crédite le wallet et confirme
+            - "pull_pending" : retourne les virements en attente pour une adresse
 
     TODO : Implémenter le traitement des deux actions.
     """
@@ -75,6 +117,21 @@ def handle_client(conn: socket.socket, addr: tuple, wallet: Wallet) -> None:
                 }
             except InvalidAmountError as exc:
                 response = {"status": "error", "message": str(exc)}
+
+        elif action == "pull_pending":
+            address = request.get("address", "")
+            if not address:
+                response = {
+                    "status": "error",
+                    "message": "Adresse manquante pour pull_pending",
+                }
+            else:
+                with pending_lock:
+                    pending = pending_transfers.pop(address, [])
+                response = {
+                    "status": "success",
+                    "pending": pending,
+                }
 
 
         else:
@@ -135,20 +192,40 @@ def commandes_locales(wallet: Wallet) -> None:
     Commandes :
       info  → affiche les infos du wallet
       hist  → affiche l'historique
+      send  → crée un virement entrant en attente pour un client
       quit  → arrête le serveur
     """
-    print("Commandes locales : info | hist | quit")
+    print("Commandes locales : info | hist | send | quit")
     while True:
         cmd = input("[Serveur] > ").strip().lower()
         if cmd == "info":
             wallet.display_info()
         elif cmd == "hist":
             wallet.display_history()
+        elif cmd == "send":
+            to_address = input("Adresse client destinataire : ").strip()
+            try:
+                amount = float(input("Montant à envoyer (BKN) : ").strip())
+                confirm = input(
+                    f"Confirmer l'envoi de {amount:.2f} BKN vers {to_address} ? (o/n) : "
+                ).strip().lower()
+                if confirm not in {"o", "oui", "y", "yes"}:
+                    print("❌ Virement annulé par l'expéditeur.")
+                    continue
+
+                tx_id = queue_transfer(wallet, to_address, amount)
+                print("✅ Virement mis en attente.")
+                print(f"   Transaction : {tx_id}")
+                print(f"   Nouveau solde serveur : {wallet.balance:.2f} BKN")
+            except ValueError as exc:
+                print(f"❌ Entrée invalide : {exc}")
+            except (InvalidAmountError, InsufficientFundsError) as exc:
+                print(f"❌ {exc}")
         elif cmd == "quit":
             print("🛑 Arrêt du serveur.")
             break
         else:
-            print("Commandes disponibles : info | hist | quit")
+            print("Commandes disponibles : info | hist | send | quit")
 
 
 

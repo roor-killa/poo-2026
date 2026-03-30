@@ -140,6 +140,13 @@ def action_transfer(local_wallet: Wallet, host: str, port: int) -> None:
                 f"Solde insuffisant: {local_wallet.balance:.2f} BKN disponibles."
             )
 
+        confirm = input(
+            f"Confirmer l'envoi de {amount:.2f} BKN vers {distant_address} ? (o/n) : "
+        ).strip().lower()
+        if confirm not in {"o", "oui", "y", "yes"}:
+            print("❌ Virement annulé par l'expéditeur.")
+            return
+
         transfer_resp = send_request(
             host,
             port,
@@ -172,12 +179,55 @@ def action_transfer(local_wallet: Wallet, host: str, port: int) -> None:
         print("❌ Réponse invalide: le serveur a renvoyé un JSON incorrect.")
 
 
+def action_pull_pending(local_wallet: Wallet, host: str, port: int) -> None:
+    """Récupère et applique les virements entrants en attente depuis le serveur."""
+    print(f"\n📥 Vérification des virements entrants ({host}:{port})...")
+    try:
+        response = send_request(
+            host,
+            port,
+            {
+                "action": "pull_pending",
+                "address": local_wallet.address,
+            },
+        )
+        if response.get("status") != "success":
+            print(f"❌ Erreur serveur: {response.get('message', 'Réponse invalide')}")
+            return
+
+        pending = response.get("pending", [])
+        if not pending:
+            print("ℹ️ Aucun virement entrant en attente.")
+            return
+
+        total = 0.0
+        for transfer in pending:
+            amount = transfer.get("amount")
+            from_address = transfer.get("from_address", "UNKNOWN")
+            tx_id = transfer.get("tx_id")
+            local_wallet.receive(amount, from_address=from_address, tx_id=tx_id)
+            total += float(amount)
+            print(f"✅ Crédit reçu: +{float(amount):.2f} BKN depuis {from_address} ({tx_id})")
+
+        print(f"💰 Total reçu: {total:.2f} BKN")
+        print(f"🏦 Nouveau solde: {local_wallet.balance:.2f} BKN")
+    except InvalidAmountError as exc:
+        print(f"❌ Donnée de transfert invalide: {exc}")
+    except ConnectionRefusedError:
+        print("❌ Connexion refusée: le serveur n'est pas démarré ou le port est incorrect.")
+    except TimeoutError:
+        print("❌ Timeout: le serveur n'a pas répondu à temps.")
+    except json.JSONDecodeError:
+        print("❌ Réponse invalide: le serveur a renvoyé un JSON incorrect.")
+
+
 def afficher_menu() -> None:
     print("\n💎 CLIENT WALLET BKN")
     print("1. Afficher mon wallet")
     print("2. Afficher l'historique")
     print("3. Obtenir infos d'un wallet distant")
     print("4. Transférer des BKN à un wallet distant")
+    print("5. Vérifier les virements entrants")
     print("0. Quitter")
 
 
@@ -227,6 +277,17 @@ def main() -> None:
         elif choix == "4":
             # TODO : Appeler action_transfer(wallet, default_host, default_port)
             action_transfer(wallet, default_host, default_port)
+
+        elif choix == "5":
+            host_input = input(f"Host (Entrée = {default_host}) : ").strip()
+            host = host_input or default_host
+            try:
+                port_input = input(f"Port (Entrée = {default_port}) : ").strip()
+                port = int(port_input) if port_input else default_port
+            except ValueError:
+                print("Port invalide, utilisation du port par défaut.")
+                port = default_port
+            action_pull_pending(wallet, host, port)
 
         elif choix == "0":
             print("\n👋 Au revoir !")
