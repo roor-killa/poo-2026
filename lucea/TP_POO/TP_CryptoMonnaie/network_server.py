@@ -22,7 +22,7 @@ wallet = Wallet(adresse, nom, solde)
 
 print(f"🌐 Serveur BKN démarré sur {host}:{port}")
 print(f"🏦 Wallet: {nom}")
-print(f"💰 Solde initial: {solde} BKN")
+print(f"💰 Solde initial: {solde:.2f} BKN")
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((host, port))
@@ -49,7 +49,7 @@ def handle_client(client_socket, adresse_client):
             wallet.historique.append(("recevoir", montant, expediteur))
 
             print(f"\n💸 Réception de {montant} BKN de {expediteur}")
-            print(f"Nouveau solde: {wallet.solde} BKN")
+            print(f"Nouveau solde: {wallet.solde:.2f} BKN")
 
             reponse = {
                 "status": "success",
@@ -89,7 +89,7 @@ while True:
     if cmd == "info":
         print(f"🏦 WALLET BKN - {nom}")
         print(f"Adresse: {adresse}")
-        print(f"Solde: {wallet.solde} BKN")
+        print(f"Solde: {wallet.solde:.2f} BKN")
     
     elif cmd == "hist":
         for transaction in wallet.historique:
