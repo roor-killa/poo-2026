@@ -1,5 +1,6 @@
 import socket
 import json
+import threading
 from wallet import Wallet
 
 
@@ -77,15 +78,46 @@ def start_server():
     print(f"💰 Solde initial: {wallet.balance:.2f} BKN")
     print("En attente de connexions...\n")
 
+    def accept_clients():
+        while True:
+            try:
+                conn, addr = server.accept()
+                print(f"🔗 Connexion reçue de {addr}")
+                handle_client(conn, wallet)
+                conn.close()
+            except OSError:
+                break
+
+    thread = threading.Thread(target=accept_clients, daemon=True)
+    thread.start()
+
+    # Commandes locales
+    print("Commandes locales : info | hist | quit\n")
+
     while True:
+        cmd = input("[Serveur] > ").strip().lower()
 
-        conn, addr = server.accept()
+        if cmd == "info":
+            info = wallet.get_info()
+            print(f"\n🏦 WALLET BKN - {info['owner']}")
+            print(f"Adresse: {info['address']}")
+            print(f"Solde: {info['balance']:.2f} BKN\n")
 
-        print(f"🔗 Connexion reçue de {addr}")
+        elif cmd == "hist":
+            if not wallet.history:
+                print("Aucune transaction.\n")
+            else:
+                for txn in wallet.history:
+                    print(f"{txn['date']} | {txn['type']} | {txn['amount']} BKN | {txn['id']}")
+                print()
 
-        handle_client(conn, wallet)
+        elif cmd == "quit":
+            print("👋 Fermeture du serveur")
+            server.close()
+            break
 
-        conn.close()
+        else:
+            print("Commandes : info | hist | quit")
 
 
 if __name__ == "__main__":

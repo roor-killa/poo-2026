@@ -50,51 +50,47 @@ def transferer(wallet):
 
         print(f"\n🔗 Connexion à {host}:{port}...")
 
+        # Première connexion : récupérer les infos du wallet distant
         client = connecter_serveur(host, port)
-
         print("✅ Connecté!")
-
-        request = {
-            "action": "get_info"
-        }
-
-        client.send(json.dumps(request).encode())
-
+        client.send(json.dumps({"action": "get_info"}).encode())
         response = client.recv(4096).decode()
         data = json.loads(response)
+        client.close()
 
         wallet_distant = data["wallet"]
-
         print(f"📍 Wallet distant: {wallet_distant['address']}")
 
         # débit local
-        txn_local = wallet.send(montant, wallet_distant["address"])
-
+        wallet.send(montant, wallet_distant["address"])
         print(f"✅ Débit local effectué ({montant} BKN)")
 
+        # Deuxième connexion : envoyer la requête de réception
+        client = connecter_serveur(host, port)
         request = {
             "action": "receive",
             "amount": montant,
             "from_address": wallet.address
         }
-
         client.send(json.dumps(request).encode())
-
         response = client.recv(4096).decode()
         result = json.loads(response)
+        client.close()
 
         if result["status"] == "success":
 
             print("✅ Crédit distant confirmé!")
             print(f"Transaction ID: {result['transaction_id']}")
-
-            wallet.receive(0, "confirmation")
+            print(f"\n📊 Nouveaux soldes:")
+            print(f"   Votre wallet: {wallet.balance:.2f} BKN")
+            print(f"   Wallet distant: {result['new_balance']} BKN")
 
         else:
 
             print("❌ Erreur:", result["message"])
-
-        client.close()
+            # rembourser le débit local en cas d'échec distant
+            wallet.receive(montant, wallet_distant["address"])
+            print("↩️ Débit local annulé")
 
     except Exception as e:
 
