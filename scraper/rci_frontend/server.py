@@ -8,9 +8,9 @@ from typing import Any
 
 from flask import Flask, jsonify, request, send_from_directory
 
-# Add the scraper package to sys.path so we can import RCIScraper
-_SCRAPER_DIR = Path(__file__).resolve().parents[1] / "scraper"
-sys.path.insert(0, str(_SCRAPER_DIR))
+# Add the project root to sys.path so `src` can be imported reliably
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(_PROJECT_ROOT))
 
 from src.observers import ScraperObserver  # noqa: E402
 from src.scrapers.rci_scraper import RCIScraper  # noqa: E402
@@ -168,7 +168,7 @@ def api_results():
 def api_raw_data():
     """Serve the raw scraped JSON data from scraper/data/raw/rci_raw.json"""
     import json
-    raw_data_path = _SCRAPER_DIR / "data" / "raw" / "rci_raw.json"
+    raw_data_path = _PROJECT_ROOT / "data" / "raw" / "rci_raw.json"
     try:
         with open(raw_data_path, "r", encoding="utf-8") as f:
             data = json.load(f)
