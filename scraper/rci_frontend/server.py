@@ -1,18 +1,23 @@
 """Lightweight Flask server bridging the RCI frontend to the scraper."""
 
 import logging
+import os
 import sys
 import threading
 from pathlib import Path
 from typing import Any
 
 from flask import Flask, jsonify, request, send_from_directory
+from dotenv import load_dotenv
+import psycopg2
 
 # Add the project root to sys.path so `src` can be imported reliably
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_PROJECT_ROOT))
+load_dotenv(_PROJECT_ROOT / ".env")
 
 from src.observers import ScraperObserver  # noqa: E402
+from src.db_loader import get_connection  # noqa: E402
 from src.scrapers.rci_scraper import RCIScraper  # noqa: E402
 
 # ------------------------------------------------------------------
@@ -36,6 +41,34 @@ _job: dict[str, Any] = {
     "pages_visited": 0,
     "articles_count": 0,
 }
+
+
+def _open_db_connection():
+    """Ouvre une connexion DB avec fallback vers les valeurs docker-compose."""
+    try:
+        return get_connection()
+    except Exception as primary_exc:
+        logger.warning("Connexion DB primaire impossible: %s", primary_exc)
+        return psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "localhost"),
+            port=int(os.getenv("POSTGRES_PORT", "5433")),
+            dbname=os.getenv("POSTGRES_DB", "poo_db"),
+            user=os.getenv("POSTGRES_USER", "postgres"),
+            password=os.getenv("POSTGRES_PASSWORD", "postgres"),
+        )
+
+
+def _load_known_rci_urls(conn) -> set[str]:
+    """Charge les URLs deja presentes dans documents pour la source RCI."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT url
+            FROM documents
+            WHERE source = 'rci' AND doc_type = 'actualite' AND url IS NOT NULL
+            """
+        )
+        return {row[0] for row in cur.fetchall() if row and row[0]}
 
 
 # ------------------------------------------------------------------
@@ -98,11 +131,13 @@ def api_scrape():
     max_depth = int(body.get("max_depth", 1))
     max_pages = int(body.get("max_pages", 10))
     delay = float(body.get("delay", 1.5))
+    chunk_size = int(body.get("chunk_size", 200))
 
     # Clamp values to safe ranges
     max_depth = max(0, min(max_depth, 3))
     max_pages = max(1, min(max_pages, 100))
     delay = max(0.5, min(delay, 10.0))
+    chunk_size = max(1, min(chunk_size, 1000))
 
     def run():
         try:
@@ -116,11 +151,27 @@ def api_scrape():
             scraper = RCIScraper(max_depth=max_depth, delay=delay)
             scraper.attach(LiveProgressObserver(scraper))
 
+            # Eviter de re-scraper des articles deja stockes.
+            preload_conn = _open_db_connection()
+            try:
+                known_urls = _load_known_rci_urls(preload_conn)
+            finally:
+                preload_conn.close()
+            scraper.set_known_urls(known_urls)
+
             logger.info(
-                "Scraping lancé — max_depth=%d, max_pages=%d, delay=%.1fs",
-                max_depth, max_pages, delay,
+                "Scraping lancé — max_depth=%d, max_pages=%d, delay=%.1fs, chunk_size=%d, deja_connus=%d",
+                max_depth, max_pages, delay, chunk_size, len(known_urls),
             )
             scraper.scrape(max_pages=max_pages)
+
+            # Persistance systématique en base PostgreSQL après chaque scrape
+            conn = _open_db_connection()
+            try:
+                inserted = scraper.save_to_db(conn, chunk_size=chunk_size)
+            finally:
+                conn.close()
+            logger.info("DB sync terminé — %d document(s) RCI upserté(s)", inserted)
 
             # Final snapshot
             with _lock:
@@ -139,7 +190,15 @@ def api_scrape():
     thread = threading.Thread(target=run, daemon=True)
     thread.start()
 
-    return jsonify({"status": "started", "max_depth": max_depth, "max_pages": max_pages, "delay": delay})
+    return jsonify(
+        {
+            "status": "started",
+            "max_depth": max_depth,
+            "max_pages": max_pages,
+            "delay": delay,
+            "chunk_size": chunk_size,
+        }
+    )
 
 
 # ------------------------------------------------------------------
@@ -166,17 +225,58 @@ def api_results():
 
 @app.route("/api/raw-data")
 def api_raw_data():
-    """Serve the raw scraped JSON data from scraper/data/raw/rci_raw.json"""
-    import json
-    raw_data_path = _PROJECT_ROOT / "data" / "raw" / "rci_raw.json"
+    """Retourne les articles RCI depuis PostgreSQL pour l'onglet Donnees."""
+    limit = request.args.get("limit", default=300, type=int)
+    limit = max(1, min(limit, 2000))
+
+    conn = None
     try:
-        with open(raw_data_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        conn = _open_db_connection()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    title,
+                    content,
+                    url,
+                    metadata,
+                    published_at,
+                    scraped_at,
+                    updated_at
+                FROM documents
+                WHERE source = 'rci' AND doc_type = 'actualite'
+                ORDER BY COALESCE(updated_at, scraped_at) DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            rows = cur.fetchall()
+
+        data: list[dict[str, Any]] = []
+        for title, content, url, metadata, published_at, scraped_at, updated_at in rows:
+            meta = metadata if isinstance(metadata, dict) else {}
+            data.append(
+                {
+                    "title": title or "",
+                    "author": meta.get("author", ""),
+                    "photo": meta.get("photo", ""),
+                    "infos": meta.get("infos", ""),
+                    "body": content or "",
+                    "url": url or "",
+                    "depth": meta.get("depth", 0),
+                    "date_publication": published_at.isoformat() if published_at else "",
+                    "date_extraction": scraped_at.isoformat() if scraped_at else "",
+                    "date_updated": updated_at.isoformat() if updated_at else "",
+                }
+            )
+
         return jsonify(data)
-    except FileNotFoundError:
-        return jsonify({"error": "Fichier rci_raw.json non trouvé"}), 404
-    except json.JSONDecodeError:
-        return jsonify({"error": "Fichier JSON invalide"}), 400
+    except Exception as exc:
+        logger.error("Erreur lecture DB /api/raw-data : %s", exc)
+        return jsonify({"error": f"Impossible de lire la base: {exc}"}), 500
+    finally:
+        if conn is not None:
+            conn.close()
 
 
 # ------------------------------------------------------------------
