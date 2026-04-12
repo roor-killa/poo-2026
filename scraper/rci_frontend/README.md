@@ -17,6 +17,8 @@ cd "C:\Users\gote7\MY_DISK_DOCUMENTS\Licence\L2 Informatique\Semestre 4\POO\poo-
 py -m pip install -r requirements.txt
 py -m pip install -r rci_frontend\requirements.txt
 
+$env:PYTHONPATH = (Get-Location).Path
+
 py rci_frontend\server.py
 ```
 
