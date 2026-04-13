@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KaribTransport — Suivi en temps réel</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      background: #1e293b;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 2px solid #38bdf8;
+    }
+
+    header h1 { font-size: 1.2rem; color: #38bdf8; }
+    header span { font-size: 0.85rem; color: #94a3b8; }
+
+    #status-badge {
+      margin-left: auto;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: #166534;
+      color: #86efac;
+    }
+
+    main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #sidebar {
+      width: 280px;
+      background: #1e293b;
+      overflow-y: auto;
+      padding: 12px;
+      border-right: 1px solid #334155;
+    }
+
+    #sidebar h2 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #94a3b8;
+      margin-bottom: 10px;
+    }
+
+    .vehicle-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .vehicle-card:hover { border-color: #38bdf8; }
+    .vehicle-card.selected { border-color: #38bdf8; background: #0c1a2e; }
+
+    .vehicle-card .plate {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #f1f5f9;
+    }
+
+    .vehicle-card .meta {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 3px;
+    }
+
+    .vehicle-card .coords {
+      font-size: 0.7rem;
+      color: #38bdf8;
+      margin-top: 4px;
+      font-family: monospace;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-bus { background: #1d4ed8; color: #bfdbfe; }
+    .badge-minibus { background: #7c3aed; color: #ddd6fe; }
+    .badge-taxi { background: #b45309; color: #fde68a; }
+
+    #map { flex: 1; }
+
+    footer {
+      background: #1e293b;
+      text-align: center;
+      padding: 6px;
+      font-size: 0.7rem;
+      color: #475569;
+      border-top: 1px solid #334155;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
+    <path d="M8 6v6m8-6v6M3 10h18M5 18h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+    <circle cx="7.5" cy="18.5" r="1.5"/><circle cx="16.5" cy="18.5" r="1.5"/>
+  </svg>
+  <h1>KaribTransport</h1>
+  <span>Suivi GPS en temps réel</span>
+  <div id="status-badge">EN LIGNE</div>
+</header>
+
+<main>
+  <div id="sidebar">
+    <h2>Véhicules actifs</h2>
+    <div id="vehicle-list"><p style="color:#64748b;font-size:0.8rem">Chargement…</p></div>
+  </div>
+  <div id="map"></div>
+</main>
+
+<footer>KaribTransport &copy; 2026 — Martinique</footer>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const API = "http://localhost:8000";
+  const REFRESH_MS = 5000;
+
+  // ── Map setup ──────────────────────────────────────────────────────────────
+  const map = L.map("map").setView([14.6037, -61.0724], 12);
+
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: "abcd",
+    maxZoom: 19,
+  }).addTo(map);
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  const vehicleMarkers = {};   // id -> L.marker
+  const stopMarkers = [];
+  let selectedId = null;
+
+  // ── Icons ──────────────────────────────────────────────────────────────────
+  function vehicleIcon(type) {
+    const colors = { bus: "#3b82f6", minibus: "#8b5cf6", taxi: "#f59e0b" };
+    const color = colors[type] || "#3b82f6";
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+        <circle cx="16" cy="16" r="14" fill="${color}" fill-opacity="0.9" stroke="white" stroke-width="2"/>
+        <text x="16" y="21" text-anchor="middle" font-size="14" fill="white">&#128652;</text>
+      </svg>`;
+    return L.divIcon({
+      html: svg,
+      className: "",
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
+  }
+
+  const stopIcon = L.divIcon({
+    html: `<div style="width:12px;height:12px;background:#f43f5e;border:2px solid white;border-radius:50%"></div>`,
+    className: "",
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
+  });
+
+  // ── Stops ──────────────────────────────────────────────────────────────────
+  async function loadStops() {
+    try {
+      const res = await fetch(`${API}/stops/`);
+      const stops = await res.json();
+      stops.forEach(s => {
+        const m = L.marker([s.latitude, s.longitude], { icon: stopIcon })
+          .addTo(map)
+          .bindPopup(`<b>${s.name}</b>${s.description ? "<br>" + s.description : ""}`);
+        stopMarkers.push(m);
+      });
+    } catch (e) {
+      console.warn("Could not load stops:", e);
+    }
+  }
+
+  // ── Vehicles ───────────────────────────────────────────────────────────────
+  function renderSidebar(vehicles) {
+    const list = document.getElementById("vehicle-list");
+    if (!vehicles.length) {
+      list.innerHTML = `<p style="color:#64748b;font-size:0.8rem">Aucun véhicule enregistré.</p>`;
+      return;
+    }
+    list.innerHTML = vehicles.map(v => `
+      <div class="vehicle-card ${v.id === selectedId ? "selected" : ""}"
+           onclick="selectVehicle(${v.id})">
+        <div class="plate">${v.license_plate}</div>
+        <div class="meta">
+          <span class="badge badge-${v.vehicle_type}">${v.vehicle_type}</span>
+          &nbsp;${v.capacity} places
+        </div>
+        ${v.latitude != null ? `
+          <div class="coords">
+            ${v.latitude.toFixed(5)}, ${v.longitude.toFixed(5)}
+            ${v.speed != null ? " · " + v.speed + " km/h" : ""}
+          </div>` : `<div class="coords" style="color:#475569">Position inconnue</div>`}
+      </div>`).join("");
+  }
+
+  function updateMarkers(vehicles) {
+    vehicles.forEach(v => {
+      if (v.latitude == null) return;
+      const pos = [v.latitude, v.longitude];
+      const label = `<b>${v.license_plate}</b><br>${v.vehicle_type} — ${v.capacity} places
+        ${v.speed != null ? "<br>Vitesse : " + v.speed + " km/h" : ""}
+        ${v.heading != null ? "<br>Cap : " + v.heading + "°" : ""}`;
+
+      if (vehicleMarkers[v.id]) {
+        vehicleMarkers[v.id].setLatLng(pos).setPopupContent(label);
+      } else {
+        vehicleMarkers[v.id] = L.marker(pos, { icon: vehicleIcon(v.vehicle_type) })
+          .addTo(map)
+          .bindPopup(label);
+      }
+    });
+
+    // Remove markers for deleted vehicles
+    const activeIds = new Set(vehicles.map(v => v.id));
+    Object.keys(vehicleMarkers).forEach(id => {
+      if (!activeIds.has(Number(id))) {
+        map.removeLayer(vehicleMarkers[id]);
+        delete vehicleMarkers[id];
+      }
+    });
+  }
+
+  async function refresh() {
+    try {
+      const res = await fetch(`${API}/vehicles/`);
+      const vehicles = await res.json();
+      renderSidebar(vehicles);
+      updateMarkers(vehicles);
+      document.getElementById("status-badge").textContent = "EN LIGNE";
+      document.getElementById("status-badge").style.background = "#166534";
+      document.getElementById("status-badge").style.color = "#86efac";
+    } catch (e) {
+      document.getElementById("status-badge").textContent = "HORS LIGNE";
+      document.getElementById("status-badge").style.background = "#7f1d1d";
+      document.getElementById("status-badge").style.color = "#fca5a5";
+    }
+  }
+
+  function selectVehicle(id) {
+    selectedId = id;
+    if (vehicleMarkers[id]) {
+      map.panTo(vehicleMarkers[id].getLatLng());
+      vehicleMarkers[id].openPopup();
+    }
+    refresh();
+  }
+
+  // ── Bootstrap ──────────────────────────────────────────────────────────────
+  loadStops();
+  refresh();
+  setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>
