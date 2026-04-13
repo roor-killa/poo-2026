@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administration — Suivi des Bus</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #252836;
+      --border: #2e3248; --accent: #4f8ef7; --danger: #e05252;
+      --text: #d8dce8; --muted: #7a7f9a;
+    }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── Shell ── */
+    #shell { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 200px; background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    #sidebar-header { padding: 14px 16px; font-size: 0.9rem; font-weight: 700; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    #ws-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; flex-shrink: 0; }
+    #ws-dot.ok { background: #4caf50; }
+    #ws-dot.err { background: #f44336; }
+    nav a {
+      display: block; padding: 10px 18px; font-size: 0.85rem; color: var(--muted);
+      text-decoration: none; border-left: 3px solid transparent; transition: .15s;
+    }
+    nav a:hover, nav a.active { color: var(--text); border-left-color: var(--accent); background: var(--surface2); }
+    #stats { padding: 10px 16px; font-size: 0.78rem; color: var(--muted); border-top: 1px solid var(--border); margin-top: auto; }
+
+    /* ── Main ── */
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── Pages ── */
+    .page { flex: 1; overflow: auto; display: none; padding: 0; }
+    .page.active { display: flex; flex-direction: column; }
+
+    /* ── Dashboard ── */
+    #page-dashboard { flex-direction: column; }
+    #map { height: 55%; min-height: 280px; }
+    #bus-table-wrap { flex: 1; overflow: auto; padding: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: var(--surface); color: var(--muted); cursor: pointer; user-select: none; position: sticky; top: 0; }
+    th:hover { color: var(--text); }
+    td.online { color: #4caf50; }
+    td.offline { color: #f44336; }
+    .badge-offline { background: #8b0000; color: #fcc; font-size: 0.7rem; padding: 1px 5px; border-radius: 3px; }
+    .badge-stale  { background: #c00; color: #fff; font-size: 0.7rem; padding: 1px 5px; border-radius: 3px; }
+
+    /* ── CRUD pages ── */
+    .crud-page { padding: 20px; max-width: 900px; width: 100%; }
+    .crud-page h2 { font-size: 1rem; margin-bottom: 14px; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
+    .btn { padding: 6px 14px; border-radius: 6px; border: none; font-size: 0.82rem; cursor: pointer; font-weight: 600; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { opacity: .85; }
+    .btn-danger  { background: var(--danger); color: #fff; }
+    .btn-danger:hover { opacity: .85; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--border); }
+
+    /* ── Modal ── */
+    #modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      z-index: 1000; align-items: center; justify-content: center;
+    }
+    #modal-overlay.show { display: flex; }
+    #modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 24px; min-width: 340px; max-width: 92vw;
+    }
+    #modal h3 { margin-bottom: 16px; font-size: 0.95rem; }
+    .form-field { margin-bottom: 12px; }
+    .form-field label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+    .form-field input, .form-field select, .form-field textarea {
+      width: 100%; padding: 7px 10px; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: 0.85rem;
+    }
+    .form-field input:focus, .form-field select:focus { outline: none; border-color: var(--accent); }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+    #token-display { background: #0a2a0a; border: 1px solid #1a5a1a; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 0.8rem; word-break: break-all; margin-top: 8px; color: #7f7; }
+    #token-note { font-size: 0.75rem; color: var(--danger); margin-top: 6px; }
+    .tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; }
+    .tag-active   { background: #1a3a1a; color: #7c7; }
+    .tag-inactive { background: #3a1a1a; color: #c77; }
+
+    /* ── Stop list in route editor ── */
+    #stop-sequence { list-style: none; margin: 6px 0; }
+    #stop-sequence li { display: flex; align-items: center; gap: 8px; padding: 4px 6px; background: var(--surface2); border-radius: 4px; margin-bottom: 4px; font-size: 0.82rem; }
+    #stop-sequence .rm-stop { margin-left: auto; background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1rem; }
+  </style>
+</head>
+<body>
+
+<div id="shell">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <span id="ws-dot"></span> Admin
+    </div>
+    <nav>
+      <a href="#dashboard" class="nav-link active">📊 Tableau de bord</a>
+      <a href="#buses"     class="nav-link">🚌 Bus</a>
+      <a href="#routes"    class="nav-link">🗺️ Itinéraires</a>
+      <a href="#stops"     class="nav-link">📍 Arrêts</a>
+    </nav>
+    <div id="stats">
+      <div id="stat-online">En ligne: —</div>
+      <div id="stat-total">Total: —</div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+
+    <!-- Dashboard page -->
+    <div id="page-dashboard" class="page active">
+      <div id="map"></div>
+      <div id="bus-table-wrap">
+        <table id="bus-table">
+          <thead>
+            <tr>
+              <th data-col="code">Code ↕</th>
+              <th data-col="route_name">Ligne ↕</th>
+              <th data-col="is_online">Statut ↕</th>
+              <th data-col="next_stop">Prochain arrêt</th>
+              <th data-col="eta">ETA</th>
+              <th data-col="last_seen">Dernier signal ↕</th>
+            </tr>
+          </thead>
+          <tbody id="bus-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Buses CRUD page -->
+    <div id="page-buses" class="page">
+      <div class="crud-page">
+        <h2>Gestion des Bus</h2>
+        <div class="toolbar">
+          <button class="btn btn-primary" onclick="openCreateBus()">+ Nouveau bus</button>
+        </div>
+        <table>
+          <thead><tr><th>Code</th><th>Label</th><th>Ligne</th><th>Statut</th><th>Dernier signal</th><th>Pings/h</th><th>Actions</th></tr></thead>
+          <tbody id="buses-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Routes CRUD page -->
+    <div id="page-routes" class="page">
+      <div class="crud-page">
+        <h2>Gestion des Itinéraires</h2>
+        <div class="toolbar">
+          <button class="btn btn-primary" onclick="openCreateRoute()">+ Nouvel itinéraire</button>
+        </div>
+        <table>
+          <thead><tr><th>Nom</th><th>Description</th><th>Statut</th><th>Arrêts</th><th>Actions</th></tr></thead>
+          <tbody id="routes-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Stops CRUD page -->
+    <div id="page-stops" class="page">
+      <div class="crud-page">
+        <h2>Gestion des Arrêts</h2>
+        <div class="toolbar">
+          <button class="btn btn-primary" onclick="openCreateStop()">+ Nouvel arrêt</button>
+          <select id="stop-filter-route" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:0.82rem;">
+            <option value="">Tous les itinéraires</option>
+          </select>
+        </div>
+        <table>
+          <thead><tr><th>Nom</th><th>Lat</th><th>Lon</th><th>Actions</th></tr></thead>
+          <tbody id="stops-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- Modal -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h3 id="modal-title">Modal</h3>
+    <div id="modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" id="modal-save" onclick="modalSave()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// MAP
+// ═══════════════════════════════════════════════════════════════════════════
+const map = L.map('map').setView([14.65, -61.00], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap', maxZoom: 19,
+}).addTo(map);
+
+const busMarkers = {};
+const PALETTE = ['#4f8ef7','#81c784','#ffb74d','#f06292','#ce93d8','#80cbc4','#fff176'];
+const routeColour = {}; let colourIdx = 0;
+function colourFor(rid) {
+  if (!rid) return '#aaa';
+  if (!routeColour[rid]) routeColour[rid] = PALETTE[colourIdx++ % PALETTE.length];
+  return routeColour[rid];
+}
+function busIcon(colour, online) {
+  const fill = online ? colour : '#666';
+  return L.divIcon({
+    html: `<div style="width:14px;height:14px;background:${fill};border:2px solid #fff;border-radius:3px;"></div>`,
+    className: '', iconSize: [14, 14], iconAnchor: [7, 7],
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════════
+const pages = { dashboard: 'page-dashboard', buses: 'page-buses', routes: 'page-routes', stops: 'page-stops' };
+
+function navigate(hash) {
+  hash = hash.replace('#', '') || 'dashboard';
+  for (const [k, id] of Object.entries(pages)) {
+    document.getElementById(id).classList.toggle('active', k === hash);
+  }
+  document.querySelectorAll('.nav-link').forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + hash);
+  });
+  if (hash === 'dashboard') setTimeout(() => map.invalidateSize(), 50);
+  if (hash === 'buses')   loadBusesCrud();
+  if (hash === 'routes')  loadRoutesCrud();
+  if (hash === 'stops')   loadStopsCrud();
+}
+
+window.addEventListener('hashchange', () => navigate(location.hash));
+document.querySelectorAll('.nav-link').forEach(a => a.addEventListener('click', e => {
+  e.preventDefault(); location.hash = a.getAttribute('href'); navigate(location.hash);
+}));
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SNAPSHOT — dashboard table + map
+// ═══════════════════════════════════════════════════════════════════════════
+let allBuses = [];
+let sortCol = 'code', sortAsc = true;
+
+function applySnapshot(msg) {
+  allBuses = msg.buses;
+  updateStats(allBuses);
+  renderTable();
+  updateMapMarkers(allBuses);
+}
+
+function updateStats(buses) {
+  const online = buses.filter(b => b.is_online).length;
+  document.getElementById('stat-online').textContent = `En ligne: ${online}`;
+  document.getElementById('stat-total').textContent  = `Total: ${buses.length}`;
+}
+
+function renderTable() {
+  const sorted = [...allBuses].sort((a, b) => {
+    let va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
+    if (sortCol === 'is_online') { va = a.is_online ? 0 : 1; vb = b.is_online ? 0 : 1; }
+    if (sortCol === 'last_seen') { va = a.last_seen_at ?? ''; vb = b.last_seen_at ?? ''; }
+    if (sortCol === 'route_name') { va = a.route_name ?? ''; vb = b.route_name ?? ''; }
+    if (va < vb) return sortAsc ? -1 : 1;
+    if (va > vb) return sortAsc ?  1 : -1;
+    return 0;
+  });
+  const tbody = document.getElementById('bus-tbody');
+  tbody.innerHTML = '';
+  for (const b of sorted) {
+    const tr = document.createElement('tr');
+    const stale = !b.is_online && b.offline_since_s > 300;
+    const badge = stale
+      ? '<span class="badge-stale">Perte signal</span>'
+      : (!b.is_online ? '<span class="badge-offline">Hors ligne</span>' : '');
+    tr.innerHTML = `
+      <td>${b.code}</td>
+      <td>${b.route_name ?? '—'}</td>
+      <td class="${b.is_online ? 'online' : 'offline'}">${b.is_online ? '● En ligne' : '● Hors ligne'} ${badge}</td>
+      <td>${b.next_stop?.name ?? (b.current_stop ? '@ ' + b.current_stop.name : '—')}</td>
+      <td>${fmtEta(b.next_stop?.eta_seconds)}</td>
+      <td>${b.last_seen_at ? new Date(b.last_seen_at).toLocaleTimeString('fr') : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const c = th.dataset.col;
+    if (sortCol === c) sortAsc = !sortAsc; else { sortCol = c; sortAsc = true; }
+    renderTable();
+  });
+});
+
+function updateMapMarkers(buses) {
+  const seen = new Set();
+  for (const b of buses) {
+    if (!b.lat || !b.lon) continue;
+    seen.add(b.bus_id);
+    const colour = colourFor(b.route_id);
+    if (busMarkers[b.bus_id]) {
+      busMarkers[b.bus_id].setLatLng([b.lat, b.lon]);
+      busMarkers[b.bus_id].setIcon(busIcon(colour, b.is_online));
+    } else {
+      const m = L.marker([b.lat, b.lon], { icon: busIcon(colour, b.is_online) });
+      m.bindTooltip(`${b.code} — ${b.route_name ?? 'Sans ligne'}`, { permanent: false });
+      m.addTo(map);
+      busMarkers[b.bus_id] = m;
+    }
+  }
+  for (const [id, m] of Object.entries(busMarkers)) {
+    if (!seen.has(id)) { map.removeLayer(m); delete busMarkers[id]; }
+  }
+}
+
+function fmtEta(s) {
+  if (s == null) return '—';
+  return s < 60 ? s + ' s' : Math.round(s / 60) + ' min';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WEBSOCKET
+// ═══════════════════════════════════════════════════════════════════════════
+const wsDot = document.getElementById('ws-dot');
+let ws;
+function connectWs() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/admin`);
+  ws.onopen  = () => { wsDot.className = 'ok'; };
+  ws.onclose = () => { wsDot.className = 'err'; setTimeout(connectWs, 3000); };
+  ws.onerror = () => ws.close();
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'snapshot') applySnapshot(msg);
+  };
+}
+connectWs();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MODAL HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+let _modalSaveFn = null;
+function openModal(title, bodyHtml, saveFn, saveLabel = 'Enregistrer') {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHtml;
+  document.getElementById('modal-save').textContent = saveLabel;
+  document.getElementById('modal-save').style.display = saveFn ? '' : 'none';
+  _modalSaveFn = saveFn;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); }
+async function modalSave() { if (_modalSaveFn) await _modalSaveFn(); }
+document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+function val(id)    { return document.getElementById(id)?.value?.trim() ?? ''; }
+function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v ?? ''; }
+
+function parseNumber(value) {
+  const normalized = (value ?? '').trim().replace(',', '.');
+  const n = parseFloat(normalized);
+  return Number.isFinite(n) ? n : null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BUSES CRUD
+// ═══════════════════════════════════════════════════════════════════════════
+let _routes = [];
+
+async function loadBusesCrud() {
+  const [busRes, routeRes] = await Promise.all([
+    fetch('/api/v1/admin/buses'), fetch('/api/v1/admin/routes'),
+  ]);
+  const buses  = await busRes.json();
+  _routes = await routeRes.json();
+  const tbody = document.getElementById('buses-tbody');
+  tbody.innerHTML = '';
+  for (const b of buses) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${b.code}</td>
+      <td>${b.label ?? '—'}</td>
+      <td>${b.route?.name ?? '—'}</td>
+      <td><span class="tag ${b.is_active ? 'tag-active' : 'tag-inactive'}">${b.is_active ? 'Actif' : 'Inactif'}</span></td>
+      <td>${b.last_seen_at ? new Date(b.last_seen_at).toLocaleString('fr') : '—'}</td>
+      <td>${b.positions_last_hour}</td>
+      <td>
+        <button class="btn btn-secondary" style="font-size:.75rem;padding:3px 8px" onclick='openEditBus(${JSON.stringify(b)})'>Modifier</button>
+        <button class="btn btn-danger"    style="font-size:.75rem;padding:3px 8px" onclick="deleteBus('${b.id}')">Désactiver</button>
+      </td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function routeOptions(selectedId) {
+  return `<option value="">— Aucune ligne —</option>` +
+    _routes.map(r => `<option value="${r.id}"${r.id === selectedId ? ' selected' : ''}>${r.name}</option>`).join('');
+}
+
+function openCreateBus() {
+  openModal('Nouveau bus', `
+    <div class="form-field"><label>Code *</label><input id="f-code" placeholder="BUS-042"></div>
+    <div class="form-field"><label>Label</label><input id="f-label" placeholder="Mercedes Citaro #42"></div>
+    <div class="form-field"><label>Ligne</label><select id="f-route">${routeOptions(null)}</select></div>
+  `, async () => {
+    const body = { code: val('f-code'), label: val('f-label') || null, route_id: val('f-route') || null };
+    const res = await fetch('/api/v1/admin/buses', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!res.ok) { alert('Erreur: ' + (await res.text())); return; }
+    const created = await res.json();
+    closeModal();
+    openModal('Bus créé — Token API', `
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:8px">Copiez ce token maintenant. Il ne sera plus affiché.</p>
+      <div id="token-display">${created.api_token}</div>
+      <p id="token-note">⚠ Stockez-le dans un endroit sûr.</p>
+    `, null, '');
+    loadBusesCrud();
+  });
+}
+
+function openEditBus(bus) {
+  openModal('Modifier le bus', `
+    <div class="form-field"><label>Code</label><input id="f-code" value="${bus.code}"></div>
+    <div class="form-field"><label>Label</label><input id="f-label" value="${bus.label ?? ''}"></div>
+    <div class="form-field"><label>Ligne</label><select id="f-route">${routeOptions(bus.route?.id)}</select></div>
+    <div class="form-field"><label><input type="checkbox" id="f-active"${bus.is_active ? ' checked' : ''}> Actif</label></div>
+  `, async () => {
+    const body = {
+      code: val('f-code') || undefined,
+      label: val('f-label') || null,
+      route_id: val('f-route') || null,
+      is_active: document.getElementById('f-active').checked,
+    };
+    const res = await fetch(`/api/v1/admin/buses/${bus.id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!res.ok) { alert('Erreur: ' + (await res.text())); return; }
+    closeModal(); loadBusesCrud();
+  });
+}
+
+async function deleteBus(id) {
+  if (!confirm('Désactiver ce bus ?')) return;
+  await fetch(`/api/v1/admin/buses/${id}`, { method: 'DELETE' });
+  loadBusesCrud();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ROUTES CRUD
+// ═══════════════════════════════════════════════════════════════════════════
+let _stops = [];
+
+async function loadRoutesCrud() {
+  const [routeRes, stopRes] = await Promise.all([
+    fetch('/api/v1/admin/routes'), fetch('/api/v1/admin/stops'),
+  ]);
+  const routes = await routeRes.json();
+  _stops = await stopRes.json();
+  const tbody = document.getElementById('routes-tbody');
+  tbody.innerHTML = '';
+  for (const r of routes) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.name}</td>
+      <td>${r.description ?? '—'}</td>
+      <td><span class="tag ${r.is_active ? 'tag-active' : 'tag-inactive'}">${r.is_active ? 'Actif' : 'Inactif'}</span></td>
+      <td>${r.route_stops?.length ?? 0} arrêts</td>
+      <td>
+        <button class="btn btn-secondary" style="font-size:.75rem;padding:3px 8px" onclick='openEditRoute(${JSON.stringify(r)})'>Modifier</button>
+        <button class="btn btn-danger"    style="font-size:.75rem;padding:3px 8px" onclick="deleteRoute('${r.id}')">Désactiver</button>
+      </td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function stopSelectOptions(excludeIds = []) {
+  return _stops.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+}
+
+function renderStopSequence(stops) {
+  // stops: [{stop_id, stop_order, distance_from_prev_m, stop:{name}}]
+  const ul = document.getElementById('stop-sequence');
+  if (!ul) return;
+  ul.innerHTML = '';
+  for (const s of stops) {
+    const li = document.createElement('li');
+    li.dataset.stopId = s.stop_id;
+    li.dataset.order = s.stop_order;
+    li.dataset.dist = s.distance_from_prev_m ?? '';
+    li.innerHTML = `<span>${s.stop_order}.</span> <span>${s.stop?.name ?? s.stop_id}</span>
+      <input type="number" placeholder="dist (m)" value="${s.distance_from_prev_m ?? ''}" min="0" style="width:80px;margin-left:auto;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:2px 5px;border-radius:4px;font-size:.78rem"
+        onchange="li.dataset.dist=this.value" id="dist-${s.stop_id}">
+      <button class="rm-stop" onclick="this.closest('li').remove(); renumberStops()">×</button>`;
+    ul.appendChild(li);
+  }
+}
+
+function renumberStops() {
+  document.querySelectorAll('#stop-sequence li').forEach((li, i) => {
+    li.dataset.order = i + 1;
+    li.querySelector('span:first-child').textContent = (i + 1) + '.';
+  });
+}
+
+function collectStops() {
+  return [...document.querySelectorAll('#stop-sequence li')].map((li, i) => ({
+    stop_id: li.dataset.stopId,
+    stop_order: i + 1,
+    distance_from_prev_m: parseFloat(document.getElementById('dist-' + li.dataset.stopId)?.value) || null,
+  }));
+}
+
+function routeFormHtml(r) {
+  return `
+    <div class="form-field"><label>Nom *</label><input id="f-rname" value="${r?.name ?? ''}"></div>
+    <div class="form-field"><label>Description</label><input id="f-rdesc" value="${r?.description ?? ''}"></div>
+    <div class="form-field"><label><input type="checkbox" id="f-ractive"${(r?.is_active !== false) ? ' checked' : ''}> Actif</label></div>
+    <div class="form-field">
+      <label>Séquence d'arrêts</label>
+      <ul id="stop-sequence"></ul>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <select id="add-stop-sel" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px;border-radius:6px;font-size:.82rem">${stopSelectOptions()}</select>
+        <button class="btn btn-secondary" onclick="addStopToSeq()">Ajouter</button>
+      </div>
+    </div>
+  `;
+}
+
+function addStopToSeq() {
+  const sel = document.getElementById('add-stop-sel');
+  const stopId = sel.value;
+  const stopName = sel.options[sel.selectedIndex].text;
+  const ul = document.getElementById('stop-sequence');
+  const order = ul.children.length + 1;
+  const li = document.createElement('li');
+  li.dataset.stopId = stopId;
+  li.dataset.order = order;
+  li.dataset.dist = '';
+  li.innerHTML = `<span>${order}.</span> <span>${stopName}</span>
+    <input type="number" placeholder="dist (m)" min="0" id="dist-${stopId}"
+      style="width:80px;margin-left:auto;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:2px 5px;border-radius:4px;font-size:.78rem">
+    <button class="rm-stop" onclick="this.closest('li').remove(); renumberStops()">×</button>`;
+  ul.appendChild(li);
+}
+
+function openCreateRoute() {
+  openModal('Nouvel itinéraire', routeFormHtml(null), async () => {
+    const body = {
+      name: val('f-rname'), description: val('f-rdesc') || null,
+      is_active: document.getElementById('f-ractive').checked,
+      stops: collectStops(),
+    };
+    const res = await fetch('/api/v1/admin/routes', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!res.ok) { alert('Erreur: ' + (await res.text())); return; }
+    closeModal(); loadRoutesCrud();
+  });
+}
+
+function openEditRoute(route) {
+  openModal('Modifier l\'itinéraire', routeFormHtml(route), async () => {
+    const body = {
+      name: val('f-rname') || undefined,
+      description: val('f-rdesc') || null,
+      is_active: document.getElementById('f-ractive').checked,
+      stops: collectStops(),
+    };
+    const res = await fetch(`/api/v1/admin/routes/${route.id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!res.ok) { alert('Erreur: ' + (await res.text())); return; }
+    closeModal(); loadRoutesCrud();
+  });
+  // Pre-populate stop sequence
+  setTimeout(() => renderStopSequence(route.route_stops ?? []), 50);
+}
+
+async function deleteRoute(id) {
+  if (!confirm('Désactiver cet itinéraire ?')) return;
+  await fetch(`/api/v1/admin/routes/${id}`, { method: 'DELETE' });
+  loadRoutesCrud();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STOPS CRUD
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadStopsCrud() {
+  const [stopRes, routeRes] = await Promise.all([
+    fetch('/api/v1/admin/stops'), fetch('/api/v1/admin/routes'),
+  ]);
+  // stops endpoint doesn't exist on admin — use public for list
+  // Actually admin doesn't have GET /stops. We'll use public for now.
+  // Fetch from public /api/v1/public/routes and extract stops
+  // OR: we implement a stop list via routes.
+  // Use the routes to get all stops deduplicated.
+  const routes = await routeRes.json();
+  const stopMap = {};
+  for (const r of routes) {
+    for (const rs of r.route_stops ?? []) {
+      if (rs.stop && !stopMap[rs.stop.id]) stopMap[rs.stop.id] = rs.stop;
+    }
+  }
+  const stops = Object.values(stopMap);
+  _stops = stops;
+
+  // Route filter
+  const sel = document.getElementById('stop-filter-route');
+  const existing = new Set([...sel.options].map(o => o.value));
+  for (const r of routes) {
+    if (!existing.has(r.id)) {
+      const opt = document.createElement('option');
+      opt.value = r.id; opt.textContent = r.name; sel.appendChild(opt);
+    }
+  }
+
+  renderStopsTable(stops, routes);
+}
+
+function renderStopsTable(stops, routes) {
+  const filterRouteId = document.getElementById('stop-filter-route').value;
+  let filtered = stops;
+  if (filterRouteId) {
+    const route = routes?.find(r => r.id === filterRouteId);
+    const ids = new Set((route?.route_stops ?? []).map(rs => rs.stop?.id).filter(Boolean));
+    filtered = stops.filter(s => ids.has(s.id));
+  }
+  const tbody = document.getElementById('stops-tbody');
+  tbody.innerHTML = '';
+  for (const s of filtered) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${s.name}</td>
+      <td>${s.lat?.toFixed(5) ?? '—'}</td>
+      <td>${s.lon?.toFixed(5) ?? '—'}</td>
+      <td>
+        <button class="btn btn-secondary" style="font-size:.75rem;padding:3px 8px" onclick='openEditStop(${JSON.stringify(s)})'>Modifier</button>
+        <button class="btn btn-danger"    style="font-size:.75rem;padding:3px 8px" onclick="deleteStop('${s.id}')">Supprimer</button>
+      </td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+document.getElementById('stop-filter-route').addEventListener('change', loadStopsCrud);
+
+function openCreateStop() {
+  openModal('Nouvel arrêt', `
+    <div class="form-field"><label>Nom *</label><input id="f-sname" placeholder="Place de la Liberté"></div>
+    <div class="form-field"><label>Latitude *</label><input id="f-slat" type="number" step="0.00001" placeholder="14.6042"></div>
+    <div class="form-field"><label>Longitude *</label><input id="f-slon" type="number" step="0.00001" placeholder="-61.0690"></div>
+  `, async () => {
+    const name = val('f-sname');
+    const lat = parseNumber(val('f-slat'));
+    const lon = parseNumber(val('f-slon'));
+    if (!name) { alert('Nom requis'); return; }
+    if (lat === null || lon === null) { alert('Latitude/Longitude invalides'); return; }
+    const body = { name, lat, lon };
+    const res = await fetch('/api/v1/admin/stops', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!res.ok) { alert('Erreur: ' + (await res.text())); return; }
+    closeModal(); loadStopsCrud();
+  });
+}
+
+function openEditStop(stop) {
+  openModal('Modifier l\'arrêt', `
+    <div class="form-field"><label>Nom</label><input id="f-sname" value="${stop.name}"></div>
+    <div class="form-field"><label>Latitude</label><input id="f-slat" type="number" step="0.00001" value="${stop.lat}"></div>
+    <div class="form-field"><label>Longitude</label><input id="f-slon" type="number" step="0.00001" value="${stop.lon}"></div>
+  `, async () => {
+    const name = val('f-sname') || null;
+    const latRaw = val('f-slat');
+    const lonRaw = val('f-slon');
+    const lat = latRaw ? parseNumber(latRaw) : null;
+    const lon = lonRaw ? parseNumber(lonRaw) : null;
+    if (latRaw && lat === null) { alert('Latitude invalide'); return; }
+    if (lonRaw && lon === null) { alert('Longitude invalide'); return; }
+    const body = { name, lat, lon };
+    const res = await fetch(`/api/v1/admin/stops/${stop.id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!res.ok) { alert('Erreur: ' + (await res.text())); return; }
+    closeModal(); loadStopsCrud();
+  });
+}
+
+async function deleteStop(id) {
+  if (!confirm('Supprimer cet arrêt ? Cela le retirera de tous les itinéraires.')) return;
+  await fetch(`/api/v1/admin/stops/${id}`, { method: 'DELETE' });
+  loadStopsCrud();
+}
+</script>
+</body>
+</html>

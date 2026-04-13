@@ -1,0 +1,89 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bus}
+      POSTGRES_DB: ${POSTGRES_DB:-bus_tracking}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bus} -d ${POSTGRES_DB:-bus_tracking}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # api (FastAPI / Uvicorn)
+  # ---------------------------------------------------------------------------
+  api:
+    build: .
+    restart: unless-stopped
+    environment:
+      # In Docker, the DB host is the compose service name "db".
+      DATABASE_URL: postgresql+asyncpg://bus:bus@db:5432/bus_tracking
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8000"
+
+  # ---------------------------------------------------------------------------
+  # Local dev TLS bootstrapper.
+  # Creates a self-signed cert for CN=localhost if the cert volume is empty.
+  # nginx expects /etc/nginx/certs/{fullchain,privkey}.pem to exist.
+  # ---------------------------------------------------------------------------
+  certs-init:
+    image: alpine:3.20
+    restart: "no"
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        apk add --no-cache openssl >/dev/null
+        if [ ! -f /etc/nginx/certs/fullchain.pem ] || [ ! -f /etc/nginx/certs/privkey.pem ]; then
+          openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
+            -keyout /etc/nginx/certs/privkey.pem \
+            -out /etc/nginx/certs/fullchain.pem \
+            -subj "/CN=localhost"
+        fi
+    volumes:
+      - certs:/etc/nginx/certs
+
+  # ---------------------------------------------------------------------------
+  # nginx reverse proxy
+  #   - Port 443  : public HTTPS (REST + WS /ws/buses + static site)
+  #   - Port 80   : HTTP → HTTPS redirect
+  #   - 127.0.0.1:8080 : admin-only (REST + WS /ws/admin), no external exposure
+  #
+  # TLS certs: mount a volume named `certs` containing
+  #   fullchain.pem and privkey.pem at /etc/nginx/certs/
+  # The `api` service (FastAPI/Uvicorn on port 8000) is defined when the
+  # application layer is built.  nginx will start but upstream will be
+  # unavailable until `api` exists.
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - certs:/etc/nginx/certs:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+      certs-init:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+  certs:

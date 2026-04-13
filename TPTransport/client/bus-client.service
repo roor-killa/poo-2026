@@ -1,0 +1,74 @@
+# systemd service unit for the embedded bus GPS client.
+#
+# Installation (run as root on the Raspberry Pi):
+#
+#   cp bus-client.service    /etc/systemd/system/
+#   cp -r client/            /opt/bus-client/
+#   cp client/.env.example   /etc/bus-client/env
+#   nano /etc/bus-client/env         # set BUS_API_TOKEN and BUS_SERVER_URL
+#   systemctl daemon-reload
+#   systemctl enable --now bus-client
+#
+# View live logs:
+#   journalctl -u bus-client -f
+#   tail -f /var/log/bus-client/bus-client.log
+
+[Unit]
+Description=Bus GPS client — sends positions to the tracking server
+Documentation=https://github.com/example/poo-2026
+# Wait for the network and gpsd before starting
+After=network-online.target gpsd.service
+Wants=network-online.target gpsd.service
+
+[Service]
+Type=simple
+
+# Run as a dedicated unprivileged user (create with: useradd -r -s /sbin/nologin bus-client)
+User=bus-client
+Group=bus-client
+
+# Working directory — where the Python package lives
+WorkingDirectory=/opt/bus-client
+
+# Load secrets / config from a separate file (not committed to git)
+EnvironmentFile=/etc/bus-client/env
+
+# Python entry-point
+ExecStart=/opt/bus-client/venv/bin/python -m client.main
+
+# ── Restart policy (spec §6.3) ───────────────────────────────────────────
+Restart=always
+RestartSec=5
+# Don't restart infinitely if the binary itself is broken
+StartLimitBurst=10
+StartLimitIntervalSec=60
+
+# ── Resource limits ──────────────────────────────────────────────────────
+# Prevent a runaway process from consuming all RAM on the Pi
+MemoryMax=128M
+# Nice value — GPS client should not starve system processes
+Nice=5
+
+# ── Security hardening ───────────────────────────────────────────────────
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+# Grant write access only to the directories we need
+ReadWritePaths=/var/log/bus-client /var/lib/bus-client
+
+# ── Watchdog ─────────────────────────────────────────────────────────────
+# systemd kills and restarts the service if it doesn't call sd_notify
+# within WatchdogSec.  The Python process does NOT use sd_notify, so we
+# rely purely on Restart=always above.  Enable the hardware watchdog via:
+#   echo 'dtparam=watchdog=on' >> /boot/config.txt
+# and install watchdog(8) separately.
+
+# ── Logging ──────────────────────────────────────────────────────────────
+# stdout/stderr go to the journal; the Python logger ALSO writes to
+# /var/log/bus-client/ (rotating, 7-day retention).
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bus-client
+
+[Install]
+WantedBy=multi-user.target

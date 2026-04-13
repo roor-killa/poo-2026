@@ -1,0 +1,11 @@
+sqlalchemy[asyncio]>=2.0
+alembic>=1.13
+asyncpg>=0.29
+geoalchemy2>=0.15
+psycopg2-binary>=2.9   # used by alembic offline mode / sync tooling
+shapely>=2.0           # wkb_to_latlon via geoalchemy2.shape.to_shape()
+pydantic>=2.0
+fastapi>=0.111
+uvicorn[standard]>=0.29
+slowapi>=0.1.9
+websockets>=12.0        # async WS support used by FastAPI + uvicorn

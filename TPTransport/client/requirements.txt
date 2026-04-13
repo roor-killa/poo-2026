@@ -1,0 +1,9 @@
+# Raspberry Pi client dependencies
+# Install with: pip install -r requirements.txt
+#
+# gpsd-py3 requires gpsd to be running on the host:
+#   sudo apt install gpsd gpsd-clients
+#   sudo systemctl enable --now gpsd
+
+gpsd-py3>=0.3.0
+requests>=2.31.0

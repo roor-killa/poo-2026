@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suivi des Bus en Temps Réel</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body { font-family: system-ui, sans-serif; background: #111; color: #eee; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── Top bar ── */
+    #topbar {
+      display: flex; align-items: center; gap: 12px; padding: 8px 12px;
+      background: #1a1a2e; border-bottom: 1px solid #333; flex-shrink: 0; flex-wrap: wrap;
+    }
+    #topbar h1 { font-size: 1rem; font-weight: 600; white-space: nowrap; }
+    #line-select {
+      padding: 4px 8px; border-radius: 6px; border: 1px solid #555;
+      background: #2a2a3e; color: #eee; font-size: 0.85rem; min-width: 140px;
+    }
+    #ws-status {
+      margin-left: auto; font-size: 0.75rem; padding: 3px 8px;
+      border-radius: 12px; font-weight: 600;
+    }
+    .ws-ok  { background: #1a4a1a; color: #5f5; }
+    .ws-err { background: #4a1a1a; color: #f55; }
+    .ws-connecting { background: #3a3a1a; color: #ff5; }
+
+    /* ── Map ── */
+    #map { flex: 1; z-index: 0; }
+
+    /* ── Bus popup overrides ── */
+    .bus-popup h3 { margin-bottom: 6px; font-size: 0.95rem; }
+    .bus-popup table { font-size: 0.82rem; border-collapse: collapse; width: 100%; }
+    .bus-popup td { padding: 2px 6px; }
+    .bus-popup tr:nth-child(even) td { background: rgba(0,0,0,.05); }
+    .offline-badge {
+      display: inline-block; background: #c00; color: #fff;
+      font-size: 0.7rem; font-weight: 700; padding: 1px 6px;
+      border-radius: 4px; margin-left: 6px; vertical-align: middle;
+    }
+
+    /* ── Stop arrivals panel ── */
+    #arrivals-panel {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(20,20,40,.92); backdrop-filter: blur(6px);
+      border: 1px solid #444; border-radius: 10px; padding: 12px 16px;
+      min-width: 260px; max-width: 92vw; z-index: 500; display: none;
+    }
+    #arrivals-panel h4 { margin-bottom: 8px; font-size: 0.9rem; }
+    #arrivals-list { list-style: none; }
+    #arrivals-list li { font-size: 0.82rem; padding: 3px 0; border-bottom: 1px solid #333; }
+    #arrivals-panel button { margin-top: 8px; font-size: 0.75rem; background: none; border: 1px solid #555; color: #aaa; border-radius: 4px; padding: 2px 8px; cursor: pointer; }
+    #arrivals-panel button:hover { background: #333; }
+
+    /* ── Mobile ── */
+    @media (max-width: 480px) {
+      #topbar h1 { font-size: 0.85rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>🚌 Suivi des Bus</h1>
+  <select id="line-select"><option value="">Toutes les lignes</option></select>
+  <span id="ws-status" class="ws-connecting">Connexion…</span>
+</div>
+
+<div id="map"></div>
+
+<div id="arrivals-panel">
+  <h4 id="arrivals-title">Prochains bus</h4>
+  <ul id="arrivals-list"></ul>
+  <button onclick="document.getElementById('arrivals-panel').style.display='none'">Fermer</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── Map setup ──────────────────────────────────────────────────────────────
+const map = L.map('map', { zoomControl: true }).setView([14.65, -61.00], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  maxZoom: 19,
+}).addTo(map);
+
+// ── State ──────────────────────────────────────────────────────────────────
+const busMarkers  = {};   // bus_id → L.Marker
+const busData     = {};   // bus_id → last snapshot object
+const stopMarkers = {};   // stop_id → L.CircleMarker (loaded once)
+let   routes      = [];   // [{id, name}]
+let   filterRouteId = null;
+
+// ── Colour palette per route (cycles) ─────────────────────────────────────
+const PALETTE = ['#4fc3f7','#81c784','#ffb74d','#f06292','#ce93d8','#80cbc4','#fff176'];
+const routeColour = {};
+let   colourIdx = 0;
+function colourFor(routeId) {
+  if (!routeId) return '#aaa';
+  if (!routeColour[routeId]) routeColour[routeId] = PALETTE[colourIdx++ % PALETTE.length];
+  return routeColour[routeId];
+}
+
+// ── Bus icon factory ───────────────────────────────────────────────────────
+function busIcon(colour, online, heading) {
+  const rot = heading ?? 0;
+  const fill = online ? colour : '#888';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+    <g transform="rotate(${rot},16,16)">
+      <rect x="6" y="4" width="20" height="24" rx="4" fill="${fill}" stroke="#fff" stroke-width="1.5"/>
+      <rect x="9" y="7" width="6" height="5" rx="1" fill="rgba(255,255,255,.7)"/>
+      <rect x="17" y="7" width="6" height="5" rx="1" fill="rgba(255,255,255,.7)"/>
+      <rect x="9" y="18" width="14" height="6" rx="1" fill="rgba(255,255,255,.15)"/>
+      <circle cx="10" cy="28" r="2.5" fill="#222"/>
+      <circle cx="22" cy="28" r="2.5" fill="#222"/>
+    </g>
+  </svg>`;
+  return L.divIcon({
+    html: svg, className: '', iconSize: [32, 32], iconAnchor: [16, 16],
+  });
+}
+
+// ── Stop icon ─────────────────────────────────────────────────────────────
+function makeStopMarker(stop) {
+  const m = L.circleMarker([stop.lat, stop.lon], {
+    radius: 5, color: '#fff', weight: 1.5, fillColor: '#1976d2', fillOpacity: 0.9,
+  });
+  m.bindTooltip(stop.name, { permanent: false, direction: 'top' });
+  m.on('click', () => loadArrivals(stop.id, stop.name));
+  return m;
+}
+
+// ── Smooth interpolation ───────────────────────────────────────────────────
+// Between two snapshots (5 s apart) we animate the marker position.
+const SNAPSHOT_INTERVAL = 5000;
+const interpState = {};   // bus_id → {fromLat, fromLon, toLat, toLon, startTime}
+
+function startInterp(busId, fromLat, fromLon, toLat, toLon) {
+  interpState[busId] = { fromLat, fromLon, toLat, toLon, startTime: performance.now() };
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function animationFrame() {
+  const now = performance.now();
+  for (const [busId, s] of Object.entries(interpState)) {
+    const marker = busMarkers[busId];
+    if (!marker) { delete interpState[busId]; continue; }
+    const t = Math.min(1, (now - s.startTime) / SNAPSHOT_INTERVAL);
+    marker.setLatLng([lerp(s.fromLat, s.toLat, t), lerp(s.fromLon, s.toLon, t)]);
+  }
+  requestAnimationFrame(animationFrame);
+}
+requestAnimationFrame(animationFrame);
+
+// ── Snapshot handler ───────────────────────────────────────────────────────
+function applySnapshot(msg) {
+  const activeBusIds = new Set();
+
+  for (const bus of msg.buses) {
+    if (!bus.lat || !bus.lon) continue;
+    if (filterRouteId && bus.route_id !== filterRouteId) continue;
+
+    activeBusIds.add(bus.bus_id);
+    const colour = colourFor(bus.route_id);
+    const prev = busData[bus.bus_id];
+    busData[bus.bus_id] = bus;
+
+    if (busMarkers[bus.bus_id]) {
+      const m = busMarkers[bus.bus_id];
+      // Start position interpolation from previous known position
+      const prevPos = m.getLatLng();
+      startInterp(bus.bus_id, prevPos.lat, prevPos.lng, bus.lat, bus.lon);
+      m.setIcon(busIcon(colour, bus.is_online, bus.heading));
+      m.setPopupContent(buildPopup(bus));
+    } else {
+      const m = L.marker([bus.lat, bus.lon], { icon: busIcon(colour, bus.is_online, bus.heading) });
+      m.bindPopup(buildPopup(bus), { maxWidth: 240 });
+      m.addTo(map);
+      busMarkers[bus.bus_id] = m;
+    }
+  }
+
+  // Remove markers for buses no longer in the snapshot
+  for (const [busId, m] of Object.entries(busMarkers)) {
+    if (!activeBusIds.has(busId)) {
+      map.removeLayer(m);
+      delete busMarkers[busId];
+      delete interpState[busId];
+    }
+  }
+}
+
+function buildPopup(bus) {
+  const offlineBadge = !bus.is_online
+    ? `<span class="offline-badge">${bus.offline_since_s != null ? 'Hors ligne ' + fmtDuration(bus.offline_since_s) : 'Hors ligne'}</span>`
+    : '';
+  const nextStop = bus.next_stop
+    ? `${bus.next_stop.name} — <b>${fmtEta(bus.next_stop.eta_seconds)}</b>`
+    : (bus.current_stop ? `À l'arrêt: ${bus.current_stop.name}` : '—');
+  const terminus = bus.terminus_eta_s != null ? fmtEta(bus.terminus_eta_s) : '—';
+  const progress = bus.progress_pct != null ? bus.progress_pct.toFixed(1) + '%' : '—';
+
+  return `<div class="bus-popup">
+    <h3>${bus.code}${offlineBadge}</h3>
+    <table>
+      <tr><td>Ligne</td><td>${bus.route_name ?? '—'}</td></tr>
+      <tr><td>Vitesse</td><td>${bus.speed_kmh != null ? bus.speed_kmh.toFixed(1) + ' km/h' : '—'}</td></tr>
+      <tr><td>Prochain arrêt</td><td>${nextStop}</td></tr>
+      <tr><td>Terminus</td><td>${terminus}</td></tr>
+      <tr><td>Progression</td><td>${progress}</td></tr>
+    </table>
+  </div>`;
+}
+
+function fmtEta(s) {
+  if (s == null) return '—';
+  if (s < 60)  return s + ' s';
+  return Math.round(s / 60) + ' min';
+}
+function fmtDuration(s) {
+  if (s < 60) return s + 's';
+  return Math.floor(s / 60) + 'min';
+}
+
+// ── Offline event handler ─────────────────────────────────────────────────
+function applyOfflineEvent(evt) {
+  const m = busMarkers[evt.bus_id];
+  if (!m) return;
+  const b = busData[evt.bus_id];
+  if (b) {
+    b.is_online = false;
+    m.setIcon(busIcon(colourFor(b.route_id), false, b.heading));
+    m.setPopupContent(buildPopup(b));
+  }
+}
+
+// ── Stop arrivals ─────────────────────────────────────────────────────────
+async function loadArrivals(stopId, stopName) {
+  document.getElementById('arrivals-title').textContent = stopName;
+  document.getElementById('arrivals-list').innerHTML = '<li>Chargement…</li>';
+  document.getElementById('arrivals-panel').style.display = 'block';
+  try {
+    const res = await fetch(`/api/v1/public/stops/${stopId}/arrivals`);
+    const data = await res.json();
+    const ul = document.getElementById('arrivals-list');
+    ul.innerHTML = '';
+    if (!data.length) { ul.innerHTML = '<li>Aucun bus prévu</li>'; return; }
+    for (const a of data) {
+      const li = document.createElement('li');
+      li.innerHTML = `<b>${a.bus_code}</b> (${a.route?.name ?? '—'}) — ${fmtEta(a.eta_seconds)}${a.is_online ? '' : ' <span class="offline-badge">Hors ligne</span>'}`;
+      ul.appendChild(li);
+    }
+  } catch (e) {
+    document.getElementById('arrivals-list').innerHTML = '<li>Erreur de chargement</li>';
+  }
+}
+
+// ── Route filter ──────────────────────────────────────────────────────────
+async function loadRoutes() {
+  try {
+    const res = await fetch('/api/v1/public/routes');
+    routes = await res.json();
+    const sel = document.getElementById('line-select');
+    for (const r of routes) {
+      const opt = document.createElement('option');
+      opt.value = r.id; opt.textContent = r.name;
+      sel.appendChild(opt);
+    }
+  } catch (e) { /* silently ignore */ }
+}
+
+document.getElementById('line-select').addEventListener('change', e => {
+  filterRouteId = e.target.value || null;
+  // Re-render markers
+  for (const [busId, b] of Object.entries(busData)) {
+    const m = busMarkers[busId];
+    if (!m) continue;
+    if (filterRouteId && b.route_id !== filterRouteId) {
+      map.removeLayer(m);
+    } else if (!map.hasLayer(m)) {
+      m.addTo(map);
+    }
+  }
+});
+
+// ── WebSocket ─────────────────────────────────────────────────────────────
+let ws;
+const statusEl = document.getElementById('ws-status');
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/buses`);
+  statusEl.className = 'ws-connecting'; statusEl.textContent = 'Connexion…';
+
+  ws.onopen = () => { statusEl.className = 'ws-ok'; statusEl.textContent = '● En ligne'; };
+  ws.onclose = () => {
+    statusEl.className = 'ws-err'; statusEl.textContent = '● Déconnecté';
+    setTimeout(connect, 3000);
+  };
+  ws.onerror = () => ws.close();
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'snapshot')   applySnapshot(msg);
+    if (msg.type === 'bus_offline') applyOfflineEvent(msg);
+  };
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+loadRoutes();
+connect();
+</script>
+</body>
+</html>
