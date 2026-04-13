@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RTG Dashboard MVP</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./lib/leaflet.min.css">
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <h1>RTG Dashboard — Martinique</h1>
+      <p>Suivi temps reel des bus, KPI et alertes</p>
+    </div>
+    <div class="status-wrap">
+      <span id="apiStatus" class="status status-off">API indisponible</span>
+      <button id="refreshBtn" class="btn">Rafraichir</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card kpi">
+      <h2>KPI</h2>
+      <div class="kpi-grid">
+        <div><span>Total bus</span><strong id="kpiTotal">-</strong></div>
+        <div><span>Bus actifs</span><strong id="kpiActive">-</strong></div>
+        <div><span>Alertes ouvertes</span><strong id="kpiAlerts">-</strong></div>
+        <div><span>Taux couverture</span><strong id="kpiCoverage">-</strong></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Bus</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Immat</th>
+              <th>Ligne</th>
+              <th>Statut</th>
+              <th>Vitesse</th>
+              <th>Maj</th>
+            </tr>
+          </thead>
+          <tbody id="busTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Carte temps réel Martinique (pleine largeur) -->
+    <section class="card full map-section">
+      <div class="map-header">
+        <h2>Carte en temps reel — Martinique</h2>
+        <div class="map-legend" id="mapLegend"></div>
+      </div>
+      <div id="map"></div>
+    </section>
+
+    <section class="card">
+      <h2>Lignes</h2>
+      <ul id="lineList" class="list"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Creer une alerte</h2>
+      <form id="alertForm" class="stack">
+        <input id="alertBus" placeholder="BUS-001" required>
+        <input id="alertType" placeholder="incident" required>
+        <input id="alertMessage" placeholder="Message" required>
+        <button class="btn" type="submit">Envoyer</button>
+      </form>
+      <p id="alertFeedback" class="hint"></p>
+    </section>
+
+    <section class="card full">
+      <h2>Assistant IA (stub)</h2>
+      <form id="aiForm" class="stack-inline">
+        <input id="aiQuery" placeholder="Ex: retard ligne 1" required>
+        <button class="btn" type="submit">Questionner</button>
+      </form>
+      <pre id="aiAnswer" class="code">Aucune reponse</pre>
+    </section>
+  </main>
+
+  <script src="./lib/leaflet.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

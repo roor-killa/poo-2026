@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+    paths:
+      - "akonou/Transport/**"
+      - ".github/workflows/ci.yml"
+  push:
+    branches: ["akonou", "main"]
+    paths:
+      - "akonou/Transport/**"
+      - ".github/workflows/ci.yml"
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: akonou/Transport
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r api/requirements-dev.txt
+
+      - name: Run tests
+        run: pytest -q
+
+  build-images:
+    runs-on: ubuntu-latest
+    needs: test-backend
+    defaults:
+      run:
+        working-directory: akonou/Transport
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        run: docker build -f api/Dockerfile -t rtg-backend:ci api
+
+      - name: Build frontend image
+        run: docker build -f frontend/Dockerfile -t rtg-frontend:ci frontend
