@@ -1,0 +1,32 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environnement
+.env
+.venv
+venv/
+
+# Tests (pas besoin en prod)
+tests/
+pytest.ini
+
+# Docker (pas besoin de s'embarquer soi-même)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

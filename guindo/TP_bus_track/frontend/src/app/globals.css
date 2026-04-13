@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Leaflet dans Next.js — fix z-index */
+.leaflet-container {
+  z-index: 0;
+}
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 10 !important;
+}
+
+/* Marqueur bus personnalisé */
+.bus-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+.bus-marker:hover {
+  transform: scale(1.2);
+}
+
+/* Popup Leaflet dark mode */
+.dark .leaflet-popup-content-wrapper {
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+}
+.dark .leaflet-popup-tip {
+  background: #1e293b;
+}
