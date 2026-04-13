@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+
+  backend:
+    build: ./backend
+    container_name: karibtransport-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./karibtransport.db
+    volumes:
+      - ./backend:/backend          # live-reload in dev
+      - db-data:/backend/data
+    restart: unless-stopped
+
+  simulator:
+    build:
+      context: ./simulator
+      dockerfile: Dockerfile
+    container_name: karibtransport-simulator
+    depends_on:
+      - backend
+    environment:
+      - API_BASE=http://backend:8000
+    restart: unless-stopped
+
+volumes:
+  db-data:
