@@ -4,16 +4,16 @@ from sqlalchemy.orm import Session
 import asyncio
 import json
 
-# --- Imports de nos fichiers locaux ---
+
 from database import engine, SessionLocal
 import models
 
-# --- Création automatique des tables dans PostgreSQL ---
+
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Bus Martinique Live - MVP")
 
-# --- Interface Utilisateur (HTML/JavaScript/Leaflet) ---
+
 html = """
 <!DOCTYPE html>
 <html>
