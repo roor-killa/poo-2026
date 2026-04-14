@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: transport_mq_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: transport
+      POSTGRES_PASSWORD: transport
+      POSTGRES_DB: transport_martinique
+    volumes:
+      - transport_mq_pgdata:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+    container_name: transport_mq_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+    environment:
+      PYTHONUNBUFFERED: "1"
+      DATABASE_URL: "postgresql://transport:transport@postgres:5432/transport_martinique"
+    depends_on:
+      - postgres
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: transport_mq_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      BACKEND_URL: "http://backend:8000"
+
+volumes:
+  transport_mq_pgdata:
