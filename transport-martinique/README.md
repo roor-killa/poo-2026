@@ -283,3 +283,6 @@ Ces fichiers GTFS contiennent les donnees utiles pour les arrets, les lignes, le
 ## Resume
 
 Ce projet apporte une reponse concrete au probleme de visibilite des bus en Martinique via geolocalisation, calcul ETA et affichage temps reel. Le MVP doit prioriser la fiabilite de l'information usager avant l'ajout de fonctionnalites avancees.
+
+
+
