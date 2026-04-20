@@ -56,7 +56,7 @@ services:
     container_name: nginx
     restart: unless-stopped
     ports:
-      - "8888:8888"
+      - "8888:80"
     depends_on:
       - rci_next_frontend
     volumes:
