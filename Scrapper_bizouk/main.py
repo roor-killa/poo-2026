@@ -1,9 +1,10 @@
 from scrapers.business_scraper import BusinessScraper
+from scrapers.event_scraper import EventScraper
 from scrapers.news_scraper import NewScraper
 
 
 def main():
-    choice = input("choisis business ou news ").strip().lower()
+    choice = input("choisis business, news ou events ").strip().lower()
 
     if choice == "business":
         scraper = BusinessScraper()
@@ -18,6 +19,14 @@ def main():
         data = scraper.scrape(max_pages=2)
         print(data)
         scraper.save_to_json(data, "data/news.json")
+        scraper.close()
+        return
+
+    if choice == "events":
+        scraper = EventScraper(region="martinique")
+        data = scraper.scrape(max_pages=1, max_events=12)
+        print(data)
+        scraper.save_to_json(data, "data/events.json")
         scraper.close()
         return
 
