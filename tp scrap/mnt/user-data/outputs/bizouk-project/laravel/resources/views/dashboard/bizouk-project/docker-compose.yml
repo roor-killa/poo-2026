@@ -1,0 +1,80 @@
+version: "3.9"
+
+services:
+
+  # ──────────────────────────────────────────
+  #  PostgreSQL — base de données partagée
+  # ──────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: bizouk_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bizouk
+      POSTGRES_USER: bizouk
+      POSTGRES_PASSWORD: bizouk_secret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bizouk"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────
+  #  FastAPI — scraper + API REST
+  # ──────────────────────────────────────────
+  fastapi:
+    build:
+      context: ./fastapi
+      dockerfile: Dockerfile
+    container_name: bizouk_fastapi
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://bizouk:bizouk_secret@db:5432/bizouk
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./fastapi:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ──────────────────────────────────────────
+  #  Laravel — site web + dashboard
+  # ──────────────────────────────────────────
+  laravel:
+    build:
+      context: ./laravel
+      dockerfile: Dockerfile
+    container_name: bizouk_laravel
+    restart: unless-stopped
+    environment:
+      APP_NAME: "Bizouk Annuaire"
+      APP_ENV: local
+      APP_KEY: base64:Gs9aQa1uMVnKSenl7nIllM0nDgKnPnADyr+jFBFrmKE=
+      APP_DEBUG: "true"
+      APP_URL: http://localhost
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: bizouk
+      DB_USERNAME: bizouk
+      DB_PASSWORD: bizouk_secret
+      FASTAPI_URL: http://fastapi:8000
+    depends_on:
+      db:
+        condition: service_healthy
+      fastapi:
+        condition: service_started
+    ports:
+      - "80:80"
+    volumes:
+      - ./laravel:/var/www/html
+
+volumes:
+  pgdata:
