@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/user/Documents/backend-2026/karibmarket-api/**)",
+      "Read(//Users/user/Documents/ProjetWeb3/web3-2026/guindo/projet/frontend-nextjs/**)",
+      "Bash(docker volume *)",
+      "Bash(docker exec *)",
+      "Bash(docker compose *)",
+      "Bash(curl *)",
+      "Bash(docker restart *)"
+    ]
+  }
+}

@@ -1,0 +1,222 @@
+# Docker Compose complet — POO + Web3 + KaribMarket
+# Lance tout depuis le projet groupe_scp2
+# Usage : docker compose -f docker/docker-compose-full.yml up -d
+
+services:
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: postgres_db
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: laravel_db
+      POSTGRES_USER: laravel
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - infra_postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - app_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U laravel -d laravel_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres_karib:
+    image: postgres:16-alpine
+    container_name: karibmarket-db
+    restart: unless-stopped
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: karibmarket
+      POSTGRES_USER: karib
+      POSTGRES_PASSWORD: karib_pass
+    volumes:
+      - karibmarket_postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U karib -d karibmarket" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  laravel_app:
+    build:
+      context: /Users/user/Documents/ProjetWeb3/web3-2026/guindo/projet/backend-laravel
+      dockerfile: Dockerfile
+    container_name: laravel_app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - /Users/user/Documents/ProjetWeb3/web3-2026/guindo/projet/backend-laravel/laravel:/var/www
+    networks:
+      - app_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  laravel_nginx:
+    image: nginx:alpine
+    container_name: laravel_nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - /Users/user/Documents/ProjetWeb3/web3-2026/guindo/projet/backend-laravel/laravel:/var/www
+      - /Users/user/Documents/ProjetWeb3/web3-2026/guindo/projet/backend-laravel/docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - app_network
+    depends_on:
+      - laravel_app
+
+  nextjs:
+    build:
+      context: /Users/user/Documents/ProjetWeb3/web3-2026/guindo/projet/frontend-nextjs
+      dockerfile: Dockerfile
+    container_name: nextjs_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://laravel_nginx:80
+      - NEXT_PUBLIC_FASTAPI_URL=http://localhost:8000
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - /Users/user/Documents/ProjetWeb3/web3-2026/guindo/projet/frontend-nextjs:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - app_network
+    depends_on:
+      - laravel_nginx
+      - karibmarket
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    networks:
+      - app_network
+    depends_on:
+      - postgres
+
+  redis:
+    image: redis:7-alpine
+    container_name: karib-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app_network
+
+  karibmarket:
+    build:
+      context: /Users/user/Documents/backend-2026/karibmarket-api
+      dockerfile: Dockerfile
+    container_name: karib-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://karib:karib_pass@karibmarket-db:5432/karibmarket
+      - KIPRIX_DATABASE_URL=postgresql://laravel:secret@postgres:5432/kiprix_db
+      - SCRAPER_API_URL=http://scraper-api:8090
+      - REDIS_URL=redis://karib-redis:6379
+      - SECRET_KEY=une-cle-secrete-tres-longue-et-aleatoire
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=480
+      - SCRAPER_PATH=/scraper
+      - SCRAPER_PYTHON=/usr/local/bin/python
+    volumes:
+      - ..:/scraper
+      - /Users/user/Documents/backend-2026/karibmarket-api:/app
+    networks:
+      - app_network
+    depends_on:
+      postgres_karib:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  streamlit:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: docker-streamlit-1
+    ports:
+      - "8501:8501"
+    volumes:
+      - ..:/app
+    entrypoint: [ "python", "-m", "streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0" ]
+    environment:
+      - DB_HOST=postgres
+      - DB_USER=laravel
+      - DB_PASS=secret
+      - DB_NAME=kiprix_db
+      - DB_PORT=5432
+    networks:
+      - app_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  scraper-api:
+    build:
+      context: /Users/user/Documents/poo-2026/groupe_scp2
+      dockerfile: docker/Dockerfile
+    container_name: scraper-api
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      - DB_HOST=postgres
+      - DB_USER=laravel
+      - DB_PASS=secret
+      - DB_NAME=kiprix_db
+      - DB_PORT=5432
+      - CHROME_BIN=/usr/bin/chromium
+      - CHROMEDRIVER_PATH=/usr/bin/chromedriver
+    volumes:
+      - /Users/user/Documents/poo-2026/groupe_scp2:/app
+    entrypoint: ["python", "-m", "uvicorn", "src.scraper_api:app", "--host", "0.0.0.0", "--port", "8090"]
+    networks:
+      - app_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  jupyter:
+    image: jupyter/scipy-notebook:latest
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ../data:/home/jovyan/data
+      - ../notebooks:/home/jovyan/notebooks
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  infra_postgres_data:
+    external: true
+  karibmarket_postgres_data:
+    external: true
+    name: karibmarket-api_postgres_data
