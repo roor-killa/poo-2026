@@ -44,14 +44,14 @@ docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml ps
 ```
 
-Le conteneur nginx de l'app ecoute sur `127.0.0.1:8081`.
+Le conteneur nginx de l'app ecoute sur `127.0.0.1:3005`.
 
 ## Branchement de l'URL
 
 Pour que `https://rosambert.nsdy.be` affiche l'app Docker, le serveur web du VPS doit faire un reverse proxy vers:
 
 ```text
-http://127.0.0.1:8081
+http://127.0.0.1:3005
 ```
 
 Si le serveur utilise Nginx, exemple de bloc:
@@ -62,7 +62,7 @@ server {
     server_name rosambert.nsdy.be;
 
     location / {
-        proxy_pass http://127.0.0.1:8081;
+        proxy_pass http://127.0.0.1:3005;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -72,7 +72,7 @@ server {
 }
 ```
 
-Si le prof ne donne pas acces a la configuration Nginx/Apache du VPS, `public_html` ne suffira pas pour cette app complete. Dans ce cas, il faut soit demander au prof de configurer le reverse proxy, soit exposer temporairement le port `8081` publiquement.
+Si le prof ne donne pas acces a la configuration Nginx/Apache du VPS, `public_html` ne suffira pas pour cette app complete. Dans ce cas, il faut soit demander au prof de configurer le reverse proxy, soit exposer temporairement le port `3005` publiquement.
 
 ## Mise a jour
 
