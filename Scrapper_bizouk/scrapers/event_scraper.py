@@ -8,22 +8,34 @@ from .base_scraper import BaseScraper
 
 
 class EventScraper(BaseScraper):
+    """
+    Scraper principal du projet.
+
+    Il travaille en deux temps:
+    1. lire les cartes visibles sur les pages de liste Bizouk;
+    2. ouvrir chaque fiche detail pour recuperer les infos absentes des cartes, surtout les prix.
+    """
+
     def __init__(self, region: str = "martinique"):
+        """Prepare la region cible et initialise la session HTTP heritee de BaseScraper."""
         self.region = region.strip().lower() or "martinique"
         super().__init__(base_url="https://www.bizouk.com", delay=0.35, timeout=25.0)
 
     def _absolute_url(self, href: Optional[str]) -> Optional[str]:
+        """Transforme un lien relatif Bizouk en URL complete."""
         if not href:
             return None
         return urljoin(self.base_url, href.strip())
 
     def _clean_text(self, value: Optional[str]) -> Optional[str]:
+        """Nettoie les espaces multiples pour obtenir un texte lisible dans le JSON."""
         if not value:
             return None
         text = re.sub(r"\s+", " ", value).strip()
         return text or None
 
     def _money_to_float(self, value: Optional[str]) -> Optional[float]:
+        """Convertit un texte de prix comme '5,50 EUR' en nombre float."""
         if not value:
             return None
         match = re.search(r"(\d+(?:[,.]\d+)?)", value)
@@ -32,6 +44,7 @@ class EventScraper(BaseScraper):
         return float(match.group(1).replace(",", "."))
 
     def _list_urls(self, page: int) -> List[str]:
+        """Construit les URLs de liste a visiter selon la page demandee."""
         if page <= 1:
             return [
                 f"{self.base_url}/?region={self.region}",
@@ -42,12 +55,15 @@ class EventScraper(BaseScraper):
         ]
 
     def _extract_image(self, card: Tag) -> Optional[str]:
+        """Recupere l'image principale d'une carte evenement."""
         image = card.select_one("img[src]")
         if not image:
             return None
         return self._absolute_url(image.get("src"))
 
     def _parse_home_card(self, card: Tag) -> Dict:
+        """Parse une carte evenement presente sur la page d'accueil Bizouk."""
+        # La carte contient deja les infos de base: titre, lieu, date, image et lien detail.
         link = card.select_one("a[href*='/events/details/']")
         title = self._clean_text(
             card.select_one(".bzk-event-title").get_text(" ", strip=True)
@@ -81,6 +97,8 @@ class EventScraper(BaseScraper):
         }
 
     def _parse_agenda_card(self, card: Tag) -> Dict:
+        """Parse une carte evenement issue du format agenda de Bizouk."""
+        # Bizouk utilise parfois un second format HTML pour les evenements de type agenda.
         date_tag = card.select_one(".ag-event-bottom span")
         time_tag = card.select_one(".ag-event-time")
         title_tag = card.select_one(".ag-event-title")
@@ -104,13 +122,16 @@ class EventScraper(BaseScraper):
         }
 
     def parse(self, soup: BeautifulSoup) -> List[Dict]:
+        """Recupere les evenements visibles sur une page liste."""
         results: List[Dict] = []
 
+        # Premier format de carte observe sur la page d'accueil.
         for card in soup.select(".bzk-event-card"):
             item = self._parse_home_card(card)
             if item.get("detail_url"):
                 results.append(item)
 
+        # Deuxieme format observe dans certaines pages agenda.
         for card in soup.select("a.ag-event[href*='/events/details/']"):
             item = self._parse_agenda_card(card)
             if item.get("detail_url"):
@@ -119,9 +140,11 @@ class EventScraper(BaseScraper):
         return results
 
     def _extract_hero_meta(self, soup: BeautifulSoup) -> Dict:
+        """Lit les informations principales de la fiche detail: date, lieu et plan."""
         meta = {"date": None, "location": None, "address": None}
         items = soup.select(".evh-hero-meta-item")
 
+        # Les metadonnees sont reperees grace aux icones: calendrier pour la date, marker pour le lieu.
         for item in items:
             text = self._clean_text(item.get_text(" ", strip=True))
             if not text:
@@ -145,10 +168,13 @@ class EventScraper(BaseScraper):
         return meta
 
     def _extract_description(self, soup: BeautifulSoup) -> Optional[str]:
+        """Extrait la description longue de la fiche evenement."""
+        # Sur les fiches recentes, Bizouk place souvent la description dans #party_description.
         description = soup.select_one("#party_description")
         if description:
             return self._clean_text(description.get_text(" ", strip=True))
 
+        # Fallback: si l'id change, on cherche un titre "description" puis on lit le texte qui suit.
         heading = soup.find(
             ["h2", "h3", "strong"],
             string=re.compile(r"description", re.IGNORECASE),
@@ -168,9 +194,11 @@ class EventScraper(BaseScraper):
         return self._clean_text(" ".join(parts))
 
     def _extract_price_items(self, soup: BeautifulSoup) -> List[Dict]:
+        """Recupere les billets disponibles avec prix, frais et total."""
         items: List[Dict] = []
         seen = set()
 
+        # Les inputs de quantite contiennent les attributs price, fee et data-max.
         for quantity in soup.select("input.selectQuantity[price]"):
             product_id = quantity.get("product") or quantity.get("id")
             if product_id in seen:
@@ -199,7 +227,10 @@ class EventScraper(BaseScraper):
         return items
 
     def parse_detail(self, soup: BeautifulSoup, url: str, base_item: Optional[Dict] = None) -> Dict:
+        """Fusionne les donnees de la carte avec les donnees completes de la fiche detail."""
         base_item = base_item or {}
+
+        # Les selecteurs .evh-* correspondent au bloc hero de la page detail Bizouk.
         title_tag = soup.select_one(".evh-hero-title") or soup.select_one("h1")
         subtitle_tag = soup.select_one(".evh-hero-subtitle")
         type_tag = soup.select_one(".evh-hero-eyebrow")
@@ -207,6 +238,8 @@ class EventScraper(BaseScraper):
         hero = self._extract_hero_meta(soup)
 
         price_items = self._extract_price_items(soup)
+
+        # min_total_price sert dans le frontend pour afficher un prix de depart sur la carte.
         min_price = min(
             (item["total_with_fee"] for item in price_items if item.get("total_with_fee") is not None),
             default=None,
@@ -236,11 +269,13 @@ class EventScraper(BaseScraper):
         include_details: bool = True,
         max_events: Optional[int] = None,
     ) -> List[Dict]:
+        """Parcourt les pages Bizouk, dedoublonne les URLs et retourne les evenements."""
         max_pages = max(1, min(int(max_pages), 10))
         max_events = max(1, int(max_events)) if max_events else None
         results: List[Dict] = []
         seen_urls = set()
 
+        # Boucle principale: page 1, page 2, etc. avec une limite de securite a 10 pages.
         for page in range(1, max_pages + 1):
             page_new_count = 0
 
@@ -251,6 +286,8 @@ class EventScraper(BaseScraper):
 
                 for item in self.parse(soup):
                     detail_url = item.get("detail_url")
+
+                    # On evite les doublons, car un meme evenement peut apparaitre dans plusieurs blocs.
                     if not detail_url or detail_url in seen_urls:
                         continue
 
@@ -258,6 +295,7 @@ class EventScraper(BaseScraper):
                     page_new_count += 1
 
                     if include_details:
+                        # Ouverture de la fiche detail pour enrichir les donnees de la carte.
                         detail_soup = self.fetch_page(detail_url)
                         if detail_soup:
                             item = self.parse_detail(detail_soup, detail_url, item)
@@ -268,6 +306,7 @@ class EventScraper(BaseScraper):
                         return results
 
             if page_new_count == 0:
+                # Si une page ne donne aucun nouvel evenement, inutile de continuer la pagination.
                 break
 
         return results

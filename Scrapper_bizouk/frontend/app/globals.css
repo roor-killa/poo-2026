@@ -28,7 +28,7 @@ select {
 
 .top-band {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 520px);
+  grid-template-columns: minmax(0, 1fr) minmax(650px, 700px);
   gap: 28px;
   align-items: end;
   min-height: 148px;
@@ -70,7 +70,7 @@ h1 {
 
 .scrape-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px 92px 132px;
+  grid-template-columns: minmax(150px, 1fr) 80px 80px minmax(170px, 1fr) 126px;
   gap: 10px;
   align-items: end;
 }

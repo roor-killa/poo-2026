@@ -1,5 +1,6 @@
 const nextConfig = {
-  output: "standalone"
+  output: "standalone",
+  poweredByHeader: false,
 }
 
 export default nextConfig

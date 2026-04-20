@@ -1,6 +1,7 @@
 name: rl_scrapper_bizouk
 
 services:
+  # Backend production: API FastAPI, secrets depuis .env et volume data persistant.
   backend:
     build:
       context: .
@@ -9,12 +10,17 @@ services:
     restart: unless-stopped
     environment:
       - PYTHONDONTWRITEBYTECODE=1
+      - SCRAPER_API_KEY=${SCRAPER_API_KEY:?SCRAPER_API_KEY must be set in .env}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS:-http://rosambert.nsdy.be,https://rosambert.nsdy.be,http://127.0.0.1:3005}
+      - RATE_LIMIT_WINDOW_SECONDS=${RATE_LIMIT_WINDOW_SECONDS:-60}
+      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS:-5}
     volumes:
       - ./data:/project/data
     expose:
       - "8000"
 
   frontend:
+    # Frontend production: build Next.js autonome, servi derriere nginx.
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -28,6 +34,7 @@ services:
       - backend
 
   nginx:
+    # Proxy applicatif: publie uniquement le port local 3005 pour le reverse proxy du VPS.
     image: nginx:stable-alpine
     container_name: RL_bizouk_nginx
     restart: unless-stopped
