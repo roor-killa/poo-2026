@@ -38,6 +38,30 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
+  rci_next_frontend:
+    build:
+      context: ./rci_next_frontend
+    container_name: rci_next_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    working_dir: /app
+    environment:
+      - NODE_ENV=production
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - rci_next_frontend
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
 volumes:
   postgres_data:
     name: poo_postgres_data
