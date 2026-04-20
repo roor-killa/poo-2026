@@ -44,7 +44,7 @@ services:
     container_name: rci_next_frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3050:3050"
     depends_on:
       - postgres
     working_dir: /app
