@@ -50,20 +50,27 @@ Sur le VPS, une premiere fois:
 cd ~
 git clone -b rosambert https://github.com/roor-killa/poo-2026.git RL_poo_2026
 cd ~/RL_poo_2026/Scrapper_bizouk
-mkdir -p data
-cp -n .env.example .env
+bash scripts/vps-diagnose.sh
+bash scripts/vps-deploy-git.sh
 ```
 
 Pour les mises a jour suivantes sur le VPS:
 
 ```bash
 cd ~/RL_poo_2026/Scrapper_bizouk
-git pull origin rosambert
-docker compose -f docker-compose.prod.yml up -d --build
-curl http://127.0.0.1:3005/api/health
+bash scripts/vps-deploy-git.sh
 ```
 
 Cette methode est meilleure que copier-coller le projet, parce que le VPS recupere exactement les commits de ta branche.
+Le script `scripts/vps-deploy-git.sh` fait aussi un `docker compose down` sur l'ancien dossier `~/RL_scrapper_bizouk` s'il existe.
+Comme ca, les anciens conteneurs lances par archive ne bloquent pas les nouveaux conteneurs Git.
+
+Pour verifier ce qui tourne sans deployer:
+
+```bash
+cd ~/RL_poo_2026/Scrapper_bizouk
+bash scripts/vps-diagnose.sh
+```
 
 ### Option B - Methode archive temporaire
 
@@ -86,6 +93,16 @@ cp -n .env.example .env
 ```
 
 Cette methode marche pour depanner, mais elle n'est pas ideale pour montrer du CI/CD.
+
+Si tu passes de l'archive vers Git, ne supprime pas tout au hasard.
+Arrete d'abord l'ancien deploiement:
+
+```bash
+cd ~/RL_scrapper_bizouk
+docker compose -f docker-compose.prod.yml down
+```
+
+Ensuite lance la methode Git.
 
 ## 3. Configurer les secrets
 
@@ -166,7 +183,16 @@ Pour automatiser proprement, il faut utiliser des secrets GitHub Actions:
 - `VPS_HOST`: `37.187.236.58`
 - `VPS_USER`: `rosambert`
 - `VPS_SSH_KEY`: cle privee SSH autorisee sur le VPS
-- `VPS_PROJECT_PATH`: chemin du projet sur le VPS
+- `VPS_REPO_DIR`: optionnel, par defaut `~/RL_poo_2026`
 
 Le fichier `.env` doit rester uniquement sur le VPS.
 GitHub ne doit jamais contenir les vraies cles API ou mots de passe.
+
+Le workflow est deja prepare ici:
+
+```text
+.github/workflows/deploy-scrapper-bizouk.yml
+```
+
+Il se lance automatiquement quand tu push sur la branche `rosambert` et qu'un fichier de `Scrapper_bizouk/` change.
+Il peut aussi etre lance manuellement depuis l'onglet `Actions` de GitHub.

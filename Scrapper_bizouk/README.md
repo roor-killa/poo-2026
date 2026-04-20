@@ -46,6 +46,10 @@ curl -H "X-API-Key: dev-local-scraper-key" "http://localhost:3005/api/scrape/eve
 ## Deploiement
 
 Les consignes VPS sont dans `DEPLOYMENT.md`.
+Les scripts utiles sur le VPS sont dans `scripts/`:
+
+- `scripts/vps-diagnose.sh`: voir quels dossiers/containers existent.
+- `scripts/vps-deploy-git.sh`: stopper l'ancien deploy archive, faire `git pull`, rebuild Docker et tester `/api/health`.
 
 Ne jamais versionner de mot de passe, de cle SSH, de token ou de fichier `.env`.
 Actuellement je peux déployer manuellement avec git pull sur le VPS, puis docker compose up -d --build. L’étape CI/CD consiste à automatiser exactement ces commandes via GitHub Actions après chaque push sur ma branche

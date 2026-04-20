@@ -1,0 +1,43 @@
+name: Deploy Scrapper Bizouk
+
+on:
+  push:
+    branches:
+      - rosambert
+    paths:
+      - "Scrapper_bizouk/**"
+      - ".github/workflows/deploy-scrapper-bizouk.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy on VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      # Ce workflow ne contient aucun mot de passe.
+      # Les informations sensibles doivent etre configurees dans GitHub > Settings > Secrets and variables > Actions.
+      - name: Deploy with SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            export BRANCH="rosambert"
+            export REPO_URL="https://github.com/roor-killa/poo-2026.git"
+            export GIT_REPO_DIR="${{ secrets.VPS_REPO_DIR }}"
+
+            if [ -z "$GIT_REPO_DIR" ]; then
+              export GIT_REPO_DIR="$HOME/RL_poo_2026"
+            fi
+
+            if [ ! -d "$GIT_REPO_DIR/.git" ]; then
+              git clone -b "$BRANCH" "$REPO_URL" "$GIT_REPO_DIR"
+            fi
+
+            cd "$GIT_REPO_DIR/Scrapper_bizouk"
+            bash scripts/vps-deploy-git.sh
