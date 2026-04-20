@@ -67,8 +67,22 @@ docker compose -f docker-compose.prod.yml ps
 
 echo
 echo "== Test de sante =="
-curl -fsS http://127.0.0.1:3005/api/health
-echo
+for attempt in $(seq 1 12); do
+  if curl -fsS http://127.0.0.1:3005/api/health; then
+    echo
+    break
+  fi
+
+  if [ "$attempt" -eq 12 ]; then
+    echo "Le health check a echoue apres plusieurs tentatives." >&2
+    echo "Logs utiles:" >&2
+    docker compose -f docker-compose.prod.yml logs --tail=80 backend frontend nginx >&2
+    exit 1
+  fi
+
+  echo "Health check pas encore pret, nouvelle tentative dans 5s..."
+  sleep 5
+done
 
 echo
 echo "Deploiement termine."

@@ -14,12 +14,17 @@ Le conteneur nginx de l'app ecoute sur `127.0.0.1:3005`.
 Une fois connecte au VPS:
 
 ```bash
+whoami
+hostname
+pwd
 docker --version
 docker compose version
 groups
-pwd
 ls -la
 ```
+
+Sur le VPS du prof, tu dois voir un prompt proche de `rosambert@vps91746`.
+Si tu vois `yukii@yukii_btw MINGW64` ou un chemin qui commence par `/c/Users/yukii`, tu es encore sur ton PC local.
 
 Si `docker` ne fonctionne pas pour l'utilisateur `rosambert`, il faut que le prof donne l'acces Docker ou lance les commandes avec un compte autorise.
 
