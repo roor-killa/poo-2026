@@ -22,7 +22,7 @@ services:
       timeout: 5s
       retries: 5
 
-  rci_next_frontend:
+  rci_toma_next_frontend:
     build:
       context: ./rci_next_frontend
     container_name: rci_toma_next_frontend
@@ -37,7 +37,7 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: nginx
+    container_name: rci_toma_nginx
     restart: unless-stopped
     ports:
       - "87:80"
