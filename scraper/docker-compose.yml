@@ -25,7 +25,7 @@ services:
   rci_next_frontend:
     build:
       context: ./rci_next_frontend
-    container_name: rci_next_frontend
+    container_name: rci_toma_next_frontend
     restart: unless-stopped
     ports:
       - "3007:3000"
@@ -49,5 +49,5 @@ services:
 volumes:
   postgres_data:
     name: rci_toma_poo_postgresclear
-    
+
 
