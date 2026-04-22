@@ -65,6 +65,30 @@ def get_connection() -> psycopg2.extensions.connection:
     )
 
 
+def get_known_urls(
+    conn: psycopg2.extensions.connection,
+    source: str | None = None,
+) -> set[str]:
+    """Retourne les URLs déjà présentes dans la table `documents`.
+
+    Args:
+        conn:   Connexion psycopg2 active.
+        source: Filtre par source (ex: 'rci'). None = toutes sources.
+
+    Returns:
+        Ensemble des URLs déjà stockées en base.
+    """
+    with conn.cursor() as cur:
+        if source:
+            cur.execute(
+                "SELECT url FROM documents WHERE source = %s AND url IS NOT NULL",
+                (source,),
+            )
+        else:
+            cur.execute("SELECT url FROM documents WHERE url IS NOT NULL")
+        return {row[0] for row in cur.fetchall()}
+
+
 # -----------------------------------------------------------------------------
 # DocumentLoader
 # -----------------------------------------------------------------------------

@@ -6,6 +6,7 @@ from typing import Any
 from src.base_scraper import BaseScraper
 from src.scrapers.pawolotek_scraper import PawoloTekScraper
 from src.scrapers.potomitan_scraper import PotomitanScraper
+from src.scrapers.rci_scraper import RCIScraper
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 _SCRAPER_REGISTRY: dict[str, type[BaseScraper]] = {
     "pawolotek": PawoloTekScraper,
     "potomitan": PotomitanScraper,
+    "rci": RCIScraper,
 }
 
 

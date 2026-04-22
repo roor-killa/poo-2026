@@ -89,6 +89,18 @@ def main() -> None:
         logger.error(str(e))
         sys.exit(1)
 
+    # Connexion DB — charger les URLs déjà scrapées pour les ignorer
+    db_conn = None
+    try:
+        from src.db_loader import get_connection, get_known_urls
+        db_conn = get_connection()
+        known = get_known_urls(db_conn, source=args.source)
+        scraper.set_known_urls(known)
+        logger.info("%d URLs déjà en base pour '%s' — ignorées.", len(known), args.source)
+    except Exception as exc:
+        logger.warning("DB inaccessible, scraping sans filtre : %s", exc)
+        db_conn = None
+
     # Attacher les observateurs
     stats = StatsObserver()
     scraper.attach(LogObserver(args.source))
@@ -120,7 +132,18 @@ def main() -> None:
         json.dump(cleaned, fh, ensure_ascii=False, indent=2)
     logger.info("Données nettoyées → %s", processed_path)
 
-    # Import BDD
+    # Sauvegarde dans la table documents (déduplication par URL)
+    if db_conn is not None:
+        try:
+            n = scraper.save_to_db(db_conn)
+            logger.info("Documents sauvegardés en base : %d", n)
+        except Exception as exc:
+            logger.error("Erreur sauvegarde documents : %s", exc)
+        finally:
+            db_conn.close()
+            db_conn = None
+
+    # Import BDD (tables dictionnaire : mots, traductions, corpus…)
     if args.import_db:
         if not build_db_url():
             logger.error("POSTGRES_PASSWORD manquant dans .env — import annulé")

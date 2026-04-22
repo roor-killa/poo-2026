@@ -57,7 +57,6 @@ class RCIScraper(BaseScraper):
         self.start_url: str = start_url or (self.BASE_URL + self.START_PATH)
         self.max_depth: int = max_depth
         self.visited: set[str] = set()
-        self.known_urls: set[str] = set()
         self.domain: str = urlparse(self.BASE_URL).netloc  # "rci.fm"
 
     def set_known_urls(self, urls: set[str]) -> None:

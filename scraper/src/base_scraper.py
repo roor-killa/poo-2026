@@ -36,6 +36,20 @@ class BaseScraper(ABC):
         self.headers: dict[str, str] = HEADERS.copy()
         self.data: list[dict[str, Any]] = []
         self._observers: list[Any] = []
+        self.known_urls: set[str] = set()
+
+    # ------------------------------------------------------------------
+    # Cache DB — URLs déjà connues
+    # ------------------------------------------------------------------
+
+    def set_known_urls(self, urls: set[str]) -> None:
+        """Charge les URLs déjà en base pour éviter de les re-scraper.
+
+        Args:
+            urls: Ensemble d'URLs déjà présentes dans la table documents.
+        """
+        self.known_urls = urls
+        logger.info("set_known_urls : %d URLs déjà en base.", len(urls))
 
     # ------------------------------------------------------------------
     # Observer Pattern
