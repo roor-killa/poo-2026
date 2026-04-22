@@ -6,8 +6,8 @@ Architecture Docker pour scraper les evenements publics de [Bizouk](https://www.
 
 ```text
 PostgreSQL :5432  <- base de donnees
-FastAPI    :8000  <- API REST + scraper Bizouk
-Laravel    :80    <- interface web + dashboard
+FastAPI    :8009  <- API REST + scraper Bizouk
+Laravel    :89    <- interface web + dashboard
 ```
 
 ## Demarrage rapide
@@ -18,10 +18,10 @@ docker compose up --build
 
 Une fois les conteneurs lances :
 
-- Evenements : http://localhost
-- Dashboard : http://localhost/dashboard
-- API FastAPI : http://localhost:8000
-- Documentation API : http://localhost:8000/docs
+- Evenements : http://localhost:89
+- Dashboard : http://localhost:89/dashboard
+- API FastAPI : http://localhost:8009
+- Documentation API : http://localhost:8009/docs
 
 ## Scraper Bizouk
 
@@ -33,7 +33,7 @@ Le scraper utilise :
 Lancer le scraping depuis l'API :
 
 ```bash
-curl -X POST http://localhost:8000/api/scrape \
+curl -X POST http://localhost:8009/api/scrape \
   -H "Content-Type: application/json" \
   -d "{\"regions\":[\"martinique\"],\"max_per_region\":30,\"fetch_details\":true}"
 ```
@@ -41,10 +41,10 @@ curl -X POST http://localhost:8000/api/scrape \
 ## API utile
 
 ```bash
-curl http://localhost:8000/health
-curl "http://localhost:8000/api/events?page=1&region=martinique"
-curl http://localhost:8000/api/event-types
-curl http://localhost:8000/api/stats
+curl http://localhost:8009/health
+curl "http://localhost:8009/api/events?page=1&region=martinique"
+curl http://localhost:8009/api/event-types
+curl http://localhost:8009/api/stats
 ```
 
 ## Structure

@@ -8,10 +8,10 @@ Le programme est decoupe en trois services Docker :
 Navigateur
   |
   v
-Laravel :80
+Laravel :89
   |
   v
-FastAPI :8000
+FastAPI :8009
   |
   v
 PostgreSQL :5432
@@ -79,7 +79,7 @@ Laravel consomme FastAPI pour afficher la liste des evenements, les details et l
 
 ## Flux principal
 
-1. L'utilisateur ouvre `http://localhost`.
+1. L'utilisateur ouvre `http://localhost:89`.
 2. Laravel appelle `http://fastapi:8000/api/events`.
 3. FastAPI lit PostgreSQL et renvoie les evenements.
 4. Laravel affiche la liste et les filtres par type.
@@ -94,7 +94,7 @@ docker compose up --build
 
 Puis :
 
-- Evenements : `http://localhost`
-- Dashboard : `http://localhost/dashboard`
-- API : `http://localhost:8000`
-- Documentation API : `http://localhost:8000/docs`
+- Evenements : `http://localhost:89`
+- Dashboard : `http://localhost:89/dashboard`
+- API : `http://localhost:8009`
+- Documentation API : `http://localhost:8009/docs`

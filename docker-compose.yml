@@ -10,7 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - "./tp scrap/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bizouk -d bizouk"]
       interval: 5s
@@ -19,7 +19,7 @@ services:
 
   fastapi:
     build:
-      context: ./fastapi
+      context: "./tp scrap/fastapi"
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
@@ -30,7 +30,7 @@ services:
     ports:
       - "8009:8000"
     volumes:
-      - ./fastapi:/app
+      - "./tp scrap/fastapi:/app"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -39,7 +39,7 @@ services:
 
   laravel:
     build:
-      context: ./laravel
+      context: "./tp scrap/laravel"
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
