@@ -2,7 +2,7 @@
 services:
   postgres:
     image: pgvector/pgvector:pg15
-    container_name: poo_postgres
+    container_name: rci_toma_poo_postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-poo_db}
@@ -15,32 +15,39 @@ services:
       - ./scraper/db/04_rc_schema.sql:/docker-entrypoint-initdb.d/04_rc_schema.sql:ro
       - ./scraper/db/05_rag_schema.sql:/docker-entrypoint-initdb.d/05_rag_schema.sql:ro
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "${POSTGRES_PORT:-5437}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: poo_pgadmin
+  rci_toma_next_frontend:
+    build:
+      context: ./rci_next_frontend
+    container_name: rci_toma_next_frontend
     restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
     ports:
-      - "${PGADMIN_PORT:-5050}:80"
+      - "3007:3000"
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
+    working_dir: /app
+    environment:
+      - NODE_ENV=production
+
+  nginx:
+    image: nginx:alpine
+    container_name: rci_toma_nginx
+    restart: unless-stopped
+    ports:
+      - "87:80"
+    depends_on:
+      - rci_toma_next_frontend
     volumes:
-      - pgadmin_data:/var/lib/pgadmin
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
 
 volumes:
   postgres_data:
-    name: poo_postgres_data
-  pgadmin_data:
-    name: poo_pgadmin_data
+    name: rci_toma_poo_postgresclear
+
 
