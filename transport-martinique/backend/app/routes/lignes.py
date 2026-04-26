@@ -4,6 +4,9 @@ import csv
 import io
 import zipfile
 import time
+from zoneinfo import ZoneInfo
+
+MARTINIQUE_TZ = ZoneInfo("America/Martinique")
 
 router = APIRouter()
 
@@ -179,25 +182,36 @@ async def get_next_departures(stop_id: str, limit: int = 12):
         trip_dict = {t["trip_id"]: t for t in trips}
         route_dict = {r["route_id"]: r for r in routes}
 
-        now = time.localtime()
-        current_sec = now.tm_hour * 3600 + now.tm_min * 60 + now.tm_sec
+        # Always use Martinique local time (UTC-4) regardless of server timezone
+        from datetime import datetime
+        now_mq = datetime.now(MARTINIQUE_TZ)
+        current_sec = now_mq.hour * 3600 + now_mq.minute * 60 + now_mq.second
+
+        # Build a lookup of stop_times for this stop only
+        stop_entries = [st for st in stop_times if st["stop_id"] == stop_id]
 
         departures = []
-        for st in stop_times:
-            if st["stop_id"] != stop_id:
-                continue
+        for st in stop_entries:
             try:
-                h, m, s = map(int, st["departure_time"].split(":"))
+                # GTFS allows hours >= 24 for post-midnight trips (e.g. "25:10:00")
+                parts = st["departure_time"].split(":")
+                h, m, s = int(parts[0]), int(parts[1]), int(parts[2])
                 dep_sec = h * 3600 + m * 60 + s
             except Exception:
                 continue
+
+            # Treat post-midnight trips (h >= 24) as belonging to the same service day
+            # so they always appear after all normal-day trips
             if dep_sec < current_sec:
                 continue
 
             trip = trip_dict.get(st["trip_id"], {})
             route = route_dict.get(trip.get("route_id", ""), {})
+            # Format display time — clamp hours >= 24 back to HH:MM
+            display_h = h % 24
+            display_time = f"{display_h:02d}:{m:02d}"
             departures.append({
-                "departure_time": st["departure_time"],
+                "departure_time": display_time,
                 "minutes_until": (dep_sec - current_sec) // 60,
                 "trip_headsign": trip.get("trip_headsign", ""),
                 "direction_id": trip.get("direction_id", "0"),
