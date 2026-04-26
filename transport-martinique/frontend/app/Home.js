@@ -56,30 +56,27 @@ function Muted({ children }) {
 // SearchBar
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SearchBar({ onSelectStop, onSelectLine }) {
+// allLines and allStops are loaded once by the parent — no API calls on keystrokes
+function SearchBar({ onSelectStop, onSelectLine, allLines = [], allStops = [] }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const debounceRef = useRef(null);
   const containerRef = useRef(null);
 
   useEffect(() => {
-    if (query.trim().length < 2) { setResults(null); return; }
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`${API}/search?q=${encodeURIComponent(query)}`);
-        const data = await res.json();
-        setResults(data);
-      } catch {
-        setResults({ stops: [], lines: [] });
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [query]);
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) { setResults(null); return; }
+
+    const lines = allLines.filter(r =>
+      r.route_short_name?.toLowerCase().includes(q) ||
+      r.route_long_name?.toLowerCase().includes(q)
+    ).slice(0, 8).map(r => ({ ...r, type: "line" }));
+
+    const stops = allStops.filter(s =>
+      s.stop_name?.toLowerCase().includes(q)
+    ).slice(0, 12).map(s => ({ ...s, type: "stop" }));
+
+    setResults({ lines, stops });
+  }, [query, allLines, allStops]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -120,10 +117,7 @@ function SearchBar({ onSelectStop, onSelectLine }) {
             boxSizing: "border-box", background: "white",
           }}
         />
-        {loading && (
-          <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: "#aaa", fontSize: 13 }}>…</span>
-        )}
-        {query && !loading && (
+        {query && (
           <button onClick={() => { setQuery(""); setResults(null); }} style={{
             position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
             background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#aaa", padding: 0,
@@ -345,9 +339,24 @@ export default function Home() {
   const [polyline, setPolyline] = useState([]);
   const [lineStops, setLineStops] = useState([]);
   const [buses, setBuses] = useState([]);
-  const [mapCenter, setMapCenter] = useState(null);   // [lat, lon] — pan to stop
-  const [mapBounds, setMapBounds] = useState(null);   // [[lat,lon],...] — fit line
+  const [mapCenter, setMapCenter] = useState(null);
+  const [mapBounds, setMapBounds] = useState(null);
   const busIntervalRef = useRef(null);
+
+  // Load all lines + stops once on mount — search filters locally, no API calls per keystroke
+  const [allLines, setAllLines] = useState([]);
+  const [allStops, setAllStops] = useState([]);
+
+  useEffect(() => {
+    fetch(`${API}/lignes`)
+      .then(r => r.json())
+      .then(d => setAllLines(Array.isArray(d) ? d : []))
+      .catch(() => {});
+    fetch(`${API}/stops`)
+      .then(r => r.json())
+      .then(d => setAllStops(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, []);
 
   const handleSelectStop = (stop) => {
     setSelectedStop(stop);
@@ -423,6 +432,8 @@ export default function Home() {
       <SearchBar
         onSelectStop={handleSelectStop}
         onSelectLine={handleSelectLine}
+        allLines={allLines}
+        allStops={allStops}
       />
       <InfoPanel
         selectedStop={selectedStop}
