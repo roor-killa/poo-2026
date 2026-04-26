@@ -1,128 +1,437 @@
 "use client";
-
-
-
 import dynamic from "next/dynamic";
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
+
 const MapView = dynamic(() => import("../components/MapView"), { ssr: false });
 
+const API = "http://localhost:8000/api";
 
-export default function Home() {
-  const [selectedStop, setSelectedStop] = React.useState(null);
-  const [search, setSearch] = React.useState("");
-  const [lines, setLines] = React.useState([]);
-  const [filteredLines, setFilteredLines] = React.useState([]);
-  const [selectedLine, setSelectedLine] = React.useState(null);
-  const [stops, setStops] = React.useState([]);
-  const [polyline, setPolyline] = React.useState([]);
-  const [buses, setBuses] = React.useState([]);
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared primitives
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // Fetch all lines on mount
-  React.useEffect(() => {
-    fetch("http://localhost:8000/api/lignes")
-      .then(res => res.json())
-      .then(data => {
-        setLines(data);
-        setFilteredLines(data);
-      });
+function LineBadge({ name, color, textColor }) {
+  return (
+    <span style={{
+      background: color ? `#${color}` : "#0074D9",
+      color: textColor ? `#${textColor}` : "white",
+      borderRadius: 6, padding: "3px 10px", fontWeight: 700, fontSize: 13,
+      minWidth: 36, textAlign: "center", display: "inline-block", flexShrink: 0,
+    }}>
+      {name}
+    </span>
+  );
+}
+
+function PanelHeader({ children, onClose }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", padding: "14px 16px",
+      borderBottom: "1px solid #eee", background: "#fafafa", flexShrink: 0,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}>{children}</div>
+      <button onClick={onClose} style={{
+        marginLeft: 8, background: "#eee", border: "none", borderRadius: "50%",
+        width: 28, height: 28, cursor: "pointer", fontSize: 16, color: "#555",
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      }}>×</button>
+    </div>
+  );
+}
+
+function SectionLabel({ children }) {
+  return (
+    <div style={{
+      padding: "8px 16px 4px", fontSize: 11, fontWeight: 700,
+      color: "#999", textTransform: "uppercase", letterSpacing: "0.08em",
+    }}>{children}</div>
+  );
+}
+
+function Muted({ children }) {
+  return <div style={{ padding: "14px 16px", color: "#aaa", fontSize: 13 }}>{children}</div>;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SearchBar
+// ─────────────────────────────────────────────────────────────────────────────
+
+function SearchBar({ onSelectStop, onSelectLine }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (query.trim().length < 2) { setResults(null); return; }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API}/search?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        setResults(data);
+      } catch {
+        setResults({ stops: [], lines: [] });
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [query]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setResults(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Filter lines by search
-  React.useEffect(() => {
-    if (!search) {
-      setFilteredLines(lines);
-      return;
-    }
-    const s = search.trim().toLowerCase();
-    setFilteredLines(
-      lines.filter(line =>
-        (line.route_short_name && line.route_short_name.toLowerCase().includes(s)) ||
-        (line.route_long_name && line.route_long_name.toLowerCase().includes(s))
-      )
-    );
-  }, [search, lines]);
+  const select = (item) => {
+    setQuery(""); setResults(null);
+    if (item.type === "stop") onSelectStop(item);
+    else onSelectLine(item);
+  };
 
-
-  // Fetch stops and polyline for selected line
-  React.useEffect(() => {
-    if (!selectedLine) return;
-    fetch(`http://localhost:8000/api/lignes/${selectedLine.route_id}/stops`)
-      .then(res => res.json())
-      .then(data => setStops(data));
-    fetch(`http://localhost:8000/api/lignes/${selectedLine.route_id}/shape`)
-      .then(res => res.json())
-      .then(data => setPolyline(data));
-  }, [selectedLine]);
-
-  // Fetch simulated buses for selected line, poll every 5 seconds
-  React.useEffect(() => {
-    if (!selectedLine) {
-      setBuses([]);
-      return;
-    }
-    let isMounted = true;
-    const fetchBuses = () => {
-      fetch(`http://localhost:8000/api/lignes/${selectedLine.route_id}/buses`)
-        .then(res => res.json())
-        .then(data => { if (isMounted) setBuses(Array.isArray(data) ? data : []); });
-    };
-    fetchBuses();
-    const interval = setInterval(fetchBuses, 5000);
-    return () => { isMounted = false; clearInterval(interval); };
-  }, [selectedLine]);
+  const hasResults = results && (results.lines?.length > 0 || results.stops?.length > 0);
 
   return (
-    <main className="w-screen h-screen flex flex-row min-h-0 min-w-0 p-0 m-0 overflow-hidden">
-      <aside className="bg-white dark:bg-zinc-900 shadow-lg w-80 max-w-xs h-full p-4 overflow-y-auto z-10">
-        <h1>Transport Martinique</h1>
+    <div ref={containerRef} style={{
+      position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)",
+      zIndex: 1000, width: 430, maxWidth: "90vw", fontFamily: "system-ui, sans-serif",
+    }}>
+      {/* Input */}
+      <div style={{ position: "relative" }}>
+        <span style={{
+          position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)",
+          fontSize: 18, pointerEvents: "none",
+        }}>🔍</span>
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Rechercher un arrêt ou une ligne..."
+          style={{
+            width: "100%", padding: "13px 40px 13px 42px", fontSize: 15,
+            borderRadius: hasResults ? "12px 12px 0 0" : 12, border: "none",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.22)", outline: "none",
+            boxSizing: "border-box", background: "white",
+          }}
+        />
+        {loading && (
+          <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: "#aaa", fontSize: 13 }}>…</span>
+        )}
+        {query && !loading && (
+          <button onClick={() => { setQuery(""); setResults(null); }} style={{
+            position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+            background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#aaa", padding: 0,
+          }}>×</button>
+        )}
+      </div>
 
-        <div className="w-full p-4 bg-white/80 z-20 flex flex-col gap-2 shadow-md">
-          <input
-            type="text"
-            className="border rounded px-3 py-2 w-full max-w-md"
-            placeholder="Rechercher une ligne (numéro ou nom)..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{fontSize:'1rem'}}
-          />
-          <div className="max-h-48 overflow-y-auto mt-2">
-            {filteredLines && filteredLines.length > 0 ? (
-              filteredLines.slice(0, 20).map(line => (
-                <div
-                  key={line.route_id}
-                  className={`cursor-pointer px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-zinc-800 ${selectedLine && selectedLine.route_id === line.route_id ? 'bg-blue-200 dark:bg-zinc-700' : ''}`}
-                  onClick={() => { setSelectedLine(line); setSelectedStop(null); }}
-                >
-                  <span className="font-bold">{line.route_short_name}</span> <span className="text-xs text-zinc-500">{line.route_long_name}</span>
+      {/* Dropdown */}
+      {results && (
+        <div style={{
+          background: "white", borderRadius: "0 0 12px 12px",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.18)", maxHeight: 420, overflowY: "auto",
+        }}>
+          {!hasResults && (
+            <div style={{ padding: "14px 16px", color: "#999", fontSize: 14 }}>
+              Aucun résultat pour « {query} »
+            </div>
+          )}
+
+          {results.lines?.length > 0 && (
+            <>
+              <div style={{ padding: "8px 16px 4px", fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.08em", background: "#fafafa", borderTop: "1px solid #f0f0f0" }}>Lignes</div>
+              {results.lines.map(line => (
+                <DropdownRow key={line.route_id} onClick={() => select(line)}
+                  left={<LineBadge name={line.route_short_name || line.route_id} color={line.route_color} textColor={line.route_text_color} />}
+                  primary={line.route_long_name || line.route_short_name}
+                />
+              ))}
+            </>
+          )}
+
+          {results.stops?.length > 0 && (
+            <>
+              <div style={{ padding: "8px 16px 4px", fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.08em", background: "#fafafa", borderTop: "1px solid #f0f0f0" }}>Arrêts</div>
+              {results.stops.map(stop => (
+                <DropdownRow key={stop.stop_id} onClick={() => select(stop)}
+                  left={<span style={{ fontSize: 20 }}>🚏</span>}
+                  primary={stop.stop_name}
+                />
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DropdownRow({ onClick, left, primary }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <div onClick={onClick}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      style={{
+        padding: "10px 16px", cursor: "pointer", display: "flex", alignItems: "center",
+        gap: 12, background: hover ? "#f4f7ff" : "white", transition: "background 0.1s",
+      }}>
+      <div style={{ flexShrink: 0 }}>{left}</div>
+      <div style={{ fontSize: 14, fontWeight: 500, color: "#1a1a1a" }}>{primary}</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// InfoPanel — shows either stop next-departures or line direction+stops
+// ─────────────────────────────────────────────────────────────────────────────
+
+function InfoPanel({ selectedStop, selectedLine, activeDirection, setActiveDirection, onClose, onSelectStop }) {
+  if (!selectedStop && !selectedLine) return null;
+  return (
+    <div style={{
+      position: "absolute", bottom: 24, left: 16, zIndex: 1000,
+      width: 340, maxWidth: "calc(100vw - 32px)", background: "white",
+      borderRadius: 16, boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+      fontFamily: "system-ui, sans-serif", overflow: "hidden",
+      maxHeight: "62vh", display: "flex", flexDirection: "column",
+    }}>
+      {selectedStop
+        ? <StopPanel stop={selectedStop} onClose={onClose} />
+        : <LinePanel line={selectedLine} activeDirection={activeDirection} setActiveDirection={setActiveDirection} onClose={onClose} onSelectStop={onSelectStop} />
+      }
+    </div>
+  );
+}
+
+// Stop panel: shows name + next departures
+function StopPanel({ stop, onClose }) {
+  const [departures, setDepartures] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    setDepartures(null);
+    fetch(`${API}/stops/${stop.stop_id}/next-departures`)
+      .then(r => r.json())
+      .then(d => setDepartures(Array.isArray(d) ? d : []))
+      .catch(() => setDepartures([]))
+      .finally(() => setLoading(false));
+  }, [stop.stop_id]);
+
+  return (
+    <>
+      <PanelHeader onClose={onClose}>
+        <span style={{ fontSize: 20, marginRight: 8 }}>🚏</span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{stop.stop_name}</div>
+          {stop.stop_desc && <div style={{ fontSize: 12, color: "#888" }}>{stop.stop_desc}</div>}
+        </div>
+      </PanelHeader>
+      <div style={{ overflowY: "auto", paddingBottom: 8 }}>
+        <SectionLabel>Prochains passages</SectionLabel>
+        {loading && <Muted>Chargement des passages…</Muted>}
+        {!loading && departures?.length === 0 && <Muted>Aucun passage prévu pour le moment.</Muted>}
+        {departures?.map((dep, i) => {
+          const mins = dep.minutes_until;
+          const timeLabel = mins === 0 ? "À l'arrêt" : mins < 60 ? `${mins} min` : dep.departure_time.slice(0, 5);
+          const timeColor = mins <= 2 ? "#e74c3c" : mins <= 5 ? "#e67e22" : "#27ae60";
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", borderBottom: "1px solid #f5f5f5" }}>
+              <LineBadge name={dep.route_short_name || "?"} color={dep.route_color} textColor={dep.route_text_color} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {dep.trip_headsign || dep.route_long_name}
                 </div>
-              ))
-            ) : (
-              <div className="text-zinc-500 text-sm">Aucune ligne trouvée</div>
-            )}
+                <div style={{ fontSize: 11, color: "#888" }}>{dep.departure_time.slice(0, 5)}</div>
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 14, minWidth: 52, textAlign: "right", color: timeColor }}>
+                {timeLabel}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+// Line panel: shows direction tabs + ordered stops list
+function LinePanel({ line, activeDirection, setActiveDirection, onClose, onSelectStop }) {
+  const [directions, setDirections] = useState([]);
+  const [stops, setStops] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API}/lignes/${line.route_id}/directions`)
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d) && d.length) {
+          setDirections(d);
+          setActiveDirection(d[0].direction_id);
+        }
+      })
+      .catch(() => {});
+  }, [line.route_id]);
+
+  useEffect(() => {
+    setStops(null);
+    fetch(`${API}/lignes/${line.route_id}/stops?direction_id=${activeDirection}`)
+      .then(r => r.json())
+      .then(d => setStops(Array.isArray(d) ? d : []))
+      .catch(() => setStops([]));
+  }, [line.route_id, activeDirection]);
+
+  return (
+    <>
+      <PanelHeader onClose={onClose}>
+        <LineBadge name={line.route_short_name || line.route_id} color={line.route_color} textColor={line.route_text_color} />
+        <div style={{ marginLeft: 10, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {line.route_long_name}
           </div>
         </div>
+      </PanelHeader>
 
-        {selectedLine && (
-          <div className="mt-4">
-            <h2 className="text-lg font-bold mb-2">Ligne sélectionnée</h2>
-            <div className="font-semibold text-xl mb-1">{selectedLine.route_short_name}</div>
-            <div className="text-sm text-zinc-500 mb-2">{selectedLine.route_long_name}</div>
-          </div>
-        )}
+      {/* Direction tabs */}
+      {directions.length > 1 && (
+        <div style={{ display: "flex", borderBottom: "1px solid #eee", background: "#fafafa", flexShrink: 0 }}>
+          {directions.map(dir => (
+            <button key={dir.direction_id} onClick={() => setActiveDirection(dir.direction_id)} style={{
+              flex: 1, padding: "9px 8px", border: "none", cursor: "pointer", fontSize: 12, background: "none",
+              borderBottom: activeDirection === dir.direction_id ? "2px solid #0074D9" : "2px solid transparent",
+              fontWeight: activeDirection === dir.direction_id ? 700 : 500,
+              color: activeDirection === dir.direction_id ? "#0074D9" : "#666",
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            }} title={dir.headsign}>▶ {dir.headsign}</button>
+          ))}
+        </div>
+      )}
 
-        {selectedStop ? (
-          <div className="mt-4">
-            <h2 className="text-lg font-bold mb-2">Arrêt sélectionné</h2>
-            <div className="font-semibold text-xl mb-1">{selectedStop.stop_name}</div>
-            <div className="text-sm text-zinc-500 mb-2">Code: {selectedStop.stop_code}</div>
-            <div className="text-sm">Latitude: {selectedStop.stop_lat}</div>
-            <div className="text-sm">Longitude: {selectedStop.stop_lon}</div>
+      {/* Stops list */}
+      <div style={{ overflowY: "auto", paddingBottom: 8 }}>
+        <SectionLabel>Arrêts ({stops?.length ?? "…"})</SectionLabel>
+        {!stops && <Muted>Chargement des arrêts…</Muted>}
+        {stops?.map((stop, i) => (
+          <div key={stop.stop_id} onClick={() => onSelectStop?.(stop)}
+            style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px", cursor: "pointer", borderBottom: "1px solid #f5f5f5" }}
+            onMouseEnter={e => e.currentTarget.style.background = "#f4f7ff"}
+            onMouseLeave={e => e.currentTarget.style.background = "white"}
+          >
+            <div style={{
+              width: 22, height: 22, borderRadius: "50%", background: "#0074D9", color: "white",
+              fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>{i + 1}</div>
+            <div style={{ fontSize: 13, fontWeight: 500 }}>{stop.stop_name}</div>
           </div>
-        ) : null}
-      </aside>
-      <div className="flex-1 h-full flex flex-col">
-        <MapView onStopSelect={setSelectedStop} stops={stops} polyline={polyline} buses={buses} />
+        ))}
       </div>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main page
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function Home() {
+  const [selectedStop, setSelectedStop] = useState(null);
+  const [selectedLine, setSelectedLine] = useState(null);
+  const [activeDirection, setActiveDirection] = useState("0");
+  const [polyline, setPolyline] = useState([]);
+  const [lineStops, setLineStops] = useState([]);
+  const [buses, setBuses] = useState([]);
+  const [mapCenter, setMapCenter] = useState(null);   // [lat, lon] — pan to stop
+  const [mapBounds, setMapBounds] = useState(null);   // [[lat,lon],...] — fit line
+  const busIntervalRef = useRef(null);
+
+  const handleSelectStop = (stop) => {
+    setSelectedStop(stop);
+    const lat = parseFloat(stop.stop_lat);
+    const lon = parseFloat(stop.stop_lon);
+    if (!isNaN(lat) && !isNaN(lon)) {
+      setMapCenter([lat, lon]);
+      setMapBounds(null);
+    }
+  };
+
+  const handleSelectLine = (line) => {
+    setSelectedLine(line);
+    setSelectedStop(null);
+    setActiveDirection("0");
+  };
+
+  // Re-fetch shape + stops + restart bus poll when line or direction changes
+  useEffect(() => {
+    if (!selectedLine) {
+      setPolyline([]); setLineStops([]); setBuses([]);
+      clearInterval(busIntervalRef.current);
+      return;
+    }
+    const id = selectedLine.route_id;
+    const dir = activeDirection;
+
+    fetch(`${API}/lignes/${id}/shape?direction_id=${dir}`)
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d) && d.length) {
+          setPolyline(d);
+          setMapBounds(d.map(p => [p.lat, p.lon]));
+          setMapCenter(null);
+        }
+      }).catch(() => {});
+
+    fetch(`${API}/lignes/${id}/stops?direction_id=${dir}`)
+      .then(r => r.json())
+      .then(d => setLineStops(Array.isArray(d) ? d : []))
+      .catch(() => {});
+
+    clearInterval(busIntervalRef.current);
+    const poll = () =>
+      fetch(`${API}/lignes/${id}/buses?direction_id=${dir}&n_buses=3`)
+        .then(r => r.json())
+        .then(d => setBuses(Array.isArray(d) ? d : []))
+        .catch(() => {});
+    poll();
+    busIntervalRef.current = setInterval(poll, 5000);
+
+    return () => clearInterval(busIntervalRef.current);
+  }, [selectedLine, activeDirection]);
+
+  const handleClose = () => {
+    setSelectedStop(null);
+    setSelectedLine(null);
+    setPolyline([]); setLineStops([]); setBuses([]);
+    setMapCenter(null); setMapBounds(null);
+  };
+
+  return (
+    <main style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden" }}>
+      <MapView
+        stops={lineStops}
+        polyline={polyline}
+        buses={buses}
+        selectedStop={selectedStop}
+        onStopSelect={handleSelectStop}
+        mapCenter={mapCenter}
+        mapBounds={mapBounds}
+      />
+      <SearchBar
+        onSelectStop={handleSelectStop}
+        onSelectLine={handleSelectLine}
+      />
+      <InfoPanel
+        selectedStop={selectedStop}
+        selectedLine={selectedLine}
+        activeDirection={activeDirection}
+        setActiveDirection={setActiveDirection}
+        onClose={handleClose}
+        onSelectStop={handleSelectStop}
+      />
     </main>
   );
 }
