@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
  
 from .routes import stops as stops_router
+from .routes import lignes as lignes_router
 
 app = FastAPI(title="Transport Martinique API", version="0.2.0")
 
@@ -16,6 +17,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(stops_router.router, prefix="/api")
+app.include_router(lignes_router.router, prefix="/api")
 
 @app.get("/health")
 def health():
