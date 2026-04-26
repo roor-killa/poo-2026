@@ -1,9 +1,11 @@
 "use client";
 
 
+
 import dynamic from "next/dynamic";
 import React from "react";
 const MapView = dynamic(() => import("../components/MapView"), { ssr: false });
+
 
 export default function Home() {
   const [selectedStop, setSelectedStop] = React.useState(null);
@@ -13,6 +15,7 @@ export default function Home() {
   const [selectedLine, setSelectedLine] = React.useState(null);
   const [stops, setStops] = React.useState([]);
   const [polyline, setPolyline] = React.useState([]);
+  const [buses, setBuses] = React.useState([]);
 
   // Fetch all lines on mount
   React.useEffect(() => {
@@ -39,6 +42,7 @@ export default function Home() {
     );
   }, [search, lines]);
 
+
   // Fetch stops and polyline for selected line
   React.useEffect(() => {
     if (!selectedLine) return;
@@ -48,6 +52,23 @@ export default function Home() {
     fetch(`http://localhost:8000/api/lignes/${selectedLine.route_id}/shape`)
       .then(res => res.json())
       .then(data => setPolyline(data));
+  }, [selectedLine]);
+
+  // Fetch simulated buses for selected line, poll every 5 seconds
+  React.useEffect(() => {
+    if (!selectedLine) {
+      setBuses([]);
+      return;
+    }
+    let isMounted = true;
+    const fetchBuses = () => {
+      fetch(`http://localhost:8000/api/lignes/${selectedLine.route_id}/buses`)
+        .then(res => res.json())
+        .then(data => { if (isMounted) setBuses(Array.isArray(data) ? data : []); });
+    };
+    fetchBuses();
+    const interval = setInterval(fetchBuses, 5000);
+    return () => { isMounted = false; clearInterval(interval); };
   }, [selectedLine]);
 
   return (
@@ -100,7 +121,7 @@ export default function Home() {
         ) : null}
       </aside>
       <div className="flex-1 h-full flex flex-col">
-        <MapView onStopSelect={setSelectedStop} stops={stops} polyline={polyline} />
+        <MapView onStopSelect={setSelectedStop} stops={stops} polyline={polyline} buses={buses} />
       </div>
     </main>
   );

@@ -5,5 +5,3 @@ Mettre une notification ou tu choisi un arret et un bus (option) et sa tenvoie d
 
 
 
-
-read the README.md in the root project and tell me first how to simulate bus tracking data then add it into the react-leaflet so you can see the buses moving
