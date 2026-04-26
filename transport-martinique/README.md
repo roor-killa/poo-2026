@@ -89,7 +89,7 @@ Concevoir une application permettant a un usager de savoir instantanement:
 
 - consultation d'un arret ou d'une ligne via une barre de recherche en haut de la carte
 - recherche des arrets de bus et des lignes, avec prise en compte du sens/direction
-- affichage de popups sur la carte pour voir les informations d'un arret, d'une ligne ou des prochains passages
+
 
 ### 5.3 Ecrans principaux
 
