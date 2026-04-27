@@ -26,7 +26,8 @@ class DataAnalyzer:
             titre = row.get('titre', 'Film')
             horaires_brut = row.get('horaires', 'Non disponible')
             
-            # --- TRANSFORMATION DES HORAIRES EN PILULES ---
+            # --- TRANSFORMATION DES HORAIRES EN PILULES INDIVIDUELLES ---
+            # On sépare le texte par le caractère "|" et on crée un petit badge pour chaque heure
             horaires_pills = ""
             if "|" in horaires_brut:
                 liste_heures = horaires_brut.split("|")
@@ -60,117 +61,88 @@ class DataAnalyzer:
             <style>
                 :root {{
                     --netflix-red: #E50914;
-                    --bg-dark: #0f0f0f;
+                    --bg-dark: #141414;
                     --glass: rgba(255, 255, 255, 0.03);
                 }}
                 
                 body {{
                     background-color: var(--bg-dark);
                     color: white;
-                    font-family: 'Inter', -apple-system, sans-serif;
+                    font-family: 'Segoe UI', sans-serif;
                     margin: 0;
-                    padding: 15px;
+                    padding: 40px;
                 }}
 
                 .container {{ max-width: 1200px; margin: 0 auto; }}
 
-                .header {{ 
-                    display: flex; 
-                    align-items: center; 
-                    margin: 20px 0 30px 0; 
-                    gap: 15px; 
-                }}
-                
-                .back-btn {{ 
-                    color: white; 
-                    background: rgba(255,255,255,0.05); 
-                    padding: 10px 14px; 
-                    border-radius: 50%; 
-                    text-decoration: none; 
-                    font-size: 1.2rem;
-                }}
+                .header {{ display: flex; align-items: center; margin-bottom: 40px; gap: 20px; }}
+                .back-btn {{ color: white; background: rgba(255,255,255,0.1); padding: 12px 15px; border-radius: 50%; text-decoration: none; transition: 0.3s; }}
+                .back-btn:hover {{ background: var(--netflix-red); transform: scale(1.1); }}
 
-                h1 {{ font-size: 1.5rem; margin: 0; font-weight: 900; letter-spacing: -1px; }}
+                h1 {{ font-size: 2.2rem; margin: 0; font-weight: 800; }}
                 h1 span {{ color: var(--netflix-red); }}
 
-                /* --- GRILLE RESPONSIVE --- */
                 .grid {{
                     display: grid;
-                    grid-template-columns: repeat(2, 1fr); /* 2 colonnes par défaut sur Mobile */
-                    gap: 12px;
-                }}
-
-                /* Si l'écran fait plus de 768px (Tablette/PC) */
-                @media (min-width: 768px) {{
-                    body {{ padding: 40px; }}
-                    h1 {{ font-size: 2.2rem; }}
-                    .grid {{ 
-                        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); 
-                        gap: 25px; 
-                    }}
-                    .img-container {{ height: 380px !important; }}
-                    h3 {{ font-size: 1.2rem !important; }}
+                    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                    gap: 35px;
                 }}
 
                 .glass-card {{
                     background: var(--glass);
-                    border-radius: 12px;
-                    border: 1px solid rgba(255, 255, 255, 0.05);
+                    backdrop-filter: blur(15px);
+                    border-radius: 15px;
+                    border: 1px solid rgba(255, 255, 255, 0.08);
                     overflow: hidden;
-                    display: flex;
-                    flex-direction: column;
+                    transition: 0.4s ease;
                 }}
 
-                .img-container {{ 
-                    position: relative; 
-                    height: 220px; /* Hauteur adaptée pour le 2 colonnes mobile */
+                .glass-card:hover {{
+                    transform: translateY(-10px);
+                    border-color: rgba(229, 9, 20, 0.5);
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
                 }}
-                
+
+                .img-container {{ position: relative; height: 400px; }}
                 .movie-img {{ width: 100%; height: 100%; object-fit: cover; }}
-                .overlay {{ 
-                    position: absolute; 
-                    bottom: 0; left: 0; right: 0; 
-                    height: 50%; 
-                    background: linear-gradient(transparent, rgba(15,15,15,0.9)); 
-                }}
+                .overlay {{ position: absolute; bottom: 0; left: 0; right: 0; height: 60%; background: linear-gradient(transparent, var(--bg-dark)); }}
 
-                .card-content {{ padding: 12px; flex-grow: 1; }}
-                
-                h3 {{ 
-                    margin: 0 0 10px 0; 
-                    font-size: 0.95rem; 
-                    font-weight: 700;
-                    line-height: 1.2;
-                    min-height: 2.4em;
-                    display: -webkit-box;
-                    -webkit-line-clamp: 2;
-                    -webkit-box-orient: vertical;
-                    overflow: hidden;
-                }}
+                .card-content {{ padding: 20px; }}
+                h3 {{ margin: 0 0 15px 0; font-size: 1.3rem; font-weight: 700; }}
 
+                /* --- STYLE MODERNE DES HORAIRES --- */
                 .pills-container {{
                     display: flex;
                     flex-wrap: wrap;
-                    gap: 6px;
+                    gap: 8px;
                 }}
 
                 .time-pill {{
-                    background: rgba(229, 9, 20, 0.1);
-                    border: 1px solid rgba(229, 9, 20, 0.2);
-                    color: #ff4d4d;
-                    padding: 4px 8px;
-                    border-radius: 6px;
-                    font-size: 0.75rem;
-                    font-weight: 700;
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    color: #fff;
+                    padding: 5px 12px;
+                    border-radius: 20px;
+                    font-size: 0.85rem;
+                    font-weight: 600;
+                    letter-spacing: 0.5px;
+                    transition: 0.3s;
                 }}
 
-                .footer {{ margin-top: 50px; text-align: center; color: #333; font-size: 0.7rem; }}
+                .glass-card:hover .time-pill {{
+                    border-color: var(--netflix-red);
+                    color: var(--netflix-red);
+                    background: rgba(229, 9, 20, 0.05);
+                    box-shadow: 0 0 10px rgba(229, 9, 20, 0.2);
+                }}
+
+                .footer {{ margin-top: 80px; text-align: center; color: #444; font-size: 0.8rem; }}
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
-                    <a href="index.html" class="back-btn"><i class="fas fa-chevron-left"></i></a>
+                    <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
                     <h1>Ciné<span>Madiana</span></h1>
                 </div>
 
@@ -179,7 +151,7 @@ class DataAnalyzer:
                 </div>
 
                 <div class="footer">
-                    Généré automatiquement • {time.strftime('%H:%M')}
+                    Mise à jour automatique • {time.strftime('%H:%M')}
                 </div>
             </div>
         </body>
@@ -188,4 +160,4 @@ class DataAnalyzer:
         with open(path, "w", encoding="utf-8") as f:
             f.write(full_html)
         
-        print(f"📱 Interface Mobile-First générée : {path}")
+        print(f"✨ Interface Modernisée générée : {path}")
