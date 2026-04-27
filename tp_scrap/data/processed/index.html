@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineScrap | Administration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Thème sombre personnalisé */
+        body { background-color: #141414; color: #ffffff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden; }
+        
+        /* Effet "Verre" très moderne */
+        .glass-card {
+            background: rgba(30, 30, 30, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .glass-card:hover {
+            transform: translateY(-5px);
+            border-color: #E50914; /* Rouge Netflix */
+            box-shadow: 0 10px 30px -10px rgba(229, 9, 20, 0.5);
+        }
+
+        /* Animations fluides */
+        .fade-in { animation: fadeIn 0.5s ease-in forwards; }
+        .fade-out { animation: fadeOut 0.5s ease-out forwards; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-10px); } }
+
+        /* Champs de texte stylisés */
+        .input-dark { background: #333; color: white; border: 1px solid #444; }
+        .input-dark:focus { outline: none; border-color: #E50914; box-shadow: 0 0 0 2px rgba(229, 9, 20, 0.2); }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div id="login-section" class="w-full max-w-md glass-card rounded-2xl p-8 shadow-2xl relative overflow-hidden">
+        <div class="absolute top-0 left-1/2 transform -translate-x-1/2 w-32 h-32 bg-red-600 rounded-full blur-3xl opacity-20"></div>
+        
+        <div class="text-center mb-8 relative z-10">
+            <i class="fa-solid fa-film text-5xl text-[#E50914] mb-4"></i>
+            <h1 class="text-3xl font-bold tracking-wider">Cine<span class="text-[#E50914]">Scrap</span></h1>
+            <p class="text-gray-400 text-sm mt-2">Portail Administrateur Sécurisé</p>
+        </div>
+
+        <div class="space-y-4 relative z-10">
+            <div>
+                <label class="block text-xs text-gray-400 mb-1 uppercase tracking-wide">Identifiant</label>
+                <div class="relative">
+                    <i class="fa-solid fa-user absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                    <input type="text" value="admin" class="input-dark w-full pl-10 pr-4 py-3 rounded-lg transition-all" readonly>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1 uppercase tracking-wide">Mot de passe</label>
+                <div class="relative">
+                    <i class="fa-solid fa-lock absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
+                    <input type="password" value="••••••••" class="input-dark w-full pl-10 pr-4 py-3 rounded-lg transition-all" readonly>
+                </div>
+            </div>
+            <button onclick="login()" class="w-full bg-[#E50914] hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-all flex justify-center items-center gap-2 mt-6">
+                <span>CONNEXION</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="dashboard-section" class="hidden w-full max-w-6xl w-full h-full">
+        <header class="flex justify-between items-center py-6 border-b border-gray-800 mb-8">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-film text-3xl text-[#E50914]"></i>
+                <h2 class="text-2xl font-bold">Cine<span class="text-[#E50914]">Scrap</span> Dashboard</h2>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-sm text-green-400 bg-green-400/10 px-3 py-1 rounded-full"><i class="fa-solid fa-circle-check mr-2"></i>Scraping Actif</span>
+                <button onclick="logout()" class="text-gray-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-power-off text-xl"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div class="glass-card p-6 rounded-xl border-l-4 border-l-[#E50914]">
+                <h3 class="text-gray-400 text-sm font-semibold uppercase tracking-wider mb-1">Cinémas Ciblés</h3>
+                <p class="text-3xl font-bold">Madiana</p>
+            </div>
+            <div class="glass-card p-6 rounded-xl border-l-4 border-l-blue-500">
+                <h3 class="text-gray-400 text-sm font-semibold uppercase tracking-wider mb-1">Dernière Mise à Jour</h3>
+                <p class="text-3xl font-bold text-blue-400" id="current-time">Aujourd'hui</p>
+            </div>
+            <div class="glass-card p-6 rounded-xl border-l-4 border-l-green-500">
+                <h3 class="text-gray-400 text-sm font-semibold uppercase tracking-wider mb-1">Statut du Serveur</h3>
+                <p class="text-3xl font-bold text-green-400">En Ligne</p>
+            </div>
+        </div>
+
+        <h3 class="text-xl font-semibold mb-6 flex items-center gap-2"><i class="fa-solid fa-database text-gray-400"></i> Données Extraites</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            <a href="scraping_madiana_uniquement.html" target="_blank" class="glass-card group block p-6 rounded-2xl relative overflow-hidden">
+                <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/30 transition-all"></div>
+                <i class="fa-brands fa-html5 text-4xl text-purple-400 mb-4"></i>
+                <h4 class="text-xl font-bold mb-2">Interface Visuelle (HTML)</h4>
+                <p class="text-sm text-gray-400 mb-6">Le tableau des séances généré automatiquement par le script Python.</p>
+                <div class="flex items-center text-purple-400 font-semibold text-sm">
+                    <span>Ouvrir l'aperçu</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square ml-2 group-hover:translate-x-1 transition-transform"></i>
+                </div>
+            </a>
+
+            <a href="scraping_madiana_uniquement.csv" class="glass-card group block p-6 rounded-2xl relative overflow-hidden">
+                <div class="absolute -right-4 -top-4 w-24 h-24 bg-green-500/10 rounded-full blur-xl group-hover:bg-green-500/30 transition-all"></div>
+                <i class="fa-solid fa-file-csv text-4xl text-green-400 mb-4"></i>
+                <h4 class="text-xl font-bold mb-2">Base de données (Madiana)</h4>
+                <p class="text-sm text-gray-400 mb-6">Fichier brut .CSV contenant les films, horaires et salles pour exploitation.</p>
+                <div class="flex items-center text-green-400 font-semibold text-sm">
+                    <span>Télécharger la Data</span>
+                    <i class="fa-solid fa-download ml-2 group-hover:translate-y-1 transition-transform"></i>
+                </div>
+            </a>
+
+            <a href="scraping_final_martinique.csv" class="glass-card group block p-6 rounded-2xl relative overflow-hidden">
+                <div class="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/30 transition-all"></div>
+                <i class="fa-solid fa-globe text-4xl text-blue-400 mb-4"></i>
+                <h4 class="text-xl font-bold mb-2">Data Globale (Martinique)</h4>
+                <p class="text-sm text-gray-400 mb-6">Fichier consolidé prévu pour englober tous les cinémas de l'île.</p>
+                <div class="flex items-center text-blue-400 font-semibold text-sm">
+                    <span>Télécharger l'Archive</span>
+                    <i class="fa-solid fa-download ml-2 group-hover:translate-y-1 transition-transform"></i>
+                </div>
+            </a>
+
+        </div>
+    </div>
+
+    <script>
+        // Mettre la date du jour automatiquement pour faire vrai
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('current-time').textContent = new Date().toLocaleDateString('fr-FR', options);
+
+        function login() {
+            const loginBox = document.getElementById('login-section');
+            const dashboard = document.getElementById('dashboard-section');
+            
+            // Animation de sortie
+            loginBox.classList.add('fade-out');
+            
+            setTimeout(() => {
+                loginBox.style.display = 'none';
+                loginBox.classList.remove('fade-out');
+                
+                // Animation d'entrée
+                dashboard.style.display = 'block';
+                dashboard.classList.add('fade-in');
+            }, 500); // Attend la fin de l'animation
+        }
+
+        function logout() {
+            const loginBox = document.getElementById('login-section');
+            const dashboard = document.getElementById('dashboard-section');
+            
+            dashboard.classList.remove('fade-in');
+            dashboard.classList.add('fade-out');
+            
+            setTimeout(() => {
+                dashboard.style.display = 'none';
+                dashboard.classList.remove('fade-out');
+                
+                loginBox.style.display = 'block';
+                loginBox.classList.add('fade-in');
+            }, 500);
+        }
+    </script>
+</body>
+</html>
