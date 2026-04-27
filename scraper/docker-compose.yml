@@ -47,7 +47,7 @@ services:
     image: nginx:alpine
     restart: unless-stopped
     ports:
-      - "${NGINX_PORT:-81}:80"
+      - "81:80"
     depends_on:
       - rci_group1_next_frontend
     volumes:
