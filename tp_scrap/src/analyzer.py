@@ -43,174 +43,93 @@ class DataAnalyzer:
         print(f"📁 Données exportées avec succès dans : {filepath}")
 
     def export_to_html(self, file_name):
-        """Génère une galerie de films sombre et élégante (Look Netflix)."""
         os.makedirs(os.path.join("data", "processed"), exist_ok=True)
         path = f"data/processed/{file_name}.html"
         
-        # 1. On prépare les "Cartes" de films en HTML
         cards_html = ""
         for _, row in self.df.iterrows():
-            titre = row.get('titre', 'Film Inconnu')
-            horaires = row.get('horaires', 'Séances non disponibles')
-            image_url = row.get('image', '')
-            # NOUVEAU : Récupération du synopsis
-            synopsis = row.get('synopsis', 'Aucune description disponible pour ce film.')
+            titre = row.get('titre', 'Film Inconnu').replace("'", "\\'")
+            horaires = row.get('horaires', 'Non dispo')
+            image = row.get('image', '')
+            synopsis = row.get('synopsis', 'Pas de résumé.').replace("'", "\\'").replace("\n", " ")
             
-            # Petit bonus : Un badge de qualité aléatoire pour le style Netflix
-            badge_qualite = random.choice(["4K", "HD", "Ultra HD"])
-            
-            img_balise = f'<img src="{image_url}" class="movie-img" alt="{titre}">' if image_url else ''
-            
+            # Chaque carte appelle la fonction JS 'openModal' au clic
             cards_html += f"""
-            <div class="glass-card">
+            <div class="glass-card" onclick="openModal('{titre}', '{synopsis}', '{image}', '{horaires}')">
                 <div class="img-container">
-                    {img_balise}
-                    <span class="badge">{badge_qualite}</span>
+                    <img src="{image}" class="movie-img">
+                    <span class="badge">INFO</span>
                 </div>
                 <div class="card-content">
-                    <h3>{titre}</h3>
-                    <p class="movie-synopsis">{synopsis}</p>
-                    <div class="time-badge">
-                        <i class="fas fa-clock"></i> {horaires}
-                    </div>
+                    <h3>{row.get('titre')}</h3>
+                    <div class="time-badge"><i class="fas fa-clock"></i> {horaires}</div>
                 </div>
             </div>
             """
 
-        # 2. Le template complet avec CSS mis à jour
         full_html = f"""
         <!DOCTYPE html>
         <html lang="fr">
         <head>
             <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
             <style>
-                body {{
-                    background-color: #141414;
-                    color: white;
-                    font-family: 'Segoe UI', sans-serif;
-                    margin: 0;
-                    padding: 40px;
-                }}
-                .header {{
-                    display: flex;
-                    align-items: center;
-                    justify-content: flex-start;
-                    gap: 20px;
-                    margin-bottom: 40px;
-                }}
-                .back-btn {{
-                    color: #aaa;
-                    text-decoration: none;
-                    font-size: 24px;
-                    transition: 0.3s;
-                }}
-                .back-btn:hover {{ color: white; transform: translateX(-5px); }}
-                h1 {{ margin: 0; font-size: 2rem; }}
-                .highlight {{ color: #E50914; }}
+                body {{ background: #141414; color: white; font-family: 'Segoe UI', sans-serif; padding: 40px; }}
+                .grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 25px; }}
+                .glass-card {{ background: #222; border-radius: 10px; overflow: hidden; cursor: pointer; transition: 0.3s; border: 1px solid #333; }}
+                .glass-card:hover {{ transform: scale(1.05); border-color: #E50914; }}
+                .img-container {{ height: 350px; position: relative; }}
+                .movie-img {{ width: 100%; height: 100%; object-fit: cover; }}
+                .badge {{ position: absolute; top: 10px; right: 10px; background: #E50914; padding: 2px 8px; font-size: 0.7rem; border-radius: 4px; }}
+                .card-content {{ padding: 15px; }}
+                .time-badge {{ color: #ff4d4d; font-weight: bold; font-size: 0.8rem; margin-top: 10px; }}
                 
-                .grid {{
-                    display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-                    gap: 30px;
-                }}
-                .glass-card {{
-                    background: rgba(40, 40, 40, 0.4);
-                    backdrop-filter: blur(10px);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 15px;
-                    overflow: hidden;
-                    transition: all 0.3s ease;
-                    display: flex;
-                    flex-direction: column;
-                }}
-                .glass-card:hover {{
-                    transform: scale(1.03);
-                    border-color: #E50914;
-                    z-index: 10;
-                }}
-                .img-container {{
-                    position: relative;
-                    width: 100%;
-                    height: 400px;
-                }}
-                .movie-img {{
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                }}
-                .badge {{
-                    position: absolute;
-                    top: 10px;
-                    right: 10px;
-                    background: rgba(0,0,0,0.7);
-                    color: white;
-                    padding: 2px 8px;
-                    border-radius: 4px;
-                    font-size: 0.7rem;
-                    font-weight: bold;
-                    border: 1px solid #555;
-                }}
-                .card-content {{
-                    padding: 20px;
-                    flex-grow: 1;
-                    display: flex;
-                    flex-direction: column;
-                }}
-                h3 {{ margin: 0 0 10px 0; font-size: 1.2rem; }}
-                
-                /* Style pour le synopsis */
-                .movie-synopsis {{
-                    font-size: 0.85rem;
-                    color: #bbb;
-                    margin-bottom: 20px;
-                    line-height: 1.4;
-                    flex-grow: 1;
-                    display: -webkit-box;
-                    -webkit-line-clamp: 3;
-                    -webkit-box-orient: vertical;
-                    overflow: hidden;
-                }}
-                
-                .time-badge {{
-                    display: inline-block;
-                    background: rgba(229, 9, 20, 0.15);
-                    color: #ff4d4d;
-                    padding: 8px 12px;
-                    border-radius: 8px;
-                    font-weight: bold;
-                    font-size: 0.85rem;
-                    align-self: flex-start;
-                }}
-                .footer {{
-                    margin-top: 50px;
-                    text-align: center;
-                    color: #666;
-                    font-size: 0.8rem;
-                }}
+                /* MODAL STYLE */
+                #movieModal {{ display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); backdrop-filter: blur(5px); }}
+                .modal-content {{ background: #181818; margin: 5% auto; padding: 0; width: 80%; max-width: 800px; border-radius: 15px; overflow: hidden; border: 1px solid #333; animation: slideIn 0.3s; }}
+                @keyframes slideIn {{ from {{ transform: translateY(50px); opacity: 0; }} to {{ transform: translateY(0); opacity: 1; }} }}
+                .modal-header {{ position: relative; height: 300px; }}
+                #modalImg {{ width: 100%; height: 100%; object-fit: cover; mask-image: linear-gradient(to bottom, black 60%, transparent 100%); }}
+                .close {{ position: absolute; top: 20px; right: 20px; font-size: 30px; color: white; cursor: pointer; z-index: 10; }}
+                .modal-body {{ padding: 30px; }}
+                #modalTitle {{ font-size: 2.5rem; margin: 0 0 10px 0; }}
+                #modalDesc {{ color: #ccc; line-height: 1.6; font-size: 1.1rem; margin-bottom: 20px; }}
             </style>
         </head>
         <body>
-            <div class="header">
-                <a href="index.html" class="back-btn" title="Retour à l'accueil">
-                    <i class="fas fa-arrow-left"></i>
-                </a>
-                <h1>Séances <span class="highlight">Madiana</span></h1>
-            </div>
-            
-            <div class="grid">
-                {cards_html}
+            <a href="index.html" style="color: #aaa; text-decoration: none; margin-bottom: 20px; display: block;"><i class="fas fa-arrow-left"></i> Retour</a>
+            <div class="grid">{cards_html}</div>
+
+            <div id="movieModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <span class="close" onclick="closeModal()">&times;</span>
+                        <img id="modalImg">
+                    </div>
+                    <div class="modal-body">
+                        <h2 id="modalTitle"></h2>
+                        <div id="modalTime" class="time-badge" style="margin-bottom: 20px; font-size: 1rem;"></div>
+                        <p id="modalDesc"></p>
+                    </div>
+                </div>
             </div>
 
-            <div class="footer">
-                Mis à jour le {time.strftime('%d/%m/%Y à %H:%M')}
-            </div>
+            <script>
+                function openModal(title, desc, img, time) {{
+                    document.getElementById('modalTitle').innerText = title;
+                    document.getElementById('modalDesc').innerText = desc;
+                    document.getElementById('modalImg').src = img;
+                    document.getElementById('modalTime').innerHTML = '<i class="fas fa-clock"></i> ' + time;
+                    document.getElementById('movieModal').style.display = "block";
+                }}
+                function closeModal() {{
+                    document.getElementById('movieModal').style.display = "none";
+                }}
+                window.onclick = function(event) {{
+                    if (event.target == document.getElementById('movieModal')) closeModal();
+                }}
+            </script>
         </body>
         </html>
         """
-
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(full_html)
-        
-        print(f"🌐 [HTML] Interface Premium avec descriptions générée : {path}")
+        with open(path, "w", encoding="utf-8") as f: f.write(full_html)

@@ -69,74 +69,50 @@ class MadianaScraper(BaseScraper):
         movies_data = []
         import re
         
-        # On récupère tous les liens qui pointent vers un film
-        liens_films = soup.find_all('a', href=True)
-        films_extraits = [] 
+        # On cible les conteneurs de films
+        items = soup.find_all(['div', 'article'], class_=re.compile(r'movie|item|film', re.I))
+        
+        # Si on ne trouve rien par classe, on prend tous les liens de films
+        if not items:
+            items = [a.find_parent('div') for a in soup.find_all('a', href=True) if '/movies/' in a['href']]
 
-        for lien in liens_films:
-            if '/movies/' in lien['href']:
-                t = lien.text.strip()
-                image_url = ""
-                synopsis = "Aucune description disponible." 
+        for item in items:
+            if not item: continue
+            
+            # 1. Titre et Lien
+            link_tag = item.find('a', href=True)
+            if not link_tag or '/movies/' not in link_tag['href']: continue
+            titre = link_tag.text.strip()
+            
+            # 2. Image
+            img_tag = item.find('img')
+            image_url = ""
+            if img_tag:
+                image_url = img_tag.get('data-src') or img_tag.get('src') or ""
+                if image_url.startswith('/'): image_url = "https://madiana.com" + image_url
+            
+            # 3. Synopsis (On prend tout le texte du bloc qui n'est pas le titre)
+            all_text = item.get_text(separator=' ', strip=True)
+            synopsis = all_text.replace(titre, "").strip()
+            # On nettoie un peu les horaires du synopsis
+            synopsis = re.sub(r'\d{1,2}[:hH]\d{2}', '', synopsis).strip()
+            
+            if len(synopsis) < 10:
+                synopsis = "Cliquez pour voir les détails de ce film sur le site officiel."
+
+            # 4. Horaires
+            horaires = "Consulter le site"
+            heures_trouvees = re.findall(r'\d{1,2}[:hH]\d{2}', all_text)
+            if heures_trouvees:
+                horaires = " | ".join(heures_trouvees[:5]).lower().replace(':', 'h')
+
+            if titre and len(titre) > 2:
+                movies_data.append({
+                    "titre": titre,
+                    "horaires": horaires,
+                    "image": image_url,
+                    "synopsis": synopsis,
+                    "source": "Madiana"
+                })
                 
-                # 1. Extraction de l'image (Gestion Lazy-Loading)
-                img = lien.find('img')
-                if img:
-                    image_url = img.get('data-src') or img.get('src') or ''
-                    if image_url.startswith('/'):
-                        image_url = "https://madiana.com" + image_url
-                    if not t and img.get('alt'): 
-                        t = img.get('alt').strip()
-
-                # 2. Extraction du Synopsis (Version améliorée)
-                # On cherche un conteneur parent qui englobe tout le bloc du film
-                parent = lien.find_parent(['div', 'article', 'li'])
-                if parent:
-                    # On cherche dans les classes qui contiennent souvent le résumé
-                    # On essaye plusieurs cibles courantes sur Madiana
-                    cible = parent.find(['p', 'div', 'span'], class_=re.compile(r'synopsis|description|resume|text|content', re.I))
-                    
-                    if cible:
-                        synopsis = cible.text.strip()
-                    else:
-                        # Si on ne trouve pas de classe spécifique, on prend le premier paragraphe 
-                        # de plus de 30 caractères (pour éviter de prendre les horaires par erreur)
-                        for p in parent.find_all(['p', 'div']):
-                            txt = p.text.strip()
-                            if len(txt) > 30 and not any(h in txt.lower() for h in [":", "h", "séances"]):
-                                synopsis = txt
-                                break
-
-                # Nettoyage et limitation de la longueur du synopsis
-                if synopsis:
-                    synopsis = synopsis.replace('\n', ' ').replace('\r', '').strip()
-                    if len(synopsis) > 160:
-                        synopsis = synopsis[:157] + "..."
-
-                if t and len(t) > 2 and t not in ["Bande-annonce", "Places", "Infos & horaires", "A l'affiche"]:
-                    deja_present = any(f['titre'] == t for f in films_extraits)
-                    if not deja_present:
-                        films_extraits.append({'titre': t, 'image': image_url, 'synopsis': synopsis})
-
-        # Association des horaires
-        texte_page = soup.get_text(separator=' | ', strip=True)
-        for film in films_extraits:
-            titre = film['titre']
-            horaires = "Non spécifié"
-            if titre in texte_page:
-                index_debut = texte_page.find(titre) + len(titre)
-                zone_recherche = texte_page[index_debut : index_debut + 500]
-                heures_trouvees = re.findall(r'\d{1,2}[:hH]\d{2}', zone_recherche)
-                if heures_trouvees:
-                    horaires = " | ".join(heures_trouvees[:5]).lower().replace(':', 'h')
-
-            movies_data.append({
-                "titre": titre,
-                "horaires": horaires,
-                "image": film['image'],
-                "synopsis": film['synopsis'],
-                "source": "Madiana"
-            })
-                
-        print(f"🎬 {len(movies_data)} films extraits avec synopsis.")
         return movies_data
