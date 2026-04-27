@@ -57,9 +57,14 @@ class DataAnalyzer:
         for _, row in self.df.iterrows():
             titre = row.get('titre', 'Film Inconnu')
             horaires = row.get('horaires', 'Séances non disponibles')
+            image_url = row.get('image', '') # On récupère l'image si elle existe
+            
+            # Si on a une image on l'affiche, sinon on ne met rien
+            img_balise = f'<img src="{image_url}" class="movie-img" alt="{titre}">' if image_url else ''
             
             cards_html += f"""
             <div class="glass-card">
+                {img_balise}
                 <div class="card-content">
                     <h3>{titre}</h3>
                     <div class="time-badge">
@@ -88,7 +93,7 @@ class DataAnalyzer:
                 .header {{
                     display: flex;
                     align-items: center;
-                    gap: 20px;
+                    justify-content: space-between; /* Aligne le titre à gauche et l'engrenage à droite */
                     margin-bottom: 40px;
                 }}
                 .back-btn {{
@@ -97,7 +102,7 @@ class DataAnalyzer:
                     font-size: 24px;
                     transition: 0.3s;
                 }}
-                .back-btn:hover {{ color: white; }}
+                .back-btn:hover {{ color: white; transform: rotate(90deg); }} /* Petite animation sympa au survol */
                 h1 {{ margin: 0; font-size: 2rem; }}
                 .highlight {{ color: #E50914; }}
                 
@@ -119,6 +124,15 @@ class DataAnalyzer:
                     transform: translateY(-5px);
                     border-color: #ff0000;
                 }}
+                /* Style pour les affiches de films */
+                .movie-img {{
+                    width: 100%;
+                    height: 400px;
+                    object-fit: cover;
+                    border-radius: 10px;
+                    margin-bottom: 15px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+                }}
                 h3 {{ margin: 0 0 15px 0; font-size: 1.2rem; letter-spacing: 0.5px; }}
                 .time-badge {{
                     display: inline-block;
@@ -139,8 +153,11 @@ class DataAnalyzer:
         </head>
         <body>
             <div class="header">
-                <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
                 <h1>Séances <span class="highlight">Madiana</span></h1>
+                
+                <a href="admin.html" class="back-btn" title="Espace Administrateur">
+                    <i class="fas fa-cog"></i>
+                </a>
             </div>
             
             <div class="grid">

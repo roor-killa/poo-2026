@@ -104,7 +104,7 @@
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
-            <a href="scraping_madiana_uniquement.html" class="glass-card group block p-6 rounded-2xl relative overflow-hidden">
+            <a href="index.html" class="glass-card group block p-6 rounded-2xl relative overflow-hidden">
                 <div class="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-xl group-hover:bg-red-500/30 transition-all"></div>
                 <i class="fa-solid fa-film text-4xl text-[#E50914] mb-4"></i>
                 <h4 class="text-xl font-bold mb-2 text-white">Séances Madiana</h4>
@@ -145,7 +145,16 @@
         const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById('current-time').textContent = new Date().toLocaleDateString('fr-FR', options);
 
+        // --- GESTION DE LA MÉMOIRE (SESSION) ---
+        window.onload = function() {
+            if (sessionStorage.getItem('isLoggedIn') === 'true') {
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('dashboard-section').style.display = 'block';
+            }
+        };
+
         function login() {
+            sessionStorage.setItem('isLoggedIn', 'true'); // On mémorise la connexion
             const loginBox = document.getElementById('login-section');
             const dashboard = document.getElementById('dashboard-section');
             loginBox.classList.add('fade-out');
@@ -158,6 +167,7 @@
         }
 
         function logout() {
+            sessionStorage.removeItem('isLoggedIn'); // On oublie la connexion
             const loginBox = document.getElementById('login-section');
             const dashboard = document.getElementById('dashboard-section');
             dashboard.classList.remove('fade-in');
