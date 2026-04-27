@@ -47,39 +47,114 @@ class DataAnalyzer:
 
         
     def export_to_html(self, file_name):
-        """Génère une page web élégante avec les résultats."""
-        # On s'assure que le dossier existe pour éviter les erreurs
+        """Génère une galerie de films sombre et élégante (Look Netflix)."""
         os.makedirs(os.path.join("data", "processed"), exist_ok=True)
         path = f"data/processed/{file_name}.html"
         
-        # --- ASTUCE : On force l'ordre des colonnes pour le rendu ---
-        # On définit l'ordre idéal
-        ordre = ['titre', 'horaires', 'source']
-        # On ne garde que celles qui existent vraiment dans le tableau
-        colonnes_a_afficher = [c for c in ordre if c in self.df.columns]
-        df_propre = self.df[colonnes_a_afficher]
+        # 1. On prépare les "Cartes" de films en HTML
+        cards_html = ""
+        # On itère sur les lignes du tableau Pandas
+        for _, row in self.df.iterrows():
+            titre = row.get('titre', 'Film Inconnu')
+            horaires = row.get('horaires', 'Séances non disponibles')
+            
+            cards_html += f"""
+            <div class="glass-card">
+                <div class="card-content">
+                    <h3>{titre}</h3>
+                    <div class="time-badge">
+                        <i class="fas fa-clock"></i> {horaires}
+                    </div>
+                </div>
+            </div>
+            """
 
-        # Design CSS pour Chrome
-        style = """
-        <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; background-color: #f8f9fa; }
-            h2 { color: #2c3e50; text-align: center; border-bottom: 2px solid #e67e22; padding-bottom: 10px; }
-            table { border-collapse: collapse; width: 100%; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-            th { background-color: #e67e22; color: white; padding: 15px; text-align: left; text-transform: uppercase; font-size: 14px; }
-            td { padding: 12px 15px; border-bottom: 1px solid #eee; color: #34495e; font-size: 14px; }
-            tr:hover { background-color: #fff5eb; }
-            .footer { margin-top: 20px; font-size: 12px; color: #7f8c8d; text-align: center; }
-        </style>
+        # 2. Le template complet avec CSS intégré
+        full_html = f"""
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+            <style>
+                body {{
+                    background-color: #141414;
+                    color: white;
+                    font-family: 'Segoe UI', sans-serif;
+                    margin: 0;
+                    padding: 40px;
+                }}
+                .header {{
+                    display: flex;
+                    align-items: center;
+                    gap: 20px;
+                    margin-bottom: 40px;
+                }}
+                .back-btn {{
+                    color: #aaa;
+                    text-decoration: none;
+                    font-size: 24px;
+                    transition: 0.3s;
+                }}
+                .back-btn:hover {{ color: white; }}
+                h1 {{ margin: 0; font-size: 2rem; }}
+                .highlight {{ color: #E50914; }}
+                
+                .grid {{
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                    gap: 25px;
+                }}
+                .glass-card {{
+                    background: rgba(40, 40, 40, 0.6);
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 15px;
+                    padding: 20px;
+                    border-left: 4px solid #E50914;
+                    transition: transform 0.3s ease;
+                }}
+                .glass-card:hover {{
+                    transform: translateY(-5px);
+                    border-color: #ff0000;
+                }}
+                h3 {{ margin: 0 0 15px 0; font-size: 1.2rem; letter-spacing: 0.5px; }}
+                .time-badge {{
+                    display: inline-block;
+                    background: rgba(229, 9, 20, 0.15);
+                    color: #ff4d4d;
+                    padding: 8px 12px;
+                    border-radius: 8px;
+                    font-weight: bold;
+                    font-size: 0.9rem;
+                }}
+                .footer {{
+                    margin-top: 50px;
+                    text-align: center;
+                    color: #666;
+                    font-size: 0.8rem;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+                <h1>Séances <span class="highlight">Madiana</span></h1>
+            </div>
+            
+            <div class="grid">
+                {cards_html}
+            </div>
+
+            <div class="footer">
+                Mis à jour le {time.strftime('%d/%m/%Y à %H:%M')}
+            </div>
+        </body>
+        </html>
         """
-        
-        # On utilise le tableau trié (df_propre) au lieu de self.df
-        html_table = df_propre.to_html(index=False, border=0)
-        
+
         with open(path, "w", encoding="utf-8") as f:
-            f.write(f"<html><head><meta charset='utf-8'>{style}</head><body>")
-            f.write(f"<h2>🎬 Cinéma Martinique - Résultats du Scraping</h2>")
-            f.write(html_table)
-            f.write(f"<div class='footer'>Généré automatiquement le {time.strftime('%d/%m/%Y')}</div>")
-            f.write("</body></html>")
+            f.write(full_html)
         
-        print(f"🌐 [HTML] Page web créée avec succès : {path}")
+        print(f"🌐 [HTML] Interface Premium générée : {path}")
