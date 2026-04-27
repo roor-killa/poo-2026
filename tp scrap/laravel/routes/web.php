@@ -9,5 +9,8 @@ Route::get('/evenement/{id}', [EventController::class, 'show'])->name('event.sho
 
 Route::prefix('dashboard')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/scrape', fn () => redirect()
+        ->route('dashboard')
+        ->with('error', 'Utilisez le bouton Lancer depuis le dashboard pour demarrer le scraper.'));
     Route::post('/scrape', [DashboardController::class, 'triggerScrape'])->name('dashboard.scrape');
 });
