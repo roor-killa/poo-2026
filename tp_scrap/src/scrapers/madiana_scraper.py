@@ -70,56 +70,46 @@ class MadianaScraper(BaseScraper):
         import re
         
         # On cherche tous les liens de films
-        liens = soup.find_all('a', href=True)
-        films_extraits = []
+        liens_films = soup.find_all('a', href=True)
+        films_extraits = [] 
 
-        for lien in liens:
-            href = lien['href']
-            if '/movies/' in href:
-                # On évite les doublons
-                titre = lien.text.strip()
-                if not titre or len(titre) < 2 or titre in ["Bande-annonce", "Places", "A l'affiche"]:
-                    continue
-                
-                if any(f['titre'] == titre for f in films_extraits):
-                    continue
-
-                # --- 1. IMAGE (On cherche l'image dans le lien ou juste à côté) ---
+        for lien in liens_films:
+            if '/movies/' in lien['href']:
+                t = lien.text.strip()
                 image_url = ""
-                img_tag = lien.find('img') or (lien.find_parent() and lien.find_parent().find('img'))
-                if img_tag:
-                    image_url = img_tag.get('data-src') or img_tag.get('src') or ""
+                
+                # On récupère l'image (data-src ou src)
+                img = lien.find('img')
+                if img:
+                    image_url = img.get('data-src') or img.get('src') or ''
                     if image_url.startswith('/'):
                         image_url = "https://madiana.com" + image_url
+                        
+                    if not t and img.get('alt'): 
+                        t = img.get('alt').strip()
 
-                # --- 2. HORAIRES (On cherche dans le texte global autour du titre) ---
-                horaires = "Consulter le site"
-                # On cherche dans le bloc parent pour trouver les heures
-                bloc_parent = lien.find_parent(['div', 'article'])
-                texte_recherche = bloc_parent.get_text() if bloc_parent else soup.get_text()
-                
-                # On cherche les formats 14h30 ou 14:30
-                heures = re.findall(r'\d{1,2}[:hH]\d{2}', texte_recherche)
+                if t and len(t) > 2 and t not in ["Bande-annonce", "Places", "Infos & horaires"]:
+                    # Éviter les doublons
+                    if not any(f['titre'] == t for f in films_extraits):
+                        films_extraits.append({'titre': t, 'image': image_url})
+
+        # Extraction des horaires dans le texte global
+        texte_page = soup.get_text(separator=' | ', strip=True)
+        for film in films_extraits:
+            titre = film['titre']
+            horaires = "Non spécifié"
+            
+            if titre in texte_page:
+                idx = texte_page.find(titre) + len(titre)
+                zone = texte_page[idx : idx + 500]
+                heures = re.findall(r'\d{1,2}[:hH]\d{2}', zone)
                 if heures:
-                    # On filtre pour ne garder que les heures après le titre dans le flux
                     horaires = " | ".join(heures[:5]).lower().replace(':', 'h')
 
-                # --- 3. DESCRIPTION (On prend un texte par défaut si le site cache tout) ---
-                synopsis = f"Découvrez les séances pour le film '{titre}' au cinéma Madiana. Cliquez pour plus d'infos."
-                
-                films_extraits.append({
-                    "titre": titre,
-                    "image": image_url,
-                    "horaires": horaires,
-                    "synopsis": synopsis
-                })
-
-        for f in films_extraits:
             movies_data.append({
-                "titre": f["titre"],
-                "horaires": f["horaires"],
-                "image": f["image"],
-                "synopsis": f["synopsis"],
+                "titre": titre,
+                "horaires": horaires,
+                "image": film['image'],
                 "source": "Madiana"
             })
                 
