@@ -20,41 +20,38 @@ class MadianaScraper(BaseScraper):
         super().__init__(base_url="https://madiana.com/horaires/", delay=2.0)
 
     def fetch_page_dynamique(self, url: str) -> BeautifulSoup | None:
-        """
-        Solution de contournement.
-        requests ne lit pas le JS. On utilise donc Selenium pour simuler un utilisateur.
-        """
         print(f"🌍 Connexion dynamique (Selenium) à : {url}")
         
-        # 1. Configuration : On dit à Chrome de s'ouvrir en mode "fantôme" (invisible)
+        # --- CONFIGURATION DOCKER-FRIENDLY ---
         chrome_options = Options()
-        chrome_options.add_argument("--headless") # Exécution sans interface graphique
+        chrome_options.add_argument("--headless") # Obligatoire : pas d'écran
+        chrome_options.add_argument("--no-sandbox") # OBLIGATOIRE pour Docker
+        chrome_options.add_argument("--disable-dev-shm-usage") # OBLIGATOIRE (évite le crash mémoire)
         chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--log-level=3") # Masque les logs inutiles dans le terminal
+        chrome_options.add_argument("--window-size=1920,1080")
+        chrome_options.add_argument("--remote-debugging-port=9222") # Optionnel mais aide à la stabilité
         
         try:
-            # 2. Lancement du navigateur
+            # On laisse ChromeDriverManager gérer le binaire, mais on ajoute nos options
             service = Service(ChromeDriverManager().install())
             driver = webdriver.Chrome(service=service, options=chrome_options)
             
-            # 3. Navigation vers le site de Madiana
+            # Temps d'attente pour le réseau du VPS (parfois plus lent que chez toi)
+            driver.set_page_load_timeout(30) 
+            
             driver.get(url)
             
-            # 4. PAUSE CRUCIALE : On laisse 8 secondes au JavaScript pour charger les affiches
-            print("⏳ Attente du chargement des affiches de films (8 secondes)...")
+            print("⏳ Attente du chargement des affiches (8 secondes)...")
             time.sleep(8) 
             
-            # 5. Capture : Maintenant que la page est complète, on aspire le HTML final
             html_final = driver.page_source
-            driver.quit() # On n'oublie pas de fermer le navigateur pour libérer la RAM
+            driver.quit() 
             
-            # On renvoie le HTML à BeautifulSoup pour pouvoir le fouiller facilement
             return BeautifulSoup(html_final, 'lxml')
         except Exception as e:
-            # Gestion d'erreur robuste (ne fait pas planter le programme global)
             print(f"❌ Erreur Selenium : {e}")
             return None
-
+        
     def scrape(self, max_pages: int = 1) -> List[Dict]:
         """Orchestre la récupération et la sauvegarde des données."""
         print("🚀 Lancement du scraper Madiana (Version Selenium Sniper)...")

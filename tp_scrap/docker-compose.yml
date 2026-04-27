@@ -1,10 +1,19 @@
 services:
-  scraper:
+  # Ton robot
+  scraper-bot:
     build: .
-    container_name: cinemartinique-app
-    # 🔗 Liaison des dossiers (Volume) : tout ce qui est écrit dans /app
-    # apparaîtra dans ton dossier actuel sur ton PC
+    container_name: chevalier-scraper-unique
     volumes:
       - .:/app
     environment:
       - PYTHONUNBUFFERED=1
+
+  # Ton site web
+  web-server:
+    image: nginx:alpine
+    container_name: chevalier-web-unique
+    ports:
+      - "3006:80"
+    volumes:
+      - ./data/processed:/usr/share/nginx/html
+    restart: always
