@@ -46,7 +46,7 @@ services:
     container_name: rci_group1_nginx
     restart: unless-stopped
     ports:
-      - "87:80"
+      - "81:80"
     depends_on:
       - rci_group1_next_frontend
     volumes:
