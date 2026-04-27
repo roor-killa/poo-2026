@@ -61,7 +61,3 @@ services:
 volumes:
   postgres_data:
     name: rci_group1_poo_postgres
-
-networks:
-  rci_group1_network:
-    driver: bridge
