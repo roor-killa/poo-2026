@@ -1,0 +1,10 @@
+services:
+  scraper:
+    build: .
+    container_name: cinemartinique-app
+    # 🔗 Liaison des dossiers (Volume) : tout ce qui est écrit dans /app
+    # apparaîtra dans ton dossier actuel sur ton PC
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
