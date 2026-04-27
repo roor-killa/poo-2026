@@ -69,50 +69,58 @@ class MadianaScraper(BaseScraper):
         movies_data = []
         import re
         
-        # On cible les conteneurs de films
-        items = soup.find_all(['div', 'article'], class_=re.compile(r'movie|item|film', re.I))
-        
-        # Si on ne trouve rien par classe, on prend tous les liens de films
-        if not items:
-            items = [a.find_parent('div') for a in soup.find_all('a', href=True) if '/movies/' in a['href']]
+        # On cherche tous les liens de films
+        liens = soup.find_all('a', href=True)
+        films_extraits = []
 
-        for item in items:
-            if not item: continue
-            
-            # 1. Titre et Lien
-            link_tag = item.find('a', href=True)
-            if not link_tag or '/movies/' not in link_tag['href']: continue
-            titre = link_tag.text.strip()
-            
-            # 2. Image
-            img_tag = item.find('img')
-            image_url = ""
-            if img_tag:
-                image_url = img_tag.get('data-src') or img_tag.get('src') or ""
-                if image_url.startswith('/'): image_url = "https://madiana.com" + image_url
-            
-            # 3. Synopsis (On prend tout le texte du bloc qui n'est pas le titre)
-            all_text = item.get_text(separator=' ', strip=True)
-            synopsis = all_text.replace(titre, "").strip()
-            # On nettoie un peu les horaires du synopsis
-            synopsis = re.sub(r'\d{1,2}[:hH]\d{2}', '', synopsis).strip()
-            
-            if len(synopsis) < 10:
-                synopsis = "Cliquez pour voir les détails de ce film sur le site officiel."
+        for lien in liens:
+            href = lien['href']
+            if '/movies/' in href:
+                # On évite les doublons
+                titre = lien.text.strip()
+                if not titre or len(titre) < 2 or titre in ["Bande-annonce", "Places", "A l'affiche"]:
+                    continue
+                
+                if any(f['titre'] == titre for f in films_extraits):
+                    continue
 
-            # 4. Horaires
-            horaires = "Consulter le site"
-            heures_trouvees = re.findall(r'\d{1,2}[:hH]\d{2}', all_text)
-            if heures_trouvees:
-                horaires = " | ".join(heures_trouvees[:5]).lower().replace(':', 'h')
+                # --- 1. IMAGE (On cherche l'image dans le lien ou juste à côté) ---
+                image_url = ""
+                img_tag = lien.find('img') or (lien.find_parent() and lien.find_parent().find('img'))
+                if img_tag:
+                    image_url = img_tag.get('data-src') or img_tag.get('src') or ""
+                    if image_url.startswith('/'):
+                        image_url = "https://madiana.com" + image_url
 
-            if titre and len(titre) > 2:
-                movies_data.append({
+                # --- 2. HORAIRES (On cherche dans le texte global autour du titre) ---
+                horaires = "Consulter le site"
+                # On cherche dans le bloc parent pour trouver les heures
+                bloc_parent = lien.find_parent(['div', 'article'])
+                texte_recherche = bloc_parent.get_text() if bloc_parent else soup.get_text()
+                
+                # On cherche les formats 14h30 ou 14:30
+                heures = re.findall(r'\d{1,2}[:hH]\d{2}', texte_recherche)
+                if heures:
+                    # On filtre pour ne garder que les heures après le titre dans le flux
+                    horaires = " | ".join(heures[:5]).lower().replace(':', 'h')
+
+                # --- 3. DESCRIPTION (On prend un texte par défaut si le site cache tout) ---
+                synopsis = f"Découvrez les séances pour le film '{titre}' au cinéma Madiana. Cliquez pour plus d'infos."
+                
+                films_extraits.append({
                     "titre": titre,
-                    "horaires": horaires,
                     "image": image_url,
-                    "synopsis": synopsis,
-                    "source": "Madiana"
+                    "horaires": horaires,
+                    "synopsis": synopsis
                 })
+
+        for f in films_extraits:
+            movies_data.append({
+                "titre": f["titre"],
+                "horaires": f["horaires"],
+                "image": f["image"],
+                "synopsis": f["synopsis"],
+                "source": "Madiana"
+            })
                 
         return movies_data
