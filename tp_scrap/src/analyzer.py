@@ -93,7 +93,8 @@ class DataAnalyzer:
                 .header {{
                     display: flex;
                     align-items: center;
-                    justify-content: space-between; /* Aligne le titre à gauche et l'engrenage à droite */
+                    justify-content: flex-start;
+                    gap: 20px;
                     margin-bottom: 40px;
                 }}
                 .back-btn {{
@@ -102,7 +103,7 @@ class DataAnalyzer:
                     font-size: 24px;
                     transition: 0.3s;
                 }}
-                .back-btn:hover {{ color: white; transform: rotate(90deg); }} /* Petite animation sympa au survol */
+                .back-btn:hover {{ color: white; transform: translateX(-5px); }} /* Animation de recul */
                 h1 {{ margin: 0; font-size: 2rem; }}
                 .highlight {{ color: #E50914; }}
                 
@@ -153,11 +154,10 @@ class DataAnalyzer:
         </head>
         <body>
             <div class="header">
-                <h1>Séances <span class="highlight">Madiana</span></h1>
-                
-                <a href="admin.html" class="back-btn" title="Espace Administrateur">
-                    <i class="fas fa-cog"></i>
+                <a href="index.html" class="back-btn" title="Retour à l'accueil">
+                    <i class="fas fa-arrow-left"></i>
                 </a>
+                <h1>Séances <span class="highlight">Madiana</span></h1>
             </div>
             
             <div class="grid">
