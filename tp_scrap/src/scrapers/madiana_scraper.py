@@ -69,38 +69,47 @@ class MadianaScraper(BaseScraper):
         movies_data = []
         import re
         
-        texte_page = soup.get_text(separator=' | ', strip=True)
+        # On cherche tous les blocs de films (souvent des div avec une classe spécifique)
+        # Pour Madiana, on va chercher les conteneurs de liens qui englobent tout
         liens_films = soup.find_all('a', href=True)
-        
         films_extraits = [] 
 
         for lien in liens_films:
             if '/movies/' in lien['href']:
                 t = lien.text.strip()
                 image_url = ""
+                synopsis = "Aucune description disponible." # Par défaut
                 
-                # --- CORRECTION ICI : Détection du Lazy Loading ---
+                # 1. On cherche l'image (avec gestion lazy-loading)
                 img = lien.find('img')
                 if img:
-                    # On cherche data-src en priorité, sinon src
                     image_url = img.get('data-src') or img.get('src') or ''
-                    
                     if image_url.startswith('/'):
                         image_url = "https://madiana.com" + image_url
-                        
                     if not t and img.get('alt'): 
                         t = img.get('alt').strip()
+
+                # 2. NOUVEAU : On cherche une description courte à côté du titre
+                # On remonte au parent pour chercher du texte descriptif
+                parent = lien.find_parent('div')
+                if parent:
+                    # On cherche un paragraphe ou un texte qui n'est pas le titre
+                    desc_tag = parent.find('p') or parent.find('div', class_='synopsis')
+                    if desc_tag:
+                        synopsis = desc_tag.text.strip()
+                        if len(synopsis) > 150: # On coupe si c'est trop long
+                            synopsis = synopsis[:147] + "..."
 
                 if t and len(t) > 2 and t not in ["Bande-annonce", "Places", "Infos & horaires", "A l'affiche"]:
                     deja_present = any(f['titre'] == t for f in films_extraits)
                     if not deja_present:
-                        films_extraits.append({'titre': t, 'image': image_url})
+                        films_extraits.append({'titre': t, 'image': image_url, 'synopsis': synopsis})
 
         # On associe les horaires
+        texte_page = soup.get_text(separator=' | ', strip=True)
         for film in films_extraits:
             titre = film['titre']
             horaires = "Non spécifié"
-            
             if titre in texte_page:
                 index_debut = texte_page.find(titre) + len(titre)
                 zone_recherche = texte_page[index_debut : index_debut + 500]
@@ -111,9 +120,9 @@ class MadianaScraper(BaseScraper):
             movies_data.append({
                 "titre": titre,
                 "horaires": horaires,
-                "image": film['image'], # L'image est bien là
+                "image": film['image'],
+                "synopsis": film['synopsis'], # On ajoute le synopsis au dictionnaire
                 "source": "Madiana"
             })
                 
-        print(f"✅ {len(movies_data)} films analysés avec images et horaires.")
         return movies_data
