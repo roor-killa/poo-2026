@@ -5,9 +5,10 @@ Architecture Docker pour scraper les evenements publics de [Bizouk](https://www.
 ## Services
 
 ```text
-PostgreSQL :5432  <- base de donnees
+PostgreSQL :5409  <- base de donnees exposee sur la machine
 FastAPI    :8009  <- API REST + scraper Bizouk
-Laravel    :89    <- interface web + dashboard
+Laravel    :3009  <- interface web + dashboard
+Laravel    :89    <- interface web alternative
 ```
 
 ## Demarrage rapide
@@ -18,8 +19,9 @@ docker compose up --build
 
 Une fois les conteneurs lances :
 
-- Evenements : http://localhost:89
-- Dashboard : http://localhost:89/dashboard
+- Evenements : http://localhost:3009
+- Dashboard : http://localhost:3009/dashboard
+- Interface alternative : http://localhost:89
 - API FastAPI : http://localhost:8009
 - Documentation API : http://localhost:8009/docs
 

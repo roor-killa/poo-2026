@@ -8,13 +8,13 @@ Le programme est decoupe en trois services Docker :
 Navigateur
   |
   v
-Laravel :89
+Laravel :3009 ou :89
   |
   v
 FastAPI :8009
   |
   v
-PostgreSQL :5432
+PostgreSQL :5409 sur la machine, :5432 entre conteneurs
 ```
 
 Laravel gere l'interface web et le dashboard. FastAPI expose les routes REST, lance le scraper en arriere-plan et ecrit les evenements dans PostgreSQL. PostgreSQL conserve les evenements Bizouk et leurs metadonnees.
@@ -79,7 +79,7 @@ Laravel consomme FastAPI pour afficher la liste des evenements, les details et l
 
 ## Flux principal
 
-1. L'utilisateur ouvre `http://localhost:89`.
+1. L'utilisateur ouvre `http://localhost:3009` ou `http://localhost:89`.
 2. Laravel appelle `http://fastapi:8000/api/events`.
 3. FastAPI lit PostgreSQL et renvoie les evenements.
 4. Laravel affiche la liste et les filtres par type.
@@ -94,7 +94,8 @@ docker compose up --build
 
 Puis :
 
-- Evenements : `http://localhost:89`
-- Dashboard : `http://localhost:89/dashboard`
+- Evenements : `http://localhost:3009`
+- Dashboard : `http://localhost:3009/dashboard`
+- Interface alternative : `http://localhost:89`
 - API : `http://localhost:8009`
 - Documentation API : `http://localhost:8009/docs`

@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: bizouk
       POSTGRES_PASSWORD: bizouk_secret
     ports:
-      - "5432:5432"
+      - "5409:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -47,7 +47,7 @@ services:
       APP_ENV: local
       APP_KEY: base64:Gs9aQa1uMVnKSenl7nIllM0nDgKnPnADyr+jFBFrmKE=
       APP_DEBUG: "true"
-      APP_URL: http://localhost
+      APP_URL: http://localhost:3009
       LOG_CHANNEL: stderr
       SESSION_DRIVER: file
       FASTAPI_URL: http://fastapi:8000
@@ -55,6 +55,7 @@ services:
       fastapi:
         condition: service_healthy
     ports:
+      - "3009:80"
       - "89:80"
 
 volumes:
