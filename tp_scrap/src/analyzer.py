@@ -5,18 +5,31 @@ import time
 
 class DataAnalyzer:
     def __init__(self, raw_data: List[Dict]):
+        # convertit la liste de dictionnaires en DataFrame Pandas
         self.df = pd.DataFrame(raw_data)
 
     def show_statistics(self):
-        if self.df.empty: return
+        """Affiche des statistiques descriptives basiques."""
+        if self.df.empty:
+            print("⚠️ Aucune donnée à analyser.")
+            return
+
         print(f"\n📊 Analyse terminée : {len(self.df)} films prêts pour l'affichage.")
 
     def export_to_csv(self, filename: str = "donnees_globales"):
+        """Exporte les données nettoyées au format CSV."""
+        if self.df.empty:
+            return
+
         output_dir = os.path.join("data", "processed")
         os.makedirs(output_dir, exist_ok=True)
-        self.df.to_csv(os.path.join(output_dir, f"{filename}.csv"), index=False, encoding='utf-8-sig')
+        
+        filepath = os.path.join(output_dir, f"{filename}.csv")
+        self.df.to_csv(filepath, index=False, encoding='utf-8-sig')
+        print(f"📁 Données exportées avec succès dans : {filepath}")
 
     def export_to_html(self, file_name):
+        """Génère une galerie de films look Netflix avec boutons Bandes-Annonces."""
         os.makedirs(os.path.join("data", "processed"), exist_ok=True)
         path = f"data/processed/{file_name}.html"
         
@@ -25,10 +38,21 @@ class DataAnalyzer:
             image = row.get('image')
             titre = row.get('titre', 'Film')
             horaires = row.get('horaires', 'Séances non dispo')
+            ba_url = row.get('ba', '#') # On récupère le lien de la bande-annonce
             
-            # On utilise une image par défaut si le lien est vide
+            # Gestion de l'image par défaut
             if not image:
                 image = "https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=400&h=600&auto=format&fit=crop"
+
+            # --- LOGIQUE DU BOUTON BANDE-ANNONCE ---
+            # On n'affiche le bouton que si le lien n'est pas vide ou égal à "#"
+            ba_button = ""
+            if ba_url and ba_url != "#":
+                ba_button = f"""
+                <a href="{ba_url}" target="_blank" class="ba-btn">
+                    <i class="fas fa-play"></i> Bande-annonce
+                </a>
+                """
 
             cards_html += f"""
             <div class="glass-card">
@@ -42,6 +66,7 @@ class DataAnalyzer:
                         <i class="fas fa-clock"></i>
                         <span>{horaires}</span>
                     </div>
+                    {ba_button}
                 </div>
             </div>
             """
@@ -106,6 +131,8 @@ class DataAnalyzer:
                     overflow: hidden;
                     border: 1px solid rgba(255, 255, 255, 0.1);
                     transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.4s ease;
+                    display: flex;
+                    flex-direction: column;
                 }}
 
                 .glass-card:hover {{
@@ -135,12 +162,20 @@ class DataAnalyzer:
                     background: linear-gradient(to top, rgba(20,20,20,0.9), transparent);
                 }}
 
-                .card-content {{ padding: 20px; }}
+                .card-content {{ 
+                    padding: 20px; 
+                    display: flex; 
+                    flex-direction: column; 
+                    flex-grow: 1;
+                }}
 
                 h3 {{
-                    margin: 0 0 10px 0;
+                    margin: 0 0 15px 0;
                     font-size: 1.2rem;
                     letter-spacing: 0.5px;
+                    min-height: 2.4em;
+                    display: flex;
+                    align-items: center;
                 }}
 
                 .time-container {{
@@ -149,11 +184,34 @@ class DataAnalyzer:
                     gap: 8px;
                     color: #ff4d4d;
                     font-weight: bold;
-                    font-size: 0.9rem;
+                    font-size: 0.85rem;
                     background: rgba(229, 9, 20, 0.1);
                     padding: 8px 12px;
                     border-radius: 6px;
                     width: fit-content;
+                }}
+
+                /* BOUTON BANDE-ANNONCE */
+                .ba-btn {{
+                    margin-top: auto;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    background: white;
+                    color: black;
+                    text-decoration: none;
+                    padding: 10px;
+                    border-radius: 6px;
+                    font-weight: bold;
+                    font-size: 0.85rem;
+                    transition: 0.3s;
+                    margin-top: 20px;
+                }}
+
+                .ba-btn:hover {{
+                    background: var(--netflix-red);
+                    color: white;
                 }}
 
                 .footer {{
@@ -184,4 +242,4 @@ class DataAnalyzer:
         with open(path, "w", encoding="utf-8") as f:
             f.write(full_html)
         
-        print(f"🌐 [Interface Netflix] La galerie est de nouveau superbe : {path}")
+        print(f"🌐 [Interface Netflix] Galerie avec bandes-annonces prête : {path}")
