@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineScrap | Accueil</title>
+    <title>CineScrap | Accueil Public</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -22,18 +22,18 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="min-h-screen flex flex-col items-center p-4 pt-10">
 
     <div class="w-full max-w-6xl w-full h-full">
         <header class="flex justify-between items-center py-6 border-b border-gray-800 mb-8">
             <div class="flex items-center gap-3">
                 <i class="fa-solid fa-film text-3xl text-[#E50914]"></i>
-                <h2 class="text-2xl font-bold">Cine<span class="text-[#E50914]">Scrap</span> Martinique</h2>
+                <h2 class="text-2xl font-bold">Cine<span class="text-[#E50914]">Scrap</span> Dashboard</h2>
             </div>
             <div class="flex items-center gap-4">
-                <span class="text-sm text-green-400 bg-green-400/10 px-3 py-1 rounded-full"><i class="fa-solid fa-circle-check mr-2"></i>Données à jour</span>
+                <span class="text-sm text-green-400 bg-green-400/10 px-3 py-1 rounded-full border border-green-400/20"><i class="fa-solid fa-circle-check mr-2"></i>Scraping Actif</span>
                 
-                <a href="admin.html" class="text-gray-600 hover:text-white transition-colors" title="Accès Administrateur">
+                <a href="admin.html" class="text-gray-500 hover:text-white transition-colors ml-2" title="Accès Administrateur">
                     <i class="fa-solid fa-lock text-xl"></i>
                 </a>
             </div>
@@ -54,9 +54,9 @@
             </div>
         </div>
 
-        <h3 class="text-xl font-semibold mb-6 flex items-center gap-2"><i class="fa-solid fa-popcorn text-gray-400"></i> Au programme</h3>
+        <h3 class="text-xl font-semibold mb-6 flex items-center gap-2"><i class="fa-solid fa-database text-gray-400"></i> Données Extraites</h3>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             <a href="scraping_madiana_uniquement.html" class="glass-card group block p-6 rounded-2xl relative overflow-hidden">
                 <div class="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-xl group-hover:bg-red-500/30 transition-all"></div>
@@ -68,8 +68,8 @@
                     <i class="fa-solid fa-arrow-right ml-2 group-hover:translate-x-2 transition-transform"></i>
                 </div>
             </a>
-
-        </div>
+            
+            </div>
     </div>
 
     <script>
