@@ -4,7 +4,22 @@ import React, { useState, useEffect, useRef } from "react";
 
 const MapView = dynamic(() => import("../components/MapView"), { ssr: false });
 
-const API = "http://localhost:8000/api";
+const API = "/api";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mobile detection hook
+// ─────────────────────────────────────────────────────────────────────────────
+
+function useMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return isMobile;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared primitives
@@ -32,8 +47,9 @@ function PanelHeader({ children, onClose }) {
       <div style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}>{children}</div>
       <button onClick={onClose} style={{
         marginLeft: 8, background: "#eee", border: "none", borderRadius: "50%",
-        width: 28, height: 28, cursor: "pointer", fontSize: 16, color: "#555",
+        width: 36, height: 36, cursor: "pointer", fontSize: 18, color: "#555",
         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        touchAction: "manipulation",
       }}>×</button>
     </div>
   );
@@ -61,6 +77,7 @@ function SearchBar({ onSelectStop, onSelectLine, allLines = [], allStops = [] })
   const [query, setQuery] = useState("");
   const [results, setResults] = useState(null);
   const containerRef = useRef(null);
+  const isMobile = useMobile();
 
   useEffect(() => {
     const q = query.trim().toLowerCase();
@@ -97,8 +114,15 @@ function SearchBar({ onSelectStop, onSelectLine, allLines = [], allStops = [] })
 
   return (
     <div ref={containerRef} style={{
-      position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)",
-      zIndex: 1000, width: 430, maxWidth: "90vw", fontFamily: "system-ui, sans-serif",
+      position: "absolute",
+      top: isMobile ? 12 : 16,
+      left: isMobile ? 12 : "50%",
+      right: isMobile ? 12 : "auto",
+      transform: isMobile ? "none" : "translateX(-50%)",
+      zIndex: 1000,
+      width: isMobile ? "auto" : 430,
+      maxWidth: isMobile ? "none" : "90vw",
+      fontFamily: "system-ui, sans-serif",
     }}>
       {/* Input */}
       <div style={{ position: "relative" }}>
@@ -186,15 +210,46 @@ function DropdownRow({ onClick, left, primary }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function InfoPanel({ selectedStop, selectedLine, activeDirection, setActiveDirection, onClose, onSelectStop }) {
+  const isMobile = useMobile();
   if (!selectedStop && !selectedLine) return null;
+
+  const mobileStyle = {
+    position: "fixed",
+    bottom: 0, left: 0, right: 0,
+    zIndex: 1000,
+    background: "white",
+    borderRadius: "18px 18px 0 0",
+    boxShadow: "0 -4px 24px rgba(0,0,0,0.18)",
+    fontFamily: "system-ui, sans-serif",
+    overflow: "hidden",
+    maxHeight: "65vh",
+    display: "flex", flexDirection: "column",
+    // safe area for notched phones
+    paddingBottom: "env(safe-area-inset-bottom)",
+  };
+
+  const desktopStyle = {
+    position: "absolute",
+    bottom: 24, left: 16,
+    zIndex: 1000,
+    width: 340, maxWidth: "calc(100vw - 32px)",
+    background: "white",
+    borderRadius: 16,
+    boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+    fontFamily: "system-ui, sans-serif",
+    overflow: "hidden",
+    maxHeight: "62vh",
+    display: "flex", flexDirection: "column",
+  };
+
   return (
-    <div style={{
-      position: "absolute", bottom: 24, left: 16, zIndex: 1000,
-      width: 340, maxWidth: "calc(100vw - 32px)", background: "white",
-      borderRadius: 16, boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-      fontFamily: "system-ui, sans-serif", overflow: "hidden",
-      maxHeight: "62vh", display: "flex", flexDirection: "column",
-    }}>
+    <div style={isMobile ? mobileStyle : desktopStyle}>
+      {/* Drag handle on mobile */}
+      {isMobile && (
+        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px" }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: "#ddd" }} />
+        </div>
+      )}
       {selectedStop
         ? <StopPanel stop={selectedStop} onClose={onClose} />
         : <LinePanel line={selectedLine} activeDirection={activeDirection} setActiveDirection={setActiveDirection} onClose={onClose} onSelectStop={onSelectStop} />
@@ -203,20 +258,50 @@ function InfoPanel({ selectedStop, selectedLine, activeDirection, setActiveDirec
   );
 }
 
-// Stop panel: shows name + next departures
+// Stop panel: shows name + next departures filterable by direction
 function StopPanel({ stop, onClose }) {
   const [departures, setDepartures] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeDir, setActiveDir] = useState("all");
 
   useEffect(() => {
     setLoading(true);
     setDepartures(null);
+    setActiveDir("all");
     fetch(`${API}/stops/${stop.stop_id}/next-departures`)
       .then(r => r.json())
       .then(d => setDepartures(Array.isArray(d) ? d : []))
       .catch(() => setDepartures([]))
       .finally(() => setLoading(false));
   }, [stop.stop_id]);
+
+  // Build unique directions from loaded departures: { key, headsign, color, textColor, shortName }
+  const directions = React.useMemo(() => {
+    if (!departures) return [];
+    const seen = new Map();
+    for (const dep of departures) {
+      const key = `${dep.route_id}_${dep.direction_id}`;
+      if (!seen.has(key)) {
+        seen.set(key, {
+          key,
+          direction_id: dep.direction_id,
+          route_id: dep.route_id,
+          headsign: dep.trip_headsign || dep.route_long_name || `Direction ${dep.direction_id}`,
+          shortName: dep.route_short_name || dep.route_id,
+          color: dep.route_color,
+          textColor: dep.route_text_color,
+        });
+      }
+    }
+    return Array.from(seen.values());
+  }, [departures]);
+
+  const filtered = React.useMemo(() => {
+    if (!departures) return [];
+    if (activeDir === "all") return departures;
+    const [routeId, dirId] = activeDir.split("_");
+    return departures.filter(d => d.route_id === routeId && d.direction_id === dirId);
+  }, [departures, activeDir]);
 
   return (
     <>
@@ -227,13 +312,53 @@ function StopPanel({ stop, onClose }) {
           {stop.stop_desc && <div style={{ fontSize: 12, color: "#888" }}>{stop.stop_desc}</div>}
         </div>
       </PanelHeader>
+
+      {/* Direction filter tabs — shown only once departures are loaded and there are 2+ directions */}
+      {!loading && directions.length > 1 && (
+        <div style={{ display: "flex", overflowX: "auto", borderBottom: "1px solid #eee", background: "#fafafa", flexShrink: 0, gap: 0 }}>
+          {/* "Tous" tab */}
+          <button
+            onClick={() => setActiveDir("all")}
+            style={{
+              flexShrink: 0, padding: "9px 14px", border: "none", cursor: "pointer",
+              background: "none", fontSize: 12, fontWeight: activeDir === "all" ? 700 : 500,
+              color: activeDir === "all" ? "#0074D9" : "#666",
+              borderBottom: activeDir === "all" ? "2px solid #0074D9" : "2px solid transparent",
+            }}
+          >Tous</button>
+
+          {directions.map(dir => (
+            <button
+              key={dir.key}
+              onClick={() => setActiveDir(dir.key)}
+              title={dir.headsign}
+              style={{
+                flexShrink: 0, padding: "9px 10px", border: "none", cursor: "pointer",
+                background: "none", fontSize: 12,
+                fontWeight: activeDir === dir.key ? 700 : 500,
+                color: activeDir === dir.key ? "#0074D9" : "#666",
+                borderBottom: activeDir === dir.key ? "2px solid #0074D9" : "2px solid transparent",
+                display: "flex", alignItems: "center", gap: 6,
+              }}
+            >
+              <LineBadge name={dir.shortName} color={dir.color} textColor={dir.textColor} />
+              <span style={{ maxWidth: 90, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                ▶ {dir.headsign}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div style={{ overflowY: "auto", paddingBottom: 8 }}>
-        <SectionLabel>Prochains passages</SectionLabel>
+        <SectionLabel>
+          Prochains passages{activeDir !== "all" ? ` — ${directions.find(d => d.key === activeDir)?.headsign}` : ""}
+        </SectionLabel>
         {loading && <Muted>Chargement des passages…</Muted>}
-        {!loading && departures?.length === 0 && <Muted>Aucun passage prévu pour le moment.</Muted>}
-        {departures?.map((dep, i) => {
+        {!loading && filtered.length === 0 && <Muted>Aucun passage prévu pour le moment.</Muted>}
+        {filtered.map((dep, i) => {
           const mins = dep.minutes_until;
-          const timeLabel = mins === 0 ? "À l'arrêt" : mins < 60 ? `${mins} min` : dep.departure_time.slice(0, 5);
+          const timeLabel = mins === 0 ? "À l'arrêt" : mins < 60 ? `${mins} min` : dep.departure_time;
           const timeColor = mins <= 2 ? "#e74c3c" : mins <= 5 ? "#e67e22" : "#27ae60";
           return (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", borderBottom: "1px solid #f5f5f5" }}>
@@ -242,7 +367,7 @@ function StopPanel({ stop, onClose }) {
                 <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {dep.trip_headsign || dep.route_long_name}
                 </div>
-                <div style={{ fontSize: 11, color: "#888" }}>{dep.departure_time.slice(0, 5)}</div>
+                <div style={{ fontSize: 11, color: "#888" }}>{dep.departure_time}</div>
               </div>
               <div style={{ fontWeight: 700, fontSize: 14, minWidth: 52, textAlign: "right", color: timeColor }}>
                 {timeLabel}
