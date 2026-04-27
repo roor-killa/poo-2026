@@ -3,78 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineScrap | Accueil Public</title>
+    <title>CineScrap | Mobile Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <style>
-        body { background-color: #141414; color: #ffffff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden; }
+        body { background-color: #0f0f0f; color: #ffffff; font-family: 'Inter', sans-serif; }
         .glass-card {
-            background: rgba(30, 30, 30, 0.6);
-            backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: all 0.3s ease;
         }
-        .glass-card:hover {
-            transform: translateY(-5px);
-            border-color: #E50914; 
-            box-shadow: 0 10px 30px -10px rgba(229, 9, 20, 0.5);
-        }
+        .status-badge { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center p-4 pt-10">
+<body class="p-4 pb-20">
 
-    <div class="w-full max-w-6xl w-full h-full">
-        <header class="flex justify-between items-center py-6 border-b border-gray-800 mb-8">
-            <div class="flex items-center gap-3">
-                <i class="fa-solid fa-film text-3xl text-[#E50914]"></i>
-                <h2 class="text-2xl font-bold">Cine<span class="text-[#E50914]">Scrap</span> Dashboard</h2>
+    <div class="max-w-md mx-auto">
+        <header class="flex justify-between items-center mb-8 pt-2">
+            <div>
+                <h1 class="text-xl font-black tracking-tight">CINE<span class="text-red-600">SCRAP</span></h1>
+                <p class="text-[10px] text-gray-500 uppercase tracking-widest">Dashboard Martinique</p>
             </div>
-            <div class="flex items-center gap-4">
-                <span class="text-sm text-green-400 bg-green-400/10 px-3 py-1 rounded-full border border-green-400/20"><i class="fa-solid fa-circle-check mr-2"></i>Scraping Actif</span>
-                
-                <a href="admin.html" class="text-gray-500 hover:text-white transition-colors ml-2" title="Accès Administrateur">
-                    <i class="fa-solid fa-lock text-xl"></i>
-                </a>
+            <div class="flex items-center gap-3">
+                <div class="status-badge text-[10px] px-2 py-1 rounded-full flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Actif
+                </div>
+                <a href="admin.html" class="text-gray-400"><i class="fa-solid fa-lock text-lg"></i></a>
             </div>
         </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div class="glass-card p-6 rounded-xl border-l-4 border-l-[#E50914]">
-                <h3 class="text-gray-400 text-sm font-semibold uppercase tracking-wider mb-1">Cinémas Ciblés</h3>
-                <p class="text-3xl font-bold">Madiana</p>
+        <div class="grid grid-cols-2 gap-3 mb-8">
+            <div class="glass-card p-4 rounded-2xl">
+                <p class="text-[10px] text-gray-500 uppercase mb-1">Cinémas</p>
+                <p class="text-lg font-bold">Madiana</p>
             </div>
-            <div class="glass-card p-6 rounded-xl border-l-4 border-l-blue-500">
-                <h3 class="text-gray-400 text-sm font-semibold uppercase tracking-wider mb-1">Dernière Mise à Jour</h3>
-                <p class="text-3xl font-bold text-blue-400" id="current-time">Aujourd'hui</p>
+            <div class="glass-card p-4 rounded-2xl border-b-2 border-b-blue-500">
+                <p class="text-[10px] text-gray-500 uppercase mb-1">Serveur</p>
+                <p class="text-lg font-bold text-blue-400">En Ligne</p>
             </div>
-            <div class="glass-card p-6 rounded-xl border-l-4 border-l-green-500">
-                <h3 class="text-gray-400 text-sm font-semibold uppercase tracking-wider mb-1">Statut du Serveur</h3>
-                <p class="text-3xl font-bold text-green-400">En Ligne</p>
+            <div class="glass-card p-4 rounded-2xl col-span-2">
+                <p class="text-[10px] text-gray-500 uppercase mb-1">Dernière mise à jour</p>
+                <p class="text-sm font-medium text-gray-300" id="current-time">Chargement...</p>
             </div>
         </div>
 
-        <h3 class="text-xl font-semibold mb-6 flex items-center gap-2"><i class="fa-solid fa-database text-gray-400"></i> Données Extraites</h3>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            <a href="scraping_madiana_uniquement.html" class="glass-card group block p-6 rounded-2xl relative overflow-hidden">
-                <div class="absolute -right-4 -top-4 w-24 h-24 bg-red-500/10 rounded-full blur-xl group-hover:bg-red-500/30 transition-all"></div>
-                <i class="fa-solid fa-film text-4xl text-[#E50914] mb-4"></i>
-                <h4 class="text-xl font-bold mb-2 text-white">Séances Madiana</h4>
-                <p class="text-sm text-gray-400 mb-6">Consulter les horaires des films actuellement à l'affiche en Martinique.</p>
-                <div class="flex items-center text-[#E50914] font-semibold text-sm">
-                    <span>Voir les films</span>
-                    <i class="fa-solid fa-arrow-right ml-2 group-hover:translate-x-2 transition-transform"></i>
-                </div>
-            </a>
-            
+        <h3 class="text-sm font-semibold text-gray-400 mb-4 flex items-center gap-2">
+            <i class="fa-solid fa-layer-group text-red-600"></i> SERVICES DISPONIBLES
+        </h3>
+
+        <a href="scraping_madiana_uniquement.html" class="glass-card flex items-center p-4 rounded-2xl gap-4 mb-4 active:scale-95 transition-transform">
+            <div class="w-12 h-12 bg-red-600/20 rounded-xl flex items-center justify-center text-red-600">
+                <i class="fa-solid fa-film text-xl"></i>
             </div>
+            <div class="flex-1">
+                <h4 class="font-bold text-sm">Séances Madiana</h4>
+                <p class="text-[11px] text-gray-500">Voir les films à l'affiche</p>
+            </div>
+            <i class="fa-solid fa-chevron-right text-gray-700 text-xs"></i>
+        </a>
     </div>
 
     <script>
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        document.getElementById('current-time').textContent = new Date().toLocaleDateString('fr-FR', options);
+        document.getElementById('current-time').textContent = new Date().toLocaleDateString('fr-FR', {
+            weekday: 'long', day: 'numeric', month: 'long'
+        });
     </script>
 </body>
 </html>
