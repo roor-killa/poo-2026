@@ -2,6 +2,39 @@
 
 Programmation Orientee Objet Python 2026.
 
+## Deploiement Docker (Linux / VPS)
+
+Si vous voyez une erreur `KeyError: 'ContainerConfig'` avec `docker-compose==1.29.2`, c'est un probleme connu de **Docker Compose v1**. La solution est d'utiliser **Docker Compose v2** (plugin) et la commande `docker compose`.
+
+Sur Debian/Ubuntu (VPS):
+
+```bash
+# 1) Verifier les versions
+docker version
+docker-compose version || true
+docker compose version || true
+
+# 2) Installer Compose v2 (plugin)
+sudo apt-get update
+sudo apt-get install -y docker-compose-plugin
+
+# (optionnel) enlever l'ancien docker-compose v1 s'il est installe via apt
+sudo apt-get remove -y docker-compose || true
+
+# (optionnel) pour enlever l'avertissement "legacy builder", installer buildx
+sudo apt-get install -y docker-buildx-plugin
+
+# 3) Nettoyer les conteneurs/volumes de ce projet puis relancer
+cd scraper
+
+# IMPORTANT (VPS partage entre etudiants):
+# - utiliser un nom de projet unique pour isoler reseau/volumes: -p <votre_nom>
+# - choisir des ports hote differents dans .env (POSTGRES_PORT, FRONTEND_PORT, NGINX_PORT)
+
+docker compose -p <votre_nom> down --remove-orphans
+docker compose -p <votre_nom> up -d --build
+```
+
 ## Environnement Python centralise
 
 Le projet utilise un seul environnement virtuel a la racine du repo: .venv.

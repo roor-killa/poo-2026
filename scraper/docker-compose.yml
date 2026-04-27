@@ -2,7 +2,6 @@
 services:
   postgres:
     image: pgvector/pgvector:pg15
-    container_name: rci_group1_poo_postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-poo_db}
@@ -15,7 +14,7 @@ services:
       - ./db/04_rc_schema.sql:/docker-entrypoint-initdb.d/04_rc_schema.sql:ro
       - ./db/05_rag_schema.sql:/docker-entrypoint-initdb.d/05_rag_schema.sql:ro
     ports:
-      - "5431:5432"
+      - "${POSTGRES_PORT:-5431}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -27,10 +26,9 @@ services:
   rci_group1_next_frontend:
     build:
       context: ./rci_next_frontend
-    container_name: rci_group1_next_frontend
     restart: unless-stopped
     ports:
-      - "3011:3000"
+      - "${FRONTEND_PORT:-3011}:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -47,10 +45,9 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: rci_group1_nginx
     restart: unless-stopped
     ports:
-      - "81:80"
+      - "${NGINX_PORT:-81}:80"
     depends_on:
       - rci_group1_next_frontend
     volumes:
@@ -61,3 +58,5 @@ services:
 volumes:
   postgres_data:
     name: rci_group1_poo_postgres
+
+
