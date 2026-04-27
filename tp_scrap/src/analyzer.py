@@ -9,7 +9,7 @@ class DataAnalyzer:
 
     def show_statistics(self):
         if self.df.empty: return
-        print(f"\n📊 Analyse terminée : {len(self.df)} films prêts pour l'affichage.")
+        print(f"\n📊 Analyse terminée : {len(self.df)} films prêts.")
 
     def export_to_csv(self, filename: str = "donnees_globales"):
         output_dir = os.path.join("data", "processed")
@@ -22,13 +22,19 @@ class DataAnalyzer:
         
         cards_html = ""
         for _, row in self.df.iterrows():
-            image = row.get('image')
+            image = row.get('image') or "https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=400&h=600&auto=format&fit=crop"
             titre = row.get('titre', 'Film')
-            horaires = row.get('horaires', 'Séances non dispo')
+            horaires_brut = row.get('horaires', 'Non disponible')
             
-            # On utilise une image par défaut si le lien est vide
-            if not image:
-                image = "https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=400&h=600&auto=format&fit=crop"
+            # --- TRANSFORMATION DES HORAIRES EN PILULES INDIVIDUELLES ---
+            # On sépare le texte par le caractère "|" et on crée un petit badge pour chaque heure
+            horaires_pills = ""
+            if "|" in horaires_brut:
+                liste_heures = horaires_brut.split("|")
+                for h in liste_heures:
+                    horaires_pills += f'<span class="time-pill">{h.strip()}</span>'
+            else:
+                horaires_pills = f'<span class="time-pill">{horaires_brut}</span>'
 
             cards_html += f"""
             <div class="glass-card">
@@ -38,9 +44,8 @@ class DataAnalyzer:
                 </div>
                 <div class="card-content">
                     <h3>{titre}</h3>
-                    <div class="time-container">
-                        <i class="fas fa-clock"></i>
-                        <span>{horaires}</span>
+                    <div class="pills-container">
+                        {horaires_pills}
                     </div>
                 </div>
             </div>
@@ -57,117 +62,88 @@ class DataAnalyzer:
                 :root {{
                     --netflix-red: #E50914;
                     --bg-dark: #141414;
-                    --card-bg: rgba(45, 45, 45, 0.6);
+                    --glass: rgba(255, 255, 255, 0.03);
                 }}
                 
                 body {{
                     background-color: var(--bg-dark);
                     color: white;
-                    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                    font-family: 'Segoe UI', sans-serif;
                     margin: 0;
                     padding: 40px;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
                 }}
 
-                .container {{ max-width: 1200px; width: 100%; }}
+                .container {{ max-width: 1200px; margin: 0 auto; }}
 
-                .header {{
-                    display: flex;
-                    align-items: center;
-                    margin-bottom: 40px;
-                    gap: 15px;
-                }}
+                .header {{ display: flex; align-items: center; margin-bottom: 40px; gap: 20px; }}
+                .back-btn {{ color: white; background: rgba(255,255,255,0.1); padding: 12px 15px; border-radius: 50%; text-decoration: none; transition: 0.3s; }}
+                .back-btn:hover {{ background: var(--netflix-red); transform: scale(1.1); }}
 
-                .back-btn {{
-                    text-decoration: none;
-                    color: #fff;
-                    background: rgba(255,255,255,0.1);
-                    padding: 10px 15px;
-                    border-radius: 50%;
-                    transition: 0.3s;
-                }}
-                .back-btn:hover {{ background: var(--netflix-red); }}
-
-                h1 {{ font-size: 2.5rem; margin: 0; }}
+                h1 {{ font-size: 2.2rem; margin: 0; font-weight: 800; }}
                 h1 span {{ color: var(--netflix-red); }}
 
                 .grid {{
                     display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-                    gap: 30px;
+                    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                    gap: 35px;
                 }}
 
                 .glass-card {{
-                    background: var(--card-bg);
-                    backdrop-filter: blur(10px);
-                    border-radius: 12px;
+                    background: var(--glass);
+                    backdrop-filter: blur(15px);
+                    border-radius: 15px;
+                    border: 1px solid rgba(255, 255, 255, 0.08);
                     overflow: hidden;
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), box-shadow 0.4s ease;
+                    transition: 0.4s ease;
                 }}
 
                 .glass-card:hover {{
-                    transform: scale(1.05);
-                    box-shadow: 0 15px 35px rgba(0,0,0,0.5);
-                    border-color: var(--netflix-red);
+                    transform: translateY(-10px);
+                    border-color: rgba(229, 9, 20, 0.5);
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
                 }}
 
-                .img-container {{
-                    position: relative;
-                    height: 380px;
-                    overflow: hidden;
-                }}
-
-                .movie-img {{
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                }}
-
-                .overlay {{
-                    position: absolute;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
-                    height: 50%;
-                    background: linear-gradient(to top, rgba(20,20,20,0.9), transparent);
-                }}
+                .img-container {{ position: relative; height: 400px; }}
+                .movie-img {{ width: 100%; height: 100%; object-fit: cover; }}
+                .overlay {{ position: absolute; bottom: 0; left: 0; right: 0; height: 60%; background: linear-gradient(transparent, var(--bg-dark)); }}
 
                 .card-content {{ padding: 20px; }}
+                h3 {{ margin: 0 0 15px 0; font-size: 1.3rem; font-weight: 700; }}
 
-                h3 {{
-                    margin: 0 0 10px 0;
-                    font-size: 1.2rem;
-                    letter-spacing: 0.5px;
-                }}
-
-                .time-container {{
+                /* --- STYLE MODERNE DES HORAIRES --- */
+                .pills-container {{
                     display: flex;
-                    align-items: center;
+                    flex-wrap: wrap;
                     gap: 8px;
-                    color: #ff4d4d;
-                    font-weight: bold;
-                    font-size: 0.9rem;
-                    background: rgba(229, 9, 20, 0.1);
-                    padding: 8px 12px;
-                    border-radius: 6px;
-                    width: fit-content;
                 }}
 
-                .footer {{
-                    margin-top: 60px;
-                    color: #555;
-                    font-size: 0.8rem;
+                .time-pill {{
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    color: #fff;
+                    padding: 5px 12px;
+                    border-radius: 20px;
+                    font-size: 0.85rem;
+                    font-weight: 600;
+                    letter-spacing: 0.5px;
+                    transition: 0.3s;
                 }}
+
+                .glass-card:hover .time-pill {{
+                    border-color: var(--netflix-red);
+                    color: var(--netflix-red);
+                    background: rgba(229, 9, 20, 0.05);
+                    box-shadow: 0 0 10px rgba(229, 9, 20, 0.2);
+                }}
+
+                .footer {{ margin-top: 80px; text-align: center; color: #444; font-size: 0.8rem; }}
             </style>
         </head>
         <body>
             <div class="container">
                 <div class="header">
                     <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
-                    <h1>Séances <span>Madiana</span></h1>
+                    <h1>Ciné<span>Madiana</span></h1>
                 </div>
 
                 <div class="grid">
@@ -175,7 +151,7 @@ class DataAnalyzer:
                 </div>
 
                 <div class="footer">
-                    Généré par CineScrap Martinique • {time.strftime('%H:%M')}
+                    Mise à jour automatique • {time.strftime('%H:%M')}
                 </div>
             </div>
         </body>
@@ -184,4 +160,4 @@ class DataAnalyzer:
         with open(path, "w", encoding="utf-8") as f:
             f.write(full_html)
         
-        print(f"🌐 [Interface Netflix] La galerie est de nouveau superbe : {path}")
+        print(f"✨ Interface Modernisée générée : {path}")
