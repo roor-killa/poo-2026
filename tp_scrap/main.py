@@ -55,8 +55,8 @@ def main():
                 # --- RENDU 2 & 3 : CSV + HTML ---
                 nom_fichier = f"scraping_{site_cible}_uniquement"
                 analyste.export_to_csv(nom_fichier)
-                # MODIFICATION ICI : On nomme le HTML "index" pour la page d'accueil
-                analyste.export_to_html("index") 
+                # CORRECTION ICI : On utilise bien le nom_fichier pour générer la galerie de films
+                analyste.export_to_html(nom_fichier) 
         else:
             print(f"\n❌ Erreur : Le scraper pour '{site_cible}' n'existe pas.")
 
@@ -81,8 +81,8 @@ def main():
             # --- RENDU 2 & 3 : CSV + HTML ---
             nom_global = "scraping_final_martinique"
             analyste.export_to_csv(nom_global)
-            # MODIFICATION ICI : On nomme le HTML "index" pour la page d'accueil
-            analyste.export_to_html("index") 
+            # CORRECTION ICI : On utilise bien le nom_global
+            analyste.export_to_html(nom_global) 
             
         print("\n✅ PROGRAMME TERMINÉ AVEC SUCCÈS ! ✅")
 
