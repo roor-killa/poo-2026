@@ -58,7 +58,7 @@ def get_connection() -> psycopg2.extensions.connection:
     """
     return psycopg2.connect(
         host=os.getenv("POSTGRES_HOST", "localhost"),
-        port=int(os.getenv("POSTGRES_PORT", "5433")),
+        port=int(os.getenv("POSTGRES_PORT", "5432")),
         dbname=os.getenv("POSTGRES_DB", "langmatinitje"),
         user=os.getenv("POSTGRES_USER", "creole"),
         password=os.getenv("POSTGRES_PASSWORD", ""),
@@ -153,8 +153,8 @@ class DocumentLoader:
 # Helpers internes
 # -----------------------------------------------------------------------------
 
-_VALID_SOURCES   = {"bizouk", "kiprix", "madiana", "rci", "kreyol"}
-_VALID_DOC_TYPES = {"annonce", "produit", "film", "actualite", "mot"}
+_VALID_SOURCES   = {"bizouk", "kiprix", "madiana", "rci", "kreyol", "pawolotek", "potomitan"}
+_VALID_DOC_TYPES = {"annonce", "produit", "film", "actualite", "mot", "conte"}
 
 
 def _validate_and_prepare(doc: dict[str, Any]) -> dict[str, Any]:

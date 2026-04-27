@@ -19,7 +19,7 @@ class PawoloTekScraper(BaseScraper):
     def to_document(self, item: dict[str, Any]) -> dict[str, Any]:
         return {
             "source": "pawolotek",
-            "doc_type": item.get("categorie", "lexique"),
+            "doc_type": item.get("doc_type", "mot"),
             "title": item.get("titre", ""),
             "content": item.get("texte_creole", ""),
             "url": item.get("url"),

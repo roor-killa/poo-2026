@@ -1,3 +1,12 @@
+import { scrapeState } from '../../lib/scrapeState.js';
+
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
-  return Response.json({ running: false, articles: 0, pages_visited: 0 });
+  return Response.json({
+    running:       scrapeState.running,
+    articles:      scrapeState.articles,
+    pages_visited: scrapeState.pages_visited,
+    error:         scrapeState.error,
+  });
 }

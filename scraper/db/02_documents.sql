@@ -43,8 +43,8 @@ CREATE TABLE documents (
     -- Pour un modèle local (ex: all-MiniLM-L6-v2) : changer en vector(384)
     embedding    vector(1536),
 
-    CONSTRAINT chk_source   CHECK (source   IN ('bizouk','kiprix','madiana','rci','kreyol')),
-    CONSTRAINT chk_doc_type CHECK (doc_type IN ('annonce','produit','film','actualite','mot'))
+    CONSTRAINT chk_source   CHECK (source   IN ('bizouk','kiprix','madiana','rci','kreyol','pawolotek','potomitan')),
+    CONSTRAINT chk_doc_type CHECK (doc_type IN ('annonce','produit','film','actualite','mot','conte'))
 );
 
 COMMENT ON TABLE  documents           IS 'Documents agrégés de tous les scrapers — base RAG de Fèfèn';

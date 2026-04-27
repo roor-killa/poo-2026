@@ -9,6 +9,7 @@ Usage :
 """
 
 import argparse
+import inspect
 import logging
 import os
 import sys
@@ -84,7 +85,13 @@ def main() -> None:
         scraper_kwargs["categories"] = args.categories
 
     try:
-        scraper = ScraperManager.create_scraper(args.source, **scraper_kwargs)
+        scraper_class = ScraperManager._get_class(args.source)
+        accepted = inspect.signature(scraper_class.__init__).parameters
+        safe_kwargs = {k: v for k, v in scraper_kwargs.items() if k in accepted}
+        if len(safe_kwargs) < len(scraper_kwargs):
+            ignored = set(scraper_kwargs) - set(safe_kwargs)
+            logger.warning("Arguments ignorés pour %s : %s", args.source, ignored)
+        scraper = scraper_class(**safe_kwargs)
     except ValueError as e:
         logger.error(str(e))
         sys.exit(1)

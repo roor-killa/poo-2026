@@ -296,7 +296,7 @@ class RCIScraper(BaseScraper):
             Dictionnaire conforme au schéma `documents`.
         """
         title = item.get("title") or item.get("titre", "")
-        content = item.get("body") or item.get("resume") or item.get("content", "")
+        content = item.get("body") or item.get("resume") or item.get("content") or title
         published_at = item.get("date_publication") or item.get("date")
 
         return {

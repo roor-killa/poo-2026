@@ -43,15 +43,23 @@ class DataPipeline:
         cleaned: list[dict[str, Any]] = []
 
         for entry in raw_data:
-            url = entry.get("url", "")
-            if url in seen_urls:
+            url = entry.get("url") or ""
+            if url and url in seen_urls:
                 logger.debug("Doublon ignoré : %s", url)
                 continue
-            seen_urls.add(url)
+            if url:
+                seen_urls.add(url)
 
             entry = self._normalize_text_fields(entry)
 
-            if not entry.get("texte_creole") and not entry.get("titre"):
+            has_content = (
+                entry.get("texte_creole")
+                or entry.get("titre")
+                or entry.get("title")
+                or entry.get("content")
+                or entry.get("body")
+            )
+            if not has_content:
                 logger.debug("Entrée vide ignorée : %s", url)
                 continue
 

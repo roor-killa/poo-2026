@@ -56,6 +56,15 @@ class ScraperManager:
         return scraper_class(**kwargs)
 
     @staticmethod
+    def _get_class(source: str) -> type[BaseScraper]:
+        """Retourne la classe correspondant à la source, lève ValueError si inconnue."""
+        cls = _SCRAPER_REGISTRY.get(source.lower())
+        if not cls:
+            available = ", ".join(_SCRAPER_REGISTRY.keys())
+            raise ValueError(f"Source inconnue : '{source}'. Sources disponibles : {available}")
+        return cls
+
+    @staticmethod
     def available_sources() -> list[str]:
         """Retourne la liste des sources enregistrées.
 
