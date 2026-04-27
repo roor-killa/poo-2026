@@ -27,6 +27,13 @@ sudo apt-get install -y docker-buildx-plugin
 # 3) Nettoyer les conteneurs/volumes de ce projet puis relancer
 cd scraper
 
+# Ports attendus (hôte):
+# - PostgreSQL : 5111
+# - Frontend   : 8111
+# - Nginx      : 81
+#
+# Astuce: copier .env.example -> .env pour fixer ces ports et la config DB.
+
 # IMPORTANT (VPS partage entre etudiants):
 # - utiliser un nom de projet unique pour isoler reseau/volumes: -p <votre_nom>
 # - choisir des ports hote differents dans .env (POSTGRES_PORT, FRONTEND_PORT, NGINX_PORT)

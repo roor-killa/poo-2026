@@ -104,7 +104,7 @@ def import_to_db(entries: list[dict[str, Any]]) -> None:
     if not db_url:
         # Reconstruction depuis les variables individuelles
         host     = os.getenv("POSTGRES_HOST", "localhost")
-        port     = os.getenv("POSTGRES_PORT", "5433")
+        port     = os.getenv("POSTGRES_PORT", "5111")
         dbname   = os.getenv("POSTGRES_DB", "langmatinitje")
         user     = os.getenv("POSTGRES_USER", "creole")
         password = os.getenv("POSTGRES_PASSWORD", "")

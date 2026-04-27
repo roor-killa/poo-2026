@@ -37,7 +37,7 @@ logger = logging.getLogger("lang_matinitje")
 def build_db_url() -> str | None:
     """Construit l'URL PostgreSQL depuis les variables d'environnement."""
     host = os.getenv("POSTGRES_HOST", "localhost")
-    port = os.getenv("POSTGRES_PORT", "5432")
+    port = os.getenv("POSTGRES_PORT", "5111")
     db   = os.getenv("POSTGRES_DB", "langmatinitje")
     user = os.getenv("POSTGRES_USER", "creole")
     pwd  = os.getenv("POSTGRES_PASSWORD", "")
