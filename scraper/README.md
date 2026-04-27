@@ -42,6 +42,59 @@ docker compose -p <votre_nom> down --remove-orphans
 docker compose -p <votre_nom> up -d --build
 ```
 
+### Exposer sur un domaine HTTPS (ex: https://gombs.nasdy.be/)
+
+Le stack ci-dessus expose l'app en HTTP sur le VPS (nginx du projet). Pour servir un **domaine en HTTPS** sur le port 443, il faut un **reverse proxy** qui termine TLS et redirige vers votre nginx applicatif.
+
+#### Option A — Reverse proxy systeme (Nginx/Apache) + Let's Encrypt (root requis)
+
+1) Démarrer votre stack (en gardant nginx applicatif sur le port hôte 81) :
+
+```bash
+cd scraper
+docker compose -p <votre_nom> up -d --build
+curl -I http://127.0.0.1:81/
+```
+
+2) Sur le VPS, configurer le Nginx **système** pour proxyfier le domaine vers `127.0.0.1:81`.
+Exemple de vhost (à adapter):
+
+```nginx
+server {
+	listen 80;
+	server_name gombs.nasdy.be;
+
+	location / {
+		proxy_pass http://127.0.0.1:81;
+		proxy_set_header Host $host;
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Proto $scheme;
+	}
+}
+```
+
+3) Générer le certificat Let's Encrypt (ex: `certbot --nginx -d gombs.nasdy.be`).
+
+#### Option B — 100% Docker (Caddy) (pas de sudo, mais ports 80/443 doivent être libres)
+
+Si vous n'avez pas sudo mais que vous pouvez utiliser Docker, vous pouvez faire terminer TLS par un conteneur (Caddy) et le faire proxyfier vers le nginx applicatif (port 81 dans le réseau Docker).
+
+Prérequis:
+- Le DNS `gombs.nasdy.be` pointe vers l'IP du VPS.
+- Les ports 80 et 443 sont libres sur le VPS.
+
+Principe Caddyfile minimal:
+
+```caddy
+gombs.nasdy.be {
+	reverse_proxy nginx-81:81
+}
+```
+
+Ensuite démarrer Caddy sur le même réseau docker-compose (ou via un second compose qui join le réseau du projet).
+
+
 ## Environnement Python centralise
 
 Le projet utilise un seul environnement virtuel a la racine du repo: .venv.
