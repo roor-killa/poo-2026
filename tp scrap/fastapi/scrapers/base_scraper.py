@@ -1,40 +1,40 @@
 # scrapers/base_scraper.py
 
 from abc import ABC, abstractmethod
+import json
+import time
+from typing import Dict, List, Optional
+
 import requests
 from bs4 import BeautifulSoup
-from typing import Optional, Dict, List
-import time
-from datetime import datetime
-import json
 
 
 class BaseScraper(ABC):
     """
-    Classe abstraite de base pour tous les scrapers.
-    Contient les méthodes communes :
-    - gestion de session
-    - gestion du délai entre requêtes
-    - récupération de page
-    - sauvegarde JSON
+    Base class for scrapers.
+    Handles the HTTP session, request delay, page fetching, and JSON export.
     """
 
-    def __init__(self, base_url: str, delay: float = 1.0):
+    def __init__(self, base_url: str, delay: float = 1.0, timeout: int = 30, retries: int = 2):
         self.base_url = base_url
         self.delay = delay
+        self.timeout = timeout
+        self.retries = retries
         self.session = requests.Session()
 
-        # Identification claire du bot (important éthiquement)
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Educational Purpose) Université des Antilles'
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/147.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
         })
 
         self.last_request_time = None
 
     def _respect_delay(self):
-        """
-        Attend si nécessaire pour respecter le délai minimum entre requêtes.
-        """
         if self.last_request_time is not None:
             elapsed_time = time.time() - self.last_request_time
             if elapsed_time < self.delay:
@@ -42,46 +42,39 @@ class BaseScraper(ABC):
         self.last_request_time = time.time()
 
     def fetch_page(self, url: str) -> Optional[BeautifulSoup]:
-        """
-        Télécharge une page et retourne un objet BeautifulSoup.
-        """
-        try:
-            self._respect_delay()
-            response = self.session.get(url, timeout=10)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, "lxml")
-            return soup
+        last_error = None
 
-        except requests.exceptions.RequestException as e:
-            print(f"[ERREUR] Impossible de récupérer {url}")
-            print(f"Détail : {e}")
-            return None
+        for attempt in range(1, self.retries + 1):
+            try:
+                self._respect_delay()
+                response = self.session.get(url, timeout=self.timeout)
+                response.raise_for_status()
+                return BeautifulSoup(response.text, "lxml")
+
+            except requests.exceptions.RequestException as exc:
+                last_error = exc
+                if attempt < self.retries:
+                    time.sleep(2)
+
+        print(f"[ERREUR] Impossible de recuperer {url}")
+        print(f"Detail : {last_error}")
+        return None
 
     def save_to_json(self, data: List[Dict], filename: str):
-        """
-        Sauvegarde les données dans un fichier JSON.
-        """
         try:
-            with open(filename, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=4, ensure_ascii=False)
-            print(f"[OK] {len(data)} entrées sauvegardées dans {filename}")
-        except Exception as e:
-            print(f"[ERREUR] Sauvegarde impossible : {e}")
+            with open(filename, "w", encoding="utf-8") as file:
+                json.dump(data, file, indent=4, ensure_ascii=False)
+            print(f"[OK] {len(data)} entrees sauvegardees dans {filename}")
+        except Exception as exc:
+            print(f"[ERREUR] Sauvegarde impossible : {exc}")
 
     def close(self):
-        """Ferme la session HTTP"""
         self.session.close()
-
-    # ------------------------------------------------------------------ #
-    # Méthodes abstraites — à implémenter dans chaque scraper enfant      #
-    # ------------------------------------------------------------------ #
 
     @abstractmethod
     def parse(self, soup: BeautifulSoup) -> List[Dict]:
-        """Parse une page HTML et retourne une liste de dictionnaires."""
         pass
 
     @abstractmethod
     def scrape(self) -> List[Dict]:
-        """Méthode principale de scraping."""
         pass

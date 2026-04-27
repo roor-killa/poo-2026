@@ -85,7 +85,7 @@
 
   <div class="scrape-card">
     <h2 class="scrape-title">Lancer le scraper</h2>
-    <form method="POST" action="{{ route('dashboard.scrape') }}">
+    <form method="POST" action="/dashboard/scrape">
       @csrf
       <div class="form-row">
         <div class="form-group">

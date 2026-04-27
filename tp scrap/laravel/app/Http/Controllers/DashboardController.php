@@ -46,9 +46,9 @@ class DashboardController extends Controller
         ]);
 
         if ($response->successful()) {
-            return back()->with('success', 'Scraping Bizouk lance en arriere-plan.');
+            return redirect()->route('dashboard')->with('success', 'Scraping Bizouk lance en arriere-plan.');
         }
 
-        return back()->with('error', 'Impossible de lancer le scraper.');
+        return redirect()->route('dashboard')->with('error', 'Impossible de lancer le scraper.');
     }
 }
