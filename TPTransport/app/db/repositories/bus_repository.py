@@ -4,17 +4,24 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.db.models.bus import Bus
+from app.db.models.bus_status import BusStatus
 from app.db.repositories.base import BaseRepository
 
 
 class BusRepository(BaseRepository[Bus]):
     model = Bus
 
+    def _status_opts(self):
+        return selectinload(Bus.status).options(
+            selectinload(BusStatus.current_stop),
+            selectinload(BusStatus.next_stop),
+        )
+
     async def get_with_related(self, bus_id) -> Optional[Bus]:
         result = await self.session.execute(
             select(Bus)
             .where(Bus.id == bus_id)
-            .options(selectinload(Bus.status), selectinload(Bus.route))
+            .options(self._status_opts(), selectinload(Bus.route))
         )
         return result.scalar_one_or_none()
 
@@ -28,13 +35,13 @@ class BusRepository(BaseRepository[Bus]):
         result = await self.session.execute(
             select(Bus)
             .where(Bus.is_active.is_(True))
-            .options(selectinload(Bus.status), selectinload(Bus.route))
+            .options(self._status_opts(), selectinload(Bus.route))
         )
         return result.scalars().all()
 
     async def list_all(self) -> Sequence[Bus]:
         result = await self.session.execute(
-            select(Bus).options(selectinload(Bus.status), selectinload(Bus.route))
+            select(Bus).options(self._status_opts(), selectinload(Bus.route))
         )
         return result.scalars().all()
 

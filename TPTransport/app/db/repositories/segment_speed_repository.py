@@ -33,6 +33,31 @@ class SegmentSpeedRepository(BaseRepository[SegmentSpeed]):
         )
         return result.scalar_one_or_none()
 
+    async def get_all_for_route(
+        self,
+        route_id: UUID,
+        hour_bucket: int,
+        day_type: str,
+    ) -> dict[tuple[int, int], float]:
+        """Fetch all segment speeds for a route in one query.
+
+        Returns {(from_order, to_order): avg_speed_kmh} — missing segments
+        are absent from the dict; callers should fall back to DEFAULT_SPEED_KMH.
+        """
+        result = await self.session.execute(
+            select(SegmentSpeed).where(
+                SegmentSpeed.route_id == route_id,
+                SegmentSpeed.hour_bucket == hour_bucket,
+                SegmentSpeed.day_type == day_type,
+            )
+        )
+        rows = result.scalars().all()
+        return {
+            (r.from_stop_order, r.to_stop_order): r.avg_speed_kmh
+            for r in rows
+            if r.sample_count > 0
+        }
+
     async def get_speed_kmh(
         self,
         route_id: UUID,

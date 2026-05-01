@@ -44,24 +44,14 @@ def _route_detail(route) -> RouteDetailRead:
 
 @router.get(
     "",
-    response_model=list[RouteRead],
-    summary="List all active routes",
+    response_model=list[RouteDetailRead],
+    summary="List all active routes with their ordered stop sequences",
 )
 @limiter.limit(PUBLIC_RATE)
-async def list_routes(request: Request, session: SessionDep) -> list[RouteRead]:
+async def list_routes(request: Request, session: SessionDep) -> list[RouteDetailRead]:
     repo = RouteRepository(session)
     routes = await repo.list_active()
-    return [
-        RouteRead(
-            id=r.id,
-            name=r.name,
-            description=r.description,
-            is_active=r.is_active,
-            created_at=r.created_at,
-            updated_at=r.updated_at,
-        )
-        for r in routes
-    ]
+    return [_route_detail(r) for r in routes]
 
 
 @router.get(

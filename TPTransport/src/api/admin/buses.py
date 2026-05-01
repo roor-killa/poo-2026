@@ -127,11 +127,12 @@ async def update_bus(bus_id: UUID, body: BusUpdate, session: SessionDep) -> BusA
 @router.delete(
     "/{bus_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Deactivate a bus (soft delete)",
+    summary="Delete a bus and all its data",
 )
-async def deactivate_bus(bus_id: UUID, session: SessionDep) -> None:
+async def delete_bus(bus_id: UUID, session: SessionDep) -> None:
     repo = BusRepository(session)
-    bus = await repo.deactivate(bus_id)
+    bus = await repo.get(bus_id)
     if bus is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bus not found")
+    await repo.delete(bus)
     await session.commit()

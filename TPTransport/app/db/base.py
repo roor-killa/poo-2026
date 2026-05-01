@@ -8,7 +8,12 @@ DATABASE_URL = os.getenv(
     "postgresql+asyncpg://bus:bus@localhost:5432/bus_tracking",
 )
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_size=20,
+    max_overflow=20,
+)
 AsyncSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
     engine, expire_on_commit=False
 )

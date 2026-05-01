@@ -23,13 +23,33 @@ services:
     build: .
     restart: unless-stopped
     environment:
-      # In Docker, the DB host is the compose service name "db".
       DATABASE_URL: postgresql+asyncpg://bus:bus@db:5432/bus_tracking
     depends_on:
       db:
         condition: service_healthy
     expose:
       - "8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/public/routes', timeout=5)\""]
+      interval: 10s
+      timeout: 8s
+      retries: 6
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # Bus simulator — runs all 60 RTM Centre routes on startup
+  # Talks directly to the api container (private IP passes LocalhostGuard).
+  # Cleans up stale SIM buses on each start, deletes them on shutdown.
+  # ---------------------------------------------------------------------------
+  simulator:
+    image: python:3.11-slim
+    restart: unless-stopped
+    command: python /sim/simulate_buses.py --api http://api:8000 --num-buses 60
+    volumes:
+      - ./scripts/simulate_buses.py:/sim/simulate_buses.py:ro
+    depends_on:
+      api:
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   # Local dev TLS bootstrapper.

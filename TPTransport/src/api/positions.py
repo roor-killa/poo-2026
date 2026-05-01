@@ -36,7 +36,9 @@ async def ingest_position(
     token = authorization.removeprefix("Bearer ").strip()
 
     try:
-        return await PositionService(session).ingest(token, payload)
+        result = await PositionService(session).ingest(token, payload)
+        await session.commit()
+        return result
     except AuthError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

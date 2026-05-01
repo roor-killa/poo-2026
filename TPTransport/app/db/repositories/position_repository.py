@@ -32,3 +32,15 @@ class PositionRepository(BaseRepository[Position]):
             )
         )
         return result.scalar_one()
+
+    async def count_last_hour_all(self) -> dict[UUID, int]:
+        """Return {bus_id: count} for all buses in one query."""
+        from sqlalchemy import func
+
+        cutoff = datetime.now(tz=timezone.utc) - timedelta(hours=1)
+        result = await self.session.execute(
+            select(Position.bus_id, func.count().label("cnt"))
+            .where(Position.received_at >= cutoff)
+            .group_by(Position.bus_id)
+        )
+        return {row.bus_id: row.cnt for row in result}

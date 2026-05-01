@@ -24,6 +24,13 @@ def _to_read(stop: Stop) -> StopRead:
     return StopRead(id=stop.id, name=stop.name, lat=lat, lon=lon, created_at=stop.created_at)
 
 
+@router.get("", response_model=list[StopRead], summary="List all stops")
+async def list_stops(session: SessionDep) -> list[StopRead]:
+    repo = StopRepository(session)
+    stops = await repo.list()
+    return [_to_read(s) for s in stops]
+
+
 @router.post(
     "",
     response_model=StopRead,

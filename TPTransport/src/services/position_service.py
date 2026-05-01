@@ -27,6 +27,7 @@ from app.db.models.bus_status import BusStatus
 from app.db.models.position import Position
 from app.db.models.route_stop import RouteStop
 from app.db.models.stop import Stop
+from app.db.repositories.segment_speed_repository import DEFAULT_SPEED_KMH
 from src.repositories import (
     BusRepository,
     BusStatusRepository,
@@ -158,16 +159,19 @@ class PositionService:
             else "weekday"
         )
 
+        # Single batch query for all segment speeds on this route
+        speed_map = await self._speed_repo.get_all_for_route(
+            bus.route_id, hour_bucket, day_type
+        )
+
         eta_next_s, eta_terminus_s = await self._compute_etas(
             lat=payload.latitude,
             lon=payload.longitude,
             speed_kmh=payload.speed_kmh,
-            route_id=bus.route_id,
             route_stops=route_stops,
             next_stop=next_stop,
             next_order=next_order,
-            hour_bucket=hour_bucket,
-            day_type=day_type,
+            speed_map=speed_map,
         )
 
         # Step 6 — progress_pct
@@ -188,7 +192,7 @@ class PositionService:
             bus_id=bus.id,
             last_location=wkt,
             last_speed_kmh=payload.speed_kmh,
-            last_seen_at=datetime.now(tz=timezone.utc),
+            last_seen_at=datetime.now(timezone.utc).replace(tzinfo=None),
             is_online=True,
             current_stop_id=current_stop.id if current_stop else None,
             next_stop_id=next_stop.id if next_stop else None,
@@ -265,50 +269,35 @@ class PositionService:
         lat: float,
         lon: float,
         speed_kmh: float | None,
-        route_id: UUID,
         route_stops: list[RouteStop],
         next_stop: Stop | None,
         next_order: int | None,
-        hour_bucket: int,
-        day_type: str,
+        speed_map: dict[tuple[int, int], float],
     ) -> tuple[int | None, int]:
         """Return (eta_next_stop_s, eta_terminus_s).
 
-        eta_next_stop_s is None when at terminus; eta_terminus_s is 0 there.
+        Uses the pre-fetched speed_map instead of individual DB queries.
         """
         if next_stop is None:
-            # At terminus
             return None, 0
 
-        # Distance bus → next stop
         next_lat, next_lon = wkb_to_latlon(next_stop.location)
         d_to_next = haversine_m(lat, lon, next_lat, next_lon)
 
-        # Historical speed for current segment
-        # current segment: from the stop just before next_stop to next_stop
         from_order = (next_order - 1) if next_order and next_order > 1 else 1
-        v_avg = await self._speed_repo.get_speed_kmh(
-            route_id, from_order, next_order, hour_bucket, day_type
-        )
+        v_avg = speed_map.get((from_order, next_order), DEFAULT_SPEED_KMH)
 
         eta_next = compute_eta_next_stop(d_to_next, v_avg, speed_kmh)
 
-        # Remaining segments from next_stop to terminus
         remaining: list[SegmentInfo] = []
         for rs in route_stops:
             if rs.stop_order <= (next_order or 0):
                 continue
-            seg_v_avg = await self._speed_repo.get_speed_kmh(
-                route_id,
-                rs.stop_order - 1,
-                rs.stop_order,
-                hour_bucket,
-                day_type,
-            )
+            seg_v = speed_map.get((rs.stop_order - 1, rs.stop_order), DEFAULT_SPEED_KMH)
             remaining.append(
                 SegmentInfo(
                     distance_m=rs.distance_from_prev_m or 0.0,
-                    avg_speed_kmh=seg_v_avg,
+                    avg_speed_kmh=seg_v,
                 )
             )
 
@@ -394,7 +383,7 @@ class PositionService:
             bus_id=bus.id,
             last_location=wkt,
             last_speed_kmh=payload.speed_kmh,
-            last_seen_at=datetime.now(tz=timezone.utc),
+            last_seen_at=datetime.now(timezone.utc).replace(tzinfo=None),
             is_online=True,
         )
         await self._status_repo.upsert(status)

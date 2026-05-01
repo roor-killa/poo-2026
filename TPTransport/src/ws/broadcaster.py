@@ -122,11 +122,17 @@ class Broadcaster:
             await asyncio.sleep(BROADCAST_INTERVAL_S)
 
     async def _tick(self) -> None:
+        has_public = bool(self._public)
+        has_admin  = bool(self._admin)
+
         async with AsyncSessionLocal() as session:
             bus_reads = await BusService(session).list_all_statuses()
-            admin_extras = await self._build_admin_extras(session, bus_reads)
+            admin_extras = (
+                await self._build_admin_extras(session, bus_reads)
+                if has_admin else []
+            )
 
-        # Detect offline transitions and emit one-shot events
+        # Always track online transitions (state machine, no clients needed)
         offline_events: list[BusOfflineEvent] = []
         for b in bus_reads:
             was_online = self._prev_online.get(b.bus_id, True)
@@ -139,40 +145,41 @@ class Broadcaster:
                 )
             self._prev_online[b.bus_id] = b.is_online
 
-        # Build messages
-        snapshots = [_public_snapshot(b) for b in bus_reads]
-        public_msg = SnapshotMessage(
-            timestamp=datetime.now(tz=timezone.utc),
-            buses=snapshots,
-        )
+        # Build and send public snapshot only when someone is listening
+        if has_public:
+            snapshots   = [_public_snapshot(b) for b in bus_reads]
+            public_json = SnapshotMessage(
+                timestamp=datetime.now(tz=timezone.utc),
+                buses=snapshots,
+            ).model_dump_json()
+            await self._broadcast(self._public, public_json)
 
-        admin_snapshots = []
-        for b, extra in zip(bus_reads, admin_extras):
-            snap = _public_snapshot(b)
-            admin_snapshots.append(
-                BusSnapshotAdmin(
-                    **snap.model_dump(),
-                    api_token_masked=extra["token_masked"],
-                    is_active=extra["is_active"],
-                    positions_last_hour=extra["positions_last_hour"],
+        # Build and send admin snapshot only when someone is listening
+        if has_admin:
+            admin_snapshots = []
+            for b, extra in zip(bus_reads, admin_extras):
+                snap = _public_snapshot(b)
+                admin_snapshots.append(
+                    BusSnapshotAdmin(
+                        **snap.model_dump(),
+                        api_token_masked=extra["token_masked"],
+                        is_active=extra["is_active"],
+                        positions_last_hour=extra["positions_last_hour"],
+                    )
                 )
-            )
-        admin_msg = AdminSnapshotMessage(
-            timestamp=datetime.now(tz=timezone.utc),
-            buses=admin_snapshots,
-        )
+            admin_json = AdminSnapshotMessage(
+                timestamp=datetime.now(tz=timezone.utc),
+                buses=admin_snapshots,
+            ).model_dump_json()
+            await self._broadcast(self._admin, admin_json)
 
-        public_json = public_msg.model_dump_json()
-        admin_json = admin_msg.model_dump_json()
-
-        await self._broadcast(self._public, public_json)
-        await self._broadcast(self._admin, admin_json)
-
-        # Send offline events to both channels
+        # Offline events go to whoever is connected
         for evt in offline_events:
             evt_json = evt.model_dump_json()
-            await self._broadcast(self._public, evt_json)
-            await self._broadcast(self._admin, evt_json)
+            if has_public:
+                await self._broadcast(self._public, evt_json)
+            if has_admin:
+                await self._broadcast(self._admin, evt_json)
 
     async def _broadcast(self, clients: set[WebSocket], message: str) -> None:
         dead: list[WebSocket] = []
@@ -185,24 +192,23 @@ class Broadcaster:
             clients.discard(ws)
 
     async def _build_admin_extras(self, session: AsyncSession, bus_reads) -> list[dict]:
-        """Fetch per-bus admin fields (token, is_active, positions_last_hour)."""
+        """Fetch per-bus admin fields with two queries total (not N+1)."""
         bus_repo = BusRepository(session)
         pos_repo = PositionRepository(session)
-        buses = await bus_repo.list_all()
-        bus_map = {b.id: b for b in buses}
+        buses    = await bus_repo.list_all()
+        bus_map  = {b.id: b for b in buses}
+        counts   = await pos_repo.count_last_hour_all()  # single GROUP BY query
 
-        extras = []
-        for b in bus_reads:
-            orm = bus_map.get(b.bus_id)
-            count = await pos_repo.count_last_hour(b.bus_id) if orm else 0
-            extras.append(
-                {
-                    "token_masked": _mask_token(orm.api_token) if orm else "***",
-                    "is_active": orm.is_active if orm else False,
-                    "positions_last_hour": count,
-                }
-            )
-        return extras
+        return [
+            {
+                "token_masked": _mask_token(bus_map[b.bus_id].api_token)
+                    if b.bus_id in bus_map else "***",
+                "is_active": bus_map[b.bus_id].is_active
+                    if b.bus_id in bus_map else False,
+                "positions_last_hour": counts.get(b.bus_id, 0),
+            }
+            for b in bus_reads
+        ]
 
 
 # ---------------------------------------------------------------------------

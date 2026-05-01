@@ -126,10 +126,57 @@ Notes:
 
 ---
 
-## 7) Stop everything
+## 7) First-time GTFS data import
 
-- Stop API: `Ctrl+C` in the API terminal
-- Stop DB container:
+The database is empty on first boot. Run this **once** to load the 60 RTM Centre routes and 1373 stops:
+
+```powershell
+python scripts/import_gtfs.py
+```
+
+This talks to the admin API on `http://127.0.0.1:8080` (nginx admin port) and takes about 2–3 minutes. You should see lines like:
+
+```
+=== Import complete ===
+  Stops  : 1373 created  |  0 failed
+  Routes :   60 created  |  0 failed
+```
+
+You only need to run this once — the data persists in the `pgdata` Docker volume across restarts.
+
+---
+
+## 8) Bus simulator
+
+The simulator is a Docker service (`simulator`) that starts automatically with the stack. It creates one bus per RTM Centre route and drives each one along its stop sequence at ~25 km/h, posting a GPS fix every 5 seconds.
+
+**Nothing to do** — it starts when you run `docker-compose up -d --build`.
+
+To check it is running:
+
+```powershell
+docker-compose ps simulator
+docker-compose logs simulator --tail 20
+```
+
+To stop only the simulator without stopping the rest of the stack:
+
+```powershell
+docker-compose stop simulator
+```
+
+To restart it (e.g. after a crash or manual stop):
+
+```powershell
+docker-compose start simulator
+```
+
+---
+
+## 10) Stop everything
+
+- Stop API: `Ctrl+C` in the API terminal (Option B only)
+- Stop all Docker services:
 
 ```powershell
 docker-compose down

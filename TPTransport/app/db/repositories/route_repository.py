@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.db.models.route import Route
+from app.db.models.route_stop import RouteStop
 from app.db.repositories.base import BaseRepository
 
 
@@ -15,7 +16,7 @@ class RouteRepository(BaseRepository[Route]):
         result = await self.session.execute(
             select(Route)
             .where(Route.is_active.is_(True))
-            .options(selectinload(Route.route_stops))
+            .options(selectinload(Route.route_stops).selectinload(RouteStop.stop))
         )
         return result.scalars().all()
 
@@ -23,7 +24,7 @@ class RouteRepository(BaseRepository[Route]):
         result = await self.session.execute(
             select(Route)
             .where(Route.id == route_id)
-            .options(selectinload(Route.route_stops))
+            .options(selectinload(Route.route_stops).selectinload(RouteStop.stop))
         )
         return result.scalar_one_or_none()
 

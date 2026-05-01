@@ -493,13 +493,15 @@ function renderStopSequence(stops) {
   if (!ul) return;
   ul.innerHTML = '';
   for (const s of stops) {
+    const stopId = s.stop?.id ?? s.stop_id;
+    const stopName = s.stop?.name ?? stopId;
     const li = document.createElement('li');
-    li.dataset.stopId = s.stop_id;
+    li.dataset.stopId = stopId;
     li.dataset.order = s.stop_order;
     li.dataset.dist = s.distance_from_prev_m ?? '';
-    li.innerHTML = `<span>${s.stop_order}.</span> <span>${s.stop?.name ?? s.stop_id}</span>
+    li.innerHTML = `<span>${s.stop_order}.</span> <span>${stopName}</span>
       <input type="number" placeholder="dist (m)" value="${s.distance_from_prev_m ?? ''}" min="0" style="width:80px;margin-left:auto;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:2px 5px;border-radius:4px;font-size:.78rem"
-        onchange="li.dataset.dist=this.value" id="dist-${s.stop_id}">
+        onchange="this.closest('li').dataset.dist=this.value" id="dist-${stopId}">
       <button class="rm-stop" onclick="this.closest('li').remove(); renumberStops()">×</button>`;
     ul.appendChild(li);
   }
@@ -595,19 +597,8 @@ async function loadStopsCrud() {
   const [stopRes, routeRes] = await Promise.all([
     fetch('/api/v1/admin/stops'), fetch('/api/v1/admin/routes'),
   ]);
-  // stops endpoint doesn't exist on admin — use public for list
-  // Actually admin doesn't have GET /stops. We'll use public for now.
-  // Fetch from public /api/v1/public/routes and extract stops
-  // OR: we implement a stop list via routes.
-  // Use the routes to get all stops deduplicated.
+  const stops = await stopRes.json();
   const routes = await routeRes.json();
-  const stopMap = {};
-  for (const r of routes) {
-    for (const rs of r.route_stops ?? []) {
-      if (rs.stop && !stopMap[rs.stop.id]) stopMap[rs.stop.id] = rs.stop;
-    }
-  }
-  const stops = Object.values(stopMap);
   _stops = stops;
 
   // Route filter

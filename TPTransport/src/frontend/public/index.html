@@ -7,47 +7,102 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body { font-family: system-ui, sans-serif; background: #111; color: #eee; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+    body { font-family: system-ui, sans-serif; background: #0f1117; color: #e0e0e0; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 
     /* ── Top bar ── */
     #topbar {
-      display: flex; align-items: center; gap: 12px; padding: 8px 12px;
-      background: #1a1a2e; border-bottom: 1px solid #333; flex-shrink: 0; flex-wrap: wrap;
+      display: flex; align-items: center; gap: 10px; padding: 0 12px;
+      height: 44px; background: #1a1d27; border-bottom: 1px solid #2e3248; flex-shrink: 0;
     }
-    #topbar h1 { font-size: 1rem; font-weight: 600; white-space: nowrap; }
-    #line-select {
-      padding: 4px 8px; border-radius: 6px; border: 1px solid #555;
-      background: #2a2a3e; color: #eee; font-size: 0.85rem; min-width: 140px;
+    #topbar h1 { font-size: 0.95rem; font-weight: 700; white-space: nowrap; }
+    #toggle-sidebar {
+      background: none; border: none; color: #9a9fb8; font-size: 1.15rem;
+      cursor: pointer; padding: 4px 6px; border-radius: 5px; line-height: 1; flex-shrink: 0;
     }
+    #toggle-sidebar:hover { background: rgba(255,255,255,.08); color: #fff; }
     #ws-status {
-      margin-left: auto; font-size: 0.75rem; padding: 3px 8px;
-      border-radius: 12px; font-weight: 600;
+      margin-left: auto; font-size: 0.72rem; padding: 3px 9px;
+      border-radius: 12px; font-weight: 600; white-space: nowrap;
     }
-    .ws-ok  { background: #1a4a1a; color: #5f5; }
-    .ws-err { background: #4a1a1a; color: #f55; }
+    .ws-ok         { background: #1a4a1a; color: #5f5; }
+    .ws-err        { background: #4a1a1a; color: #f55; }
     .ws-connecting { background: #3a3a1a; color: #ff5; }
+
+    /* ── Shell ── */
+    #content { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 280px; background: #1a1d27; border-right: 1px solid #2e3248;
+      display: flex; flex-direction: column; flex-shrink: 0;
+      transition: width .2s ease; overflow: hidden;
+    }
+    #sidebar.collapsed { width: 0; }
+
+    #tab-bar { display: flex; flex-shrink: 0; border-bottom: 1px solid #2e3248; }
+    .tab-btn {
+      flex: 1; padding: 11px 6px; background: none; border: none;
+      color: #7a7f9a; font-size: 0.8rem; cursor: pointer;
+      border-bottom: 2px solid transparent; transition: .15s; font-weight: 600;
+    }
+    .tab-btn.active   { color: #4f8ef7; border-bottom-color: #4f8ef7; }
+    .tab-btn:hover:not(.active) { color: #ccc; }
+
+    .panel { flex: 1; overflow-y: auto; padding: 6px; display: none; }
+    .panel.active { display: block; }
+    .panel-empty { color: #555; font-size: 0.8rem; text-align: center; padding: 40px 12px; line-height: 1.8; }
+
+    /* ── Route cards ── */
+    .route-card {
+      display: flex; align-items: center; gap: 10px; padding: 9px 8px;
+      border-radius: 8px; cursor: pointer; margin-bottom: 3px; transition: background .15s;
+    }
+    .route-card:hover    { background: rgba(255,255,255,.06); }
+    .route-card.selected { background: rgba(79,142,247,.13); outline: 1px solid rgba(79,142,247,.3); }
+    .route-badge {
+      min-width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center;
+      justify-content: center; font-weight: 800; font-size: 0.7rem; color: #111;
+      flex-shrink: 0; padding: 0 4px; text-align: center;
+    }
+    .route-info   { flex: 1; min-width: 0; }
+    .route-name   { font-size: 0.82rem; font-weight: 600; color: #ddd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .route-desc   { font-size: 0.7rem; color: #666; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .route-live   { font-size: 0.68rem; color: #4caf50; margin-top: 2px; }
+    .route-none   { font-size: 0.68rem; color: #555;    margin-top: 2px; }
+
+    /* ── Bus cards ── */
+    .bus-card {
+      padding: 9px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 4px;
+      background: #1e2130; border: 1px solid #2a2d42; transition: background .15s;
+    }
+    .bus-card:hover { background: #252840; }
+    .bc-header  { display: flex; align-items: center; justify-content: space-between; }
+    .bc-code    { font-weight: 700; font-size: 0.85rem; color: #eee; }
+    .bc-status  { font-size: 0.7rem; font-weight: 600; }
+    .bc-status.online  { color: #4caf50; }
+    .bc-status.offline { color: #f44336; }
+    .bc-route   { font-size: 0.72rem; margin-top: 4px; font-weight: 600; }
+    .bc-next    { font-size: 0.7rem; color: #777; margin-top: 2px; }
 
     /* ── Map ── */
     #map { flex: 1; z-index: 0; }
 
-    /* ── Bus popup overrides ── */
+    /* ── Bus popup ── */
     .bus-popup h3 { margin-bottom: 6px; font-size: 0.95rem; }
     .bus-popup table { font-size: 0.82rem; border-collapse: collapse; width: 100%; }
     .bus-popup td { padding: 2px 6px; }
     .bus-popup tr:nth-child(even) td { background: rgba(0,0,0,.05); }
     .offline-badge {
-      display: inline-block; background: #c00; color: #fff;
-      font-size: 0.7rem; font-weight: 700; padding: 1px 6px;
-      border-radius: 4px; margin-left: 6px; vertical-align: middle;
+      display: inline-block; background: #c00; color: #fff; font-size: 0.7rem;
+      font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle;
     }
 
-    /* ── Stop arrivals panel ── */
+    /* ── Arrivals panel ── */
     #arrivals-panel {
       position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-      background: rgba(20,20,40,.92); backdrop-filter: blur(6px);
+      background: rgba(20,20,40,.95); backdrop-filter: blur(6px);
       border: 1px solid #444; border-radius: 10px; padding: 12px 16px;
-      min-width: 260px; max-width: 92vw; z-index: 500; display: none;
+      min-width: 260px; max-width: 88vw; z-index: 500; display: none;
     }
     #arrivals-panel h4 { margin-bottom: 8px; font-size: 0.9rem; }
     #arrivals-list { list-style: none; }
@@ -56,20 +111,35 @@
     #arrivals-panel button:hover { background: #333; }
 
     /* ── Mobile ── */
-    @media (max-width: 480px) {
-      #topbar h1 { font-size: 0.85rem; }
+    @media (max-width: 700px) {
+      #sidebar { position: absolute; top: 44px; left: 0; bottom: 0; z-index: 400; width: 0; box-shadow: 4px 0 16px rgba(0,0,0,.5); }
+      #sidebar.open { width: 280px; }
     }
   </style>
 </head>
 <body>
 
 <div id="topbar">
-  <h1>🚌 Suivi des Bus</h1>
-  <select id="line-select"><option value="">Toutes les lignes</option></select>
+  <button id="toggle-sidebar" onclick="toggleSidebar()" title="Afficher/masquer le panneau">☰</button>
+  <h1>🚌 Suivi des Bus — Martinique</h1>
   <span id="ws-status" class="ws-connecting">Connexion…</span>
 </div>
 
-<div id="map"></div>
+<div id="content">
+  <div id="sidebar">
+    <div id="tab-bar">
+      <button class="tab-btn active" id="tab-lignes" onclick="showTab('lignes')">🗺 Lignes</button>
+      <button class="tab-btn"        id="tab-bus"    onclick="showTab('bus')">🚌 Bus</button>
+    </div>
+    <div id="panel-lignes" class="panel active">
+      <div class="panel-empty">Chargement des lignes…</div>
+    </div>
+    <div id="panel-bus" class="panel">
+      <div class="panel-empty">En attente des données…</div>
+    </div>
+  </div>
+  <div id="map"></div>
+</div>
 
 <div id="arrivals-panel">
   <h4 id="arrivals-title">Prochains bus</h4>
@@ -79,34 +149,64 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// ── Map setup ──────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// MAP
+// ═══════════════════════════════════════════════════════════════════════════
 const map = L.map('map', { zoomControl: true }).setView([14.65, -61.00], 12);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   maxZoom: 19,
 }).addTo(map);
 
-// ── State ──────────────────────────────────────────────────────────────────
-const busMarkers  = {};   // bus_id → L.Marker
-const busData     = {};   // bus_id → last snapshot object
-const stopMarkers = {};   // stop_id → L.CircleMarker (loaded once)
-let   routes      = [];   // [{id, name}]
-let   filterRouteId = null;
+// ═══════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════
+const busMarkers        = {};   // bus_id   → L.Marker
+const busData           = {};   // bus_id   → normalised BusSnapshot
+const stopMarkers       = {};   // stop_id  → L.CircleMarker (selected route)
+const allRoutePolylines = {};   // route_id → L.Polyline (always visible, thin)
+let   allRoutes         = [];   // RouteDetailRead[] from API
+let   selectedRouteId   = null;
+const routeCache        = {};   // route_id → RouteDetailRead (populated from list)
 
-// ── Colour palette per route (cycles) ─────────────────────────────────────
-const PALETTE = ['#4fc3f7','#81c784','#ffb74d','#f06292','#ce93d8','#80cbc4','#fff176'];
+const stopCanvas = L.canvas({ padding: 0.5 });
+let   allStopsLayer = null;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COLOURS
+// ═══════════════════════════════════════════════════════════════════════════
+const PALETTE = [
+  '#4fc3f7','#81c784','#ffb74d','#f06292','#ce93d8',
+  '#80cbc4','#fff176','#ff8a65','#a5d6a7','#90caf9',
+  '#ef9a9a','#ffe082','#b39ddb','#80deea','#e6ee9c',
+];
 const routeColour = {};
-let   colourIdx = 0;
-function colourFor(routeId) {
-  if (!routeId) return '#aaa';
-  if (!routeColour[routeId]) routeColour[routeId] = PALETTE[colourIdx++ % PALETTE.length];
-  return routeColour[routeId];
+let   colourIdx   = 0;
+function colourFor(rid) {
+  if (!rid) return '#aaa';
+  if (!routeColour[rid]) routeColour[rid] = PALETTE[colourIdx++ % PALETTE.length];
+  return routeColour[rid];
 }
 
-// ── Bus icon factory ───────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════════════════════════════════════════
+function toggleSidebar() {
+  const s = document.getElementById('sidebar');
+  if (window.innerWidth <= 700) s.classList.toggle('open');
+  else                          s.classList.toggle('collapsed');
+  setTimeout(() => map.invalidateSize(), 220);
+}
+function showTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.id === 'tab-' + name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ICONS
+// ═══════════════════════════════════════════════════════════════════════════
 function busIcon(colour, online, heading) {
-  const rot = heading ?? 0;
-  const fill = online ? colour : '#888';
+  const rot = heading ?? 0, fill = online ? colour : '#888';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
     <g transform="rotate(${rot},16,16)">
       <rect x="6" y="4" width="20" height="24" rx="4" fill="${fill}" stroke="#fff" stroke-width="1.5"/>
@@ -115,137 +215,285 @@ function busIcon(colour, online, heading) {
       <rect x="9" y="18" width="14" height="6" rx="1" fill="rgba(255,255,255,.15)"/>
       <circle cx="10" cy="28" r="2.5" fill="#222"/>
       <circle cx="22" cy="28" r="2.5" fill="#222"/>
-    </g>
-  </svg>`;
-  return L.divIcon({
-    html: svg, className: '', iconSize: [32, 32], iconAnchor: [16, 16],
-  });
+    </g></svg>`;
+  return L.divIcon({ html: svg, className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
 }
 
-// ── Stop icon ─────────────────────────────────────────────────────────────
 function makeStopMarker(stop) {
   const m = L.circleMarker([stop.lat, stop.lon], {
-    radius: 5, color: '#fff', weight: 1.5, fillColor: '#1976d2', fillOpacity: 0.9,
+    radius: 7, color: '#fff', weight: 2, fillColor: '#1976d2', fillOpacity: 1,
   });
   m.bindTooltip(stop.name, { permanent: false, direction: 'top' });
   m.on('click', () => loadArrivals(stop.id, stop.name));
   return m;
 }
 
-// ── Smooth interpolation ───────────────────────────────────────────────────
-// Between two snapshots (5 s apart) we animate the marker position.
-const SNAPSHOT_INTERVAL = 5000;
-const interpState = {};   // bus_id → {fromLat, fromLon, toLat, toLon, startTime}
-
-function startInterp(busId, fromLat, fromLon, toLat, toLon) {
-  interpState[busId] = { fromLat, fromLon, toLat, toLon, startTime: performance.now() };
+function makeAllStopMarker(stop) {
+  const m = L.circleMarker([stop.lat, stop.lon], {
+    renderer: stopCanvas, radius: 3, color: '#1a237e', weight: 1,
+    fillColor: '#3f51b5', fillOpacity: 0.8,
+  });
+  m.bindTooltip(stop.name, { permanent: false, direction: 'top' });
+  m.on('click', () => loadArrivals(stop.id, stop.name));
+  return m;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SMOOTH INTERPOLATION
+// ═══════════════════════════════════════════════════════════════════════════
+const SNAPSHOT_INTERVAL = 5000;
+const interpState = {};
+function startInterp(id, fLat, fLon, tLat, tLon) {
+  interpState[id] = { fromLat: fLat, fromLon: fLon, toLat: tLat, toLon: tLon, startTime: performance.now() };
+}
 function lerp(a, b, t) { return a + (b - a) * t; }
 
-function animationFrame() {
+(function animLoop() {
   const now = performance.now();
-  for (const [busId, s] of Object.entries(interpState)) {
-    const marker = busMarkers[busId];
-    if (!marker) { delete interpState[busId]; continue; }
+  for (const [id, s] of Object.entries(interpState)) {
+    const m = busMarkers[id];
+    if (!m) { delete interpState[id]; continue; }
     const t = Math.min(1, (now - s.startTime) / SNAPSHOT_INTERVAL);
-    marker.setLatLng([lerp(s.fromLat, s.toLat, t), lerp(s.fromLon, s.toLon, t)]);
+    m.setLatLng([lerp(s.fromLat, s.toLat, t), lerp(s.fromLon, s.toLon, t)]);
   }
-  requestAnimationFrame(animationFrame);
-}
-requestAnimationFrame(animationFrame);
+  requestAnimationFrame(animLoop);
+})();
 
-// ── Snapshot handler ───────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// ROUTE SELECTION
+// ═══════════════════════════════════════════════════════════════════════════
+function selectRoute(routeId) {
+  // Deselect if clicking the already-selected route
+  if (selectedRouteId === routeId) { clearSelectedRoute(); return; }
+
+  // Un-highlight previous selection
+  if (selectedRouteId && allRoutePolylines[selectedRouteId]) {
+    allRoutePolylines[selectedRouteId].setStyle({ weight: 2, opacity: 0.5 });
+  }
+  clearStopMarkers();
+  selectedRouteId = routeId;
+
+  // Highlight the new selection
+  const pl = allRoutePolylines[routeId];
+  if (pl) {
+    pl.setStyle({ weight: 5, opacity: 0.9 });
+    pl.bringToFront();
+    map.fitBounds(pl.getBounds(), { padding: [50, 50] });
+  }
+
+  // Add large stop markers for this route (data already in routeCache)
+  const detail = routeCache[routeId];
+  if (detail) {
+    const sorted = [...detail.route_stops].sort((a, b) => a.stop_order - b.stop_order);
+    for (const rs of sorted) {
+      const m = makeStopMarker(rs.stop);
+      m.addTo(map);
+      stopMarkers[rs.stop.id] = m;
+    }
+  }
+
+  _busListFingerprint = '';   // force rebuild after filter change
+  updateBusVisibility();
+  renderRouteCards();
+  renderBusList();
+}
+
+function clearSelectedRoute() {
+  if (selectedRouteId && allRoutePolylines[selectedRouteId]) {
+    allRoutePolylines[selectedRouteId].setStyle({ weight: 2, opacity: 0.5 });
+  }
+  selectedRouteId = null;
+  _busListFingerprint = '';   // force bus list rebuild after filter change
+  clearStopMarkers();
+  updateBusVisibility();
+  renderRouteCards();
+  renderBusList();
+}
+
+function clearStopMarkers() {
+  for (const m of Object.values(stopMarkers)) map.removeLayer(m);
+  for (const k in stopMarkers) delete stopMarkers[k];
+}
+
+function updateBusVisibility() {
+  for (const [id, b] of Object.entries(busData)) {
+    const m = busMarkers[id];
+    if (!m) continue;
+    const show = !selectedRouteId || b.route_id === selectedRouteId;
+    if  (show && !map.hasLayer(m)) m.addTo(map);
+    if (!show &&  map.hasLayer(m)) map.removeLayer(m);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ROUTE CARDS  — built once, live-count badge updated in place each snapshot
+// ═══════════════════════════════════════════════════════════════════════════
+const routeCardEls = {};   // route_id → { el, liveEl }
+
+function renderRouteCards() {
+  const panel = document.getElementById('panel-lignes');
+  if (!allRoutes.length) { panel.innerHTML = '<div class="panel-empty">Aucune ligne disponible</div>'; return; }
+
+  const liveCounts = {};
+  for (const b of Object.values(busData)) {
+    if (b.is_online && b.route_id) liveCounts[b.route_id] = (liveCounts[b.route_id] || 0) + 1;
+  }
+
+  for (const r of allRoutes) {
+    const count = liveCounts[r.id] || 0;
+    if (routeCardEls[r.id]) {
+      // Card already exists — just update the live count badge and selection state
+      const { el, liveEl } = routeCardEls[r.id];
+      el.className = 'route-card' + (r.id === selectedRouteId ? ' selected' : '');
+      liveEl.className = count ? 'route-live' : 'route-none';
+      liveEl.textContent = count ? `● ${count} bus en ligne` : `${r.route_stops?.length ?? 0} arrêts`;
+      continue;
+    }
+    // First render — create the card
+    const colour = colourFor(r.id);
+    const div    = document.createElement('div');
+    div.className = 'route-card' + (r.id === selectedRouteId ? ' selected' : '');
+    const liveEl = document.createElement('div');
+    liveEl.className = count ? 'route-live' : 'route-none';
+    liveEl.textContent = count ? `● ${count} bus en ligne` : `${r.route_stops?.length ?? 0} arrêts`;
+    div.innerHTML = `
+      <div class="route-badge" style="background:${colour}">${r.name}</div>
+      <div class="route-info">
+        <div class="route-name">${r.description || r.name}</div>
+      </div>`;
+    div.querySelector('.route-info').appendChild(liveEl);
+    div.addEventListener('click', () => selectRoute(r.id));
+    panel.appendChild(div);
+    routeCardEls[r.id] = { el: div, liveEl };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BUS LIST  — skips full rebuild when only positions/ETAs changed
+// ═══════════════════════════════════════════════════════════════════════════
+let _busListFingerprint = '';
+
+function _busFingerprint(buses) {
+  // Captures everything that changes the list structure or visible text
+  return buses.map(b =>
+    `${b.bus_id}|${b.is_online}|${b.next_stop?.name ?? ''}|${b.next_stop?.eta_seconds ?? ''}|${b.current_stop?.name ?? ''}`
+  ).join(',');
+}
+
+function renderBusList() {
+  const panel = document.getElementById('panel-bus');
+  let buses = Object.values(busData);
+  if (selectedRouteId) buses = buses.filter(b => b.route_id === selectedRouteId);
+  buses.sort((a, b) => { if (a.is_online !== b.is_online) return a.is_online ? -1 : 1; return a.code.localeCompare(b.code); });
+
+  const fp = _busFingerprint(buses);
+  if (fp === _busListFingerprint) return;   // nothing changed — skip DOM work
+  _busListFingerprint = fp;
+
+  panel.innerHTML = '';
+  if (!buses.length) {
+    panel.innerHTML = `<div class="panel-empty">${selectedRouteId ? 'Aucun bus sur cette ligne' : 'Aucun bus actif'}<br><small>Lancez le simulateur :<br>python scripts/simulate_buses.py</small></div>`;
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  for (const b of buses) {
+    const colour  = colourFor(b.route_id);
+    const nextTxt = b.next_stop ? `→ ${b.next_stop.name} — ${fmtEta(b.next_stop.eta_seconds)}`
+                  : b.current_stop ? `@ ${b.current_stop.name}` : '—';
+    const div = document.createElement('div');
+    div.className = 'bus-card';
+    div.innerHTML = `
+      <div class="bc-header">
+        <span class="bc-code">${b.code}</span>
+        <span class="bc-status ${b.is_online ? 'online' : 'offline'}">${b.is_online ? '● En ligne' : '● Hors ligne'}</span>
+      </div>
+      <div class="bc-route" style="color:${colour}">${b.route_name ?? 'Sans ligne'}</div>
+      <div class="bc-next">${nextTxt}</div>`;
+    div.addEventListener('click', () => { if (b.lat && b.lon) { map.flyTo([b.lat, b.lon], 16); busMarkers[b.bus_id]?.openPopup(); } });
+    frag.appendChild(div);
+  }
+  panel.appendChild(frag);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SNAPSHOT HANDLER  (called by both WS and the initial HTTP load)
+// ═══════════════════════════════════════════════════════════════════════════
 function applySnapshot(msg) {
-  const activeBusIds = new Set();
+  const activeIds = new Set(msg.buses.map(b => b.bus_id));
 
   for (const bus of msg.buses) {
-    if (!bus.lat || !bus.lon) continue;
-    if (filterRouteId && bus.route_id !== filterRouteId) continue;
-
-    activeBusIds.add(bus.bus_id);
-    const colour = colourFor(bus.route_id);
-    const prev = busData[bus.bus_id];
     busData[bus.bus_id] = bus;
+    if (!bus.lat || !bus.lon) continue;
+
+    const colour     = colourFor(bus.route_id);
+    const shouldShow = !selectedRouteId || bus.route_id === selectedRouteId;
 
     if (busMarkers[bus.bus_id]) {
-      const m = busMarkers[bus.bus_id];
-      // Start position interpolation from previous known position
-      const prevPos = m.getLatLng();
-      startInterp(bus.bus_id, prevPos.lat, prevPos.lng, bus.lat, bus.lon);
+      const m    = busMarkers[bus.bus_id];
+      const prev = m.getLatLng();
+      startInterp(bus.bus_id, prev.lat, prev.lng, bus.lat, bus.lon);
       m.setIcon(busIcon(colour, bus.is_online, bus.heading));
       m.setPopupContent(buildPopup(bus));
+      if  (shouldShow && !map.hasLayer(m)) m.addTo(map);
+      if (!shouldShow &&  map.hasLayer(m)) map.removeLayer(m);
     } else {
       const m = L.marker([bus.lat, bus.lon], { icon: busIcon(colour, bus.is_online, bus.heading) });
       m.bindPopup(buildPopup(bus), { maxWidth: 240 });
-      m.addTo(map);
+      if (shouldShow) m.addTo(map);
       busMarkers[bus.bus_id] = m;
     }
   }
 
-  // Remove markers for buses no longer in the snapshot
-  for (const [busId, m] of Object.entries(busMarkers)) {
-    if (!activeBusIds.has(busId)) {
-      map.removeLayer(m);
-      delete busMarkers[busId];
-      delete interpState[busId];
-    }
+  for (const id of Object.keys(busMarkers)) {
+    if (!activeIds.has(id)) { map.removeLayer(busMarkers[id]); delete busMarkers[id]; delete interpState[id]; }
   }
+  for (const id of Object.keys(busData)) {
+    if (!activeIds.has(id)) delete busData[id];
+  }
+
+  renderRouteCards();
+  renderBusList();
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// POPUP
+// ═══════════════════════════════════════════════════════════════════════════
 function buildPopup(bus) {
-  const offlineBadge = !bus.is_online
-    ? `<span class="offline-badge">${bus.offline_since_s != null ? 'Hors ligne ' + fmtDuration(bus.offline_since_s) : 'Hors ligne'}</span>`
-    : '';
-  const nextStop = bus.next_stop
-    ? `${bus.next_stop.name} — <b>${fmtEta(bus.next_stop.eta_seconds)}</b>`
-    : (bus.current_stop ? `À l'arrêt: ${bus.current_stop.name}` : '—');
-  const terminus = bus.terminus_eta_s != null ? fmtEta(bus.terminus_eta_s) : '—';
-  const progress = bus.progress_pct != null ? bus.progress_pct.toFixed(1) + '%' : '—';
-
+  const badge    = !bus.is_online ? `<span class="offline-badge">${bus.offline_since_s != null ? 'Hors ligne ' + fmtDur(bus.offline_since_s) : 'Hors ligne'}</span>` : '';
+  const nextStop = bus.next_stop    ? `${bus.next_stop.name} — <b>${fmtEta(bus.next_stop.eta_seconds)}</b>`
+                 : bus.current_stop ? `À l'arrêt: ${bus.current_stop.name}` : '—';
   return `<div class="bus-popup">
-    <h3>${bus.code}${offlineBadge}</h3>
+    <h3>${bus.code}${badge}</h3>
     <table>
       <tr><td>Ligne</td><td>${bus.route_name ?? '—'}</td></tr>
       <tr><td>Vitesse</td><td>${bus.speed_kmh != null ? bus.speed_kmh.toFixed(1) + ' km/h' : '—'}</td></tr>
       <tr><td>Prochain arrêt</td><td>${nextStop}</td></tr>
-      <tr><td>Terminus</td><td>${terminus}</td></tr>
-      <tr><td>Progression</td><td>${progress}</td></tr>
+      <tr><td>Terminus</td><td>${bus.terminus_eta_s != null ? fmtEta(bus.terminus_eta_s) : '—'}</td></tr>
+      <tr><td>Progression</td><td>${bus.progress_pct != null ? bus.progress_pct.toFixed(1) + '%' : '—'}</td></tr>
     </table>
   </div>`;
 }
 
-function fmtEta(s) {
-  if (s == null) return '—';
-  if (s < 60)  return s + ' s';
-  return Math.round(s / 60) + ' min';
-}
-function fmtDuration(s) {
-  if (s < 60) return s + 's';
-  return Math.floor(s / 60) + 'min';
-}
-
-// ── Offline event handler ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// OFFLINE EVENT
+// ═══════════════════════════════════════════════════════════════════════════
 function applyOfflineEvent(evt) {
-  const m = busMarkers[evt.bus_id];
-  if (!m) return;
-  const b = busData[evt.bus_id];
-  if (b) {
-    b.is_online = false;
-    m.setIcon(busIcon(colourFor(b.route_id), false, b.heading));
-    m.setPopupContent(buildPopup(b));
-  }
+  const b = busData[evt.bus_id], m = busMarkers[evt.bus_id];
+  if (b) b.is_online = false;
+  if (m && b) { m.setIcon(busIcon(colourFor(b.route_id), false, b.heading)); m.setPopupContent(buildPopup(b)); }
 }
 
-// ── Stop arrivals ─────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// ARRIVALS
+// ═══════════════════════════════════════════════════════════════════════════
 async function loadArrivals(stopId, stopName) {
   document.getElementById('arrivals-title').textContent = stopName;
-  document.getElementById('arrivals-list').innerHTML = '<li>Chargement…</li>';
+  document.getElementById('arrivals-list').innerHTML    = '<li>Chargement…</li>';
   document.getElementById('arrivals-panel').style.display = 'block';
   try {
-    const res = await fetch(`/api/v1/public/stops/${stopId}/arrivals`);
-    const data = await res.json();
-    const ul = document.getElementById('arrivals-list');
+    const data = await fetch(`/api/v1/public/stops/${stopId}/arrivals`).then(r => r.json());
+    const ul   = document.getElementById('arrivals-list');
     ul.innerHTML = '';
     if (!data.length) { ul.innerHTML = '<li>Aucun bus prévu</li>'; return; }
     for (const a of data) {
@@ -253,63 +501,110 @@ async function loadArrivals(stopId, stopName) {
       li.innerHTML = `<b>${a.bus_code}</b> (${a.route?.name ?? '—'}) — ${fmtEta(a.eta_seconds)}${a.is_online ? '' : ' <span class="offline-badge">Hors ligne</span>'}`;
       ul.appendChild(li);
     }
-  } catch (e) {
-    document.getElementById('arrivals-list').innerHTML = '<li>Erreur de chargement</li>';
-  }
+  } catch { document.getElementById('arrivals-list').innerHTML = '<li>Erreur de chargement</li>'; }
 }
 
-// ── Route filter ──────────────────────────────────────────────────────────
-async function loadRoutes() {
+// ═══════════════════════════════════════════════════════════════════════════
+// FORMATTERS
+// ═══════════════════════════════════════════════════════════════════════════
+function fmtEta(s) { if (s == null) return '—'; return s < 60 ? s + ' s' : Math.round(s / 60) + ' min'; }
+function fmtDur(s) { return s < 60 ? s + 's' : Math.floor(s / 60) + 'min'; }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ALL STOPS LAYER  (small dots, zoom ≥ 13)
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadAllStops() {
   try {
-    const res = await fetch('/api/v1/public/routes');
-    routes = await res.json();
-    const sel = document.getElementById('line-select');
-    for (const r of routes) {
-      const opt = document.createElement('option');
-      opt.value = r.id; opt.textContent = r.name;
-      sel.appendChild(opt);
-    }
-  } catch (e) { /* silently ignore */ }
+    const stops = await fetch('/api/v1/public/stops').then(r => r.json());
+    allStopsLayer = L.layerGroup();
+    for (const s of stops) makeAllStopMarker(s).addTo(allStopsLayer);
+    if (map.getZoom() >= 13) allStopsLayer.addTo(map);
+  } catch { /* silent */ }
 }
-
-document.getElementById('line-select').addEventListener('change', e => {
-  filterRouteId = e.target.value || null;
-  // Re-render markers
-  for (const [busId, b] of Object.entries(busData)) {
-    const m = busMarkers[busId];
-    if (!m) continue;
-    if (filterRouteId && b.route_id !== filterRouteId) {
-      map.removeLayer(m);
-    } else if (!map.hasLayer(m)) {
-      m.addTo(map);
-    }
-  }
+map.on('zoomend', () => {
+  if (!allStopsLayer) return;
+  const show = map.getZoom() >= 13;
+  if  (show && !map.hasLayer(allStopsLayer)) allStopsLayer.addTo(map);
+  if (!show &&  map.hasLayer(allStopsLayer)) map.removeLayer(allStopsLayer);
 });
 
-// ── WebSocket ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// ROUTES  — draws all polylines immediately, populates routeCache
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadRoutes() {
+  try {
+    const routes = await fetch('/api/v1/public/routes').then(r => r.json());
+    allRoutes = routes;
+
+    for (const r of routes) {
+      routeCache[r.id] = r;
+      const coords = [...(r.route_stops || [])]
+        .sort((a, b) => a.stop_order - b.stop_order)
+        .map(rs => [rs.stop.lat, rs.stop.lon]);
+      if (coords.length >= 2) {
+        allRoutePolylines[r.id] = L.polyline(coords, {
+          color: colourFor(r.id), weight: 2, opacity: 0.5,
+        }).addTo(map);
+      }
+    }
+    renderRouteCards();
+  } catch { /* silent */ }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INITIAL BUS LOAD  (HTTP snapshot before WS connects)
+// ═══════════════════════════════════════════════════════════════════════════
+function normalizeBus(b) {
+  return {
+    bus_id:          b.bus_id,
+    code:            b.code,
+    route_id:        b.route?.id   ?? null,
+    route_name:      b.route?.name ?? null,
+    lat:             b.location?.lat ?? null,
+    lon:             b.location?.lon ?? null,
+    speed_kmh:       b.speed_kmh,
+    heading:         null,
+    is_online:       b.is_online,
+    offline_since_s: b.offline_since_s,
+    current_stop:    b.current_stop,
+    next_stop:       b.next_stop,
+    terminus_eta_s:  b.terminus?.eta_seconds ?? null,
+    progress_pct:    b.progress_pct,
+  };
+}
+
+async function loadInitialBuses() {
+  try {
+    const buses = await fetch('/api/v1/public/buses').then(r => r.json());
+    if (buses.length) applySnapshot({ buses: buses.map(normalizeBus) });
+  } catch { /* silent */ }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WEBSOCKET
+// ═══════════════════════════════════════════════════════════════════════════
 let ws;
 const statusEl = document.getElementById('ws-status');
-
 function connect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws/buses`);
   statusEl.className = 'ws-connecting'; statusEl.textContent = 'Connexion…';
-
-  ws.onopen = () => { statusEl.className = 'ws-ok'; statusEl.textContent = '● En ligne'; };
-  ws.onclose = () => {
-    statusEl.className = 'ws-err'; statusEl.textContent = '● Déconnecté';
-    setTimeout(connect, 3000);
-  };
+  ws.onopen  = () => { statusEl.className = 'ws-ok';  statusEl.textContent = '● En ligne'; };
+  ws.onclose = () => { statusEl.className = 'ws-err'; statusEl.textContent = '● Déconnecté'; setTimeout(connect, 3000); };
   ws.onerror = () => ws.close();
   ws.onmessage = e => {
     const msg = JSON.parse(e.data);
-    if (msg.type === 'snapshot')   applySnapshot(msg);
+    if (msg.type === 'snapshot')    applySnapshot(msg);
     if (msg.type === 'bus_offline') applyOfflineEvent(msg);
   };
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════════════
+loadAllStops();
 loadRoutes();
+loadInitialBuses();
 connect();
 </script>
 </body>
